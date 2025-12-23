@@ -1,0 +1,23 @@
+# ---------------------------------------------------------------------------
+# system: ModelArchivist
+# file: config.toml
+# purpose: Application configuration
+# ---------------------------------------------------------------------------
+
+[paths]
+comfy_root = "c:/Users/marko/Development/ModelLibrarian/CUI"
+inactive_root = "c:/Users/marko/Development/ModelLibrarian/CUI_inactive"
+archive_root = "c:/Users/marko/Development/ModelLibrarian/CUI_archive"
+database = "c:/Users/marko/Development/ModelLibrarian/model_archivist.db"
+
+[[extra_models]]
+yaml = "D:/ComfyUI/extra_model_paths.yaml"
+#inactive = "c:/Users/marko/Development/ModelLibrarian/CUI_inactive"
+#archive = "c:/Users/marko/Development/ModelLibrarian/CUI_archive"
+
+[models]
+extensions = [".safetensors", ".sft", ".ckpt", ".pt", ".pth", ".gguf"]
+
+[model_types]
+loras = "LoRA"
+checkpoints = "Checkpoint"

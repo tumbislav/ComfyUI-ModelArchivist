@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools >= 80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "comfyui-model-archivist"
+version = "0.1"
+requires-python = ">= 3.12"
+description = "Manage an overabundance of models in a ComfyUI environment"
+authors = [{name="Marko Čibej"}]
+license = "GPL-3.0-or-later"
+dependencies = [
+    "alembic >= 1.17.2",
+    "colorama >= 0.4.6",
+    "fastapi >= 0.124.4",
+    "pytest >= 9.0.2",
+    "pyyaml >= 6.0.3",
+    "sqlmodel >= 0.0.27",
+    "tomli >= 2.3.0",
+    "tomli-w >= 1.2.0"
+]
