@@ -9,6 +9,7 @@ import tomllib
 import tomli_w
 from pathlib import Path
 import logging
+from app.model.archivist import Location
 
 logger = logging.getLogger('model_archivist')
 
@@ -16,7 +17,7 @@ logger = logging.getLogger('model_archivist')
 class Configuration:
     """
     Config defines the folders where models are stored and the location of the database
-    which we use to track them. Changing the config file lets us work with completely different
+    which we use to track them. Changing the config file lets us work with different
     instances of Comfy.
     """
 
@@ -30,6 +31,7 @@ class Configuration:
         self.model_extensions = None
         self.model_types = None
         self.extra_models = None
+        self.restrict_to_known_types = False # for future upgrades
 
     def attach(self, cfg_file: Path) -> None:
         self.root = cfg_file.parent
@@ -61,6 +63,7 @@ class Configuration:
                              'inactive_root': self.inactive_root,
                              'archive_root': self.archive_root,
                              'db_paths': self.db_path},
+                   'config': {'restrict_to_known_types': self.restrict_to_known_types},
                    'model_extensions': self.model_extensions,
                    'model_types': self.model_types,
                    'extra_models': self.extra_models}
@@ -87,6 +90,7 @@ class Configuration:
                           'inactive_root': root / 'inactive_models',
                           'archive_root': root / 'model_archive',
                           'db_paths': root / 'model_archivist.db'},
+                'config': {'restrict_to_known_types': False},
                 'model_extensions': ['safetensors', 'pth'],
                 'model_types': {'checkpoints': 'Checkpoint', 'loras': 'LoRA'},
                 'extra_models': [{'yaml': root / 'extra_model_paths.yaml'}]}
@@ -108,13 +112,19 @@ class Configuration:
         self.model_extensions = {ext.lower() for ext in raw['models']['extensions']}
         self.model_types = {ty.lower(): disp for ty, disp in raw['types'].items()}
         extras_list = raw.get('extra_model_paths', [])
+        settings = raw.get('settings', {})
+        self.restrict_to_known_types = settings.get('restrict_to_known_types', False)
         self.extra_models = []
         for extras in extras_list:
             extras['yaml'] = Path(extras['yaml']).resolve()
             if 'inactive' in extras:
                 extras['inactive'] = Path(extras['inactive']).resolve()
+            else:
+                extras['inactive'] = self.inactive_root
             if 'archive' in extras:
                 extras['archive'] = Path(extras['archive']).resolve()
+            else:
+                extras['archive'] = self.archive_root
             self.extra_models.append(extras)
 
 

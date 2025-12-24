@@ -7,12 +7,12 @@
 from sqlmodel import Field, Relationship, SQLModel
 
 
-class TagInModel(SQLModel, table=True):
+class TagInModelTbl(SQLModel, table=True):
     model_id: int | None = Field(default=None, primary_key=True, foreign_key='model.id')
     tag_id: int | None = Field(default=None, primary_key=True, foreign_key='tag.id')
 
 
-class Model(SQLModel, table=True):
+class ModelTbl(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     sha256: str
     name: str
@@ -26,14 +26,14 @@ class Model(SQLModel, table=True):
     status: str
     is_accessible: bool
 
-    tags: list['Tag'] = Relationship(back_populates='tag', link_model=TagInModel)
+    tags: list['TagTbl'] = Relationship(back_populates='tag', link_model=TagInModelTbl)
 
 
-class Tag(SQLModel, table=True):
+class TagTbl(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     tag: str
 
-    models: list['Model'] = Relationship(back_populates='model', link_model=TagInModel)
+    models: list['ModelTbl'] = Relationship(back_populates='model', link_model=TagInModelTbl)
 
 
 """

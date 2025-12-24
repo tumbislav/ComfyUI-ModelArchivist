@@ -10,6 +10,9 @@ inactive_root = "c:/Users/marko/Development/ModelLibrarian/CUI_inactive"
 archive_root = "c:/Users/marko/Development/ModelLibrarian/CUI_archive"
 database = "c:/Users/marko/Development/ModelLibrarian/model_archivist.db"
 
+[settings]
+restrict_to_known_types = false # ignored in current version
+
 [[extra_models]]
 yaml = "D:/ComfyUI/extra_model_paths.yaml"
 #inactive = "c:/Users/marko/Development/ModelLibrarian/CUI_inactive"

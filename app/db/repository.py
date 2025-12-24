@@ -7,7 +7,8 @@
 from sqlmodel import SQLModel, Session, create_engine, select
 from pathlib import Path
 from typing import Sequence
-from app.db.tables import Model
+from app.db.tables import ModelTbl
+from app.model.object_types import ModelInLocation
 
 
 class Repository:
@@ -22,19 +23,22 @@ class Repository:
         self.engine = create_engine(f'sqlite:///{db_path}', echo=verbose)
         SQLModel.metadata.create_all(self.engine)
 
+    def ensure_model_in_location(self, model_in_location: ModelInLocation) -> None:
+        pass
+
     # --- models -----------------------------------------------------------
 
-    def save_model(self, model: Model) -> None:
+    def save_model(self, model: ModelTbl) -> None:
         with Session(self.engine) as session:
             session.add(model)
 
-    def get_models(self) -> Sequence[Model]:
+    def get_models(self) -> Sequence[ModelTbl]:
         with Session(self.engine) as session:
-            return session.exec(select(Model)).all()
+            return session.exec(select(ModelTbl)).all()
 
-    def get_model_by_sha(self, sha256: str) -> Model | None:
+    def get_model_by_sha(self, sha256: str) -> ModelTbl | None:
         with Session(self.engine) as session:
-            return session.get(Model, sha256)
+            return session.get(ModelTbl, sha256)
 
 
 repo = Repository()
