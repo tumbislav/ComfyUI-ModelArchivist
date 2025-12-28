@@ -32,6 +32,9 @@ class Configuration:
         self.model_types = None
         self.extra_models = None
         self.restrict_to_known_types = False # for future upgrades
+        self.workflow_active = None
+        self.workflow_inactive = None
+        self.workflow_archive = None
 
     def attach(self, cfg_file: Path) -> None:
         self.root = cfg_file.parent
@@ -63,6 +66,7 @@ class Configuration:
                              'inactive_root': self.inactive_root,
                              'archive_root': self.archive_root,
                              'db_paths': self.db_path},
+                   workflow folders
                    'config': {'restrict_to_known_types': self.restrict_to_known_types},
                    'model_extensions': self.model_extensions,
                    'model_types': self.model_types,

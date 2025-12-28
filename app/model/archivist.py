@@ -8,6 +8,7 @@ import yaml
 from pathlib import Path
 from typing import Dict
 import logging
+import uuid
 
 from app.config.config import Configuration
 from app.db.repository import Repository
@@ -100,13 +101,15 @@ class ArchivistService:
         return self.model_types[model_type]
 
     def scan_by_type(self):
+        scan_id = str(uuid.uuid4())
         for loc in Location:
             for type_name, type_rec in self.model_types.values():
                 for contents in self.files.scan(type_rec[loc]):
                     contents.location = Location
                     contents.sha256 = contents.metadata['sha256']
                     contents.name = contents.metadata['name']
-                    self.repo.ensure_model_in_location(contents)
+                    contents.type = type_name
+                    self.repo.ensure_model_in_location(contents, scan_id)
 
     def get_models(self):
         pass

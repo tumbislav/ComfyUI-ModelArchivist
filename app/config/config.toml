@@ -9,6 +9,9 @@ comfy_root = "c:/Users/marko/Development/ModelLibrarian/CUI"
 inactive_root = "c:/Users/marko/Development/ModelLibrarian/CUI_inactive"
 archive_root = "c:/Users/marko/Development/ModelLibrarian/CUI_archive"
 database = "c:/Users/marko/Development/ModelLibrarian/model_archivist.db"
+workflow_active = "c:/Users/marko/Development/ModelLibrarian/WorkflowActive"
+workflow_inactive = "c:/Users/marko/Development/ModelLibrarian/WorkflowInactive"
+workflow_archive = "c:/Users/marko/Development/ModelLibrarian/WorkflowArchive"
 
 [settings]
 restrict_to_known_types = false # ignored in current version
