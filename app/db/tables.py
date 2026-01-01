@@ -5,16 +5,16 @@
 # ---------------------------------------------------------------------------
 
 from sqlmodel import Field, Relationship, SQLModel
-from app.model.object_types import Location
+from app.model.object_types import Location, ComponentType
 from pathlib import Path
 
 
-class ModelTagsTbl(SQLModel, table=True):
-    model_id: int | None = Field(default=None, primary_key=True, foreign_key='modeltbl.id')
-    tag_id: int | None = Field(default=None, primary_key=True, foreign_key='tagtbl.id')
+class ModelTagLink(SQLModel, table=True):
+    model_id: int | None = Field(default=None, primary_key=True, foreign_key="model.id")
+    tag_id: int | None = Field(default=None, primary_key=True, foreign_key="tag.id")
 
 
-class ModelTbl(SQLModel, table=True):
+class Model(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     sha256: str
     name: str
@@ -26,49 +26,53 @@ class ModelTbl(SQLModel, table=True):
     is_active: bool
     is_archived: bool
     status: str
-    is_accessible: bool
-    last_scan: str
+    last_scan_id: str
     scan_errors: str
+    tags: list['Tag'] = Relationship(back_populates='models', link_model=ModelTagLink)
 
-    tags: list['TagTbl'] = Relationship(back_populates='tag', link_model=ModelTagsTbl)
 
-
-class TagTbl(SQLModel, table=True):
+class Tag(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     tag: str
+    models: list[Model] = Relationship(back_populates='tags', link_model=ModelTagLink)
 
-    models: list['ModelTbl'] = Relationship(back_populates='model', link_model=ModelTagsTbl)
 
-
-class ModelFile(SQLModel, table=True):
+class Component(SQLModel, table=True):
+    """
+    Part of a model or of a workflow.
+    """
     id: int | None = Field(default=None, primary_key=True)
-    model_id: int | None = Field(default=None, foreign_key='modeltbl.id')
-    loc: Location
-    path: Path
-    type: str
+    workflow_id: int | None = Field(default=None, foreign_key="workflow.id")
+    model_id: int | None = Field(default=None, foreign_key="model.id")
+    location: Location
+    relative_path: Path # relative to location root
+    filename: Path # stem+suffix
+    component_type: ComponentType
     is_present: bool
 
+class WorkflowCollectionLink(SQLModel, table=True):
+    workflow_id: int = Field(default=None, primary_key=True, foreign_key="workflow.id")
+    collection_id: int = Field(default=None, primary_key=True, foreign_key="collection.id")
 
-class CollectionTbl(SQLModel, table=True):
+
+class Collection(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str
     purpose: str
     is_active: bool
 
-class CollectionModelsTbl(SQLModel, table=True):
-    collection_id: int = Field(primary_key=True, foreign_key='collectiontbl.id')
-    model_id: int = Field(default=None, primary_key=True, foreign_key='modeltbl.id')
+
+class CollectionModelLink(SQLModel, table=True):
+    collection_id: int = Field(primary_key=True, foreign_key="collection.id")
+    model_id: int = Field(default=None, primary_key=True, foreign_key="model.id")
 
 
-class WorkflowTbl(SQLModel, table=True):
+class Workflow(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str
     purpose: str
     relative_path: str
     is_archived: bool
     is_active: bool
-
-
-class WorkflowsCollectionsTbl(SQLModel, table=True):
-    workflow_id: int = Field(default=None, primary_key=True, foreign_key='Workflowtbl.id')
-    collection_id: int = Field(default=None, primary_key=True, foreign_key='CollectionTbl.id')
+    last_scan_id: str
+    scan_errors: str

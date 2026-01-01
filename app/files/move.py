@@ -166,7 +166,7 @@ class Scanner(threading.Thread):
         try:
             rel = model_path.relative_to(models_root)
         except ValueError:
-            # Fallback: just use parent folder name
+            # Fallback: just use parent folder filename
             return model_path.parent.name
         parts = rel.parts
         raw_type = parts[0] if parts else ''
@@ -197,7 +197,7 @@ class Scanner(threading.Thread):
 
         You can change this mapping to something more sophisticated later.
         """
-        return self.config.inactive_root / rec.model_type / rec.model_path.name
+        return self.config.inactive_root / rec.model_type / rec.model_path.filename
 
     def preview_move_to_inactive(self, recs: Sequence[ModelRecord]) -> List[tuple[Path, Path]]:
         moves = []

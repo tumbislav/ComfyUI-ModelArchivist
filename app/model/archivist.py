@@ -6,7 +6,6 @@
 
 import yaml
 from pathlib import Path
-from typing import Dict
 import logging
 import uuid
 
@@ -31,22 +30,22 @@ class ArchivistService:
         self.inactive_root = None
         self.is_first_run = None
         self.model_types = None
-        self.files = None
+        self.file_handler = None
 
     def attach(self, config: Configuration, repo: Repository) -> None:
         self.config = config
         self.repo = repo
         self.is_first_run = repo.is_first_run
-        self.files = FileHandler(config)
+        self.file_handler = FileHandler(config)
         self.locate_model_paths()
-        self.scan_by_type()
+        self.scan_models()
 
     def locate_model_paths(self) -> None:
         """
         Find all model folders.
         - Active locations are those in comfy_root/models and
         those in extra_model_paths.yaml.
-        - inactive locations are those in inactive_root and in inactive
+        - inactive locations are those in inactive_root
         - archive locations are those in archive_root
         """
         model_root = Path(self.config.comfy_root) / 'models'
@@ -56,8 +55,12 @@ class ArchivistService:
         for model_sub in model_root.iterdir():
             if not model_sub.is_dir() or model_sub == 'examples':
                 continue
-            type_record = self.get_type_record(str(model_sub))
-            type_record['base'] = model_sub.resolve()
+            model_type = str(model_sub)
+            if self.model_types is None:
+                self.model_types = {}
+            if model_type not in self.model_types:
+                self.model_types[model_type] = {}
+            self.model_types[model_type]['base'] = model_sub.resolve()
         for extra_path in self.config.extra_models:
             self.locate_extra_paths(extra_path['yaml'], extra_path.get('inactive'), extra_path.get('active'))
 
@@ -84,30 +87,23 @@ class ArchivistService:
                         full_dir = extra_dir
                     else:
                         full_dir = yaml_root / extra_dir
-                    extra_record = {'active': full_dir}
-                    if inactive is not None:
-                        extra_record['inactive'] = inactive / extra_path
-                    if archive is not None:
-                        extra_record['archive'] = inactive / extra_path
+                    extra_record = {Location.ACTIVE: full_dir}
+                    if Location.INACTIVE is not None:
+                        extra_record[Location.INACTIVE] = inactive / extra_path
+                    if Location.ARCHIVE is not None:
+                        extra_record[Location.ARCHIVE] = archive / extra_path
                     if 'extras' not in type_record:
                         type_record['extras'] = []
                     type_record['extras'].append(extra_record)
 
-    def get_type_record(self, model_type: str) -> Dict:
-        if self.model_types is None:
-            self.model_types = {}
-        if model_type not in self.model_types:
-            self.model_types[model_type] = {}
-        return self.model_types[model_type]
-
-    def scan_by_type(self):
+    def scan_models(self):
         scan_id = str(uuid.uuid4())
         for loc in Location:
             for type_name, type_rec in self.model_types.values():
-                for contents in self.files.scan(type_rec[loc]):
+                for contents in self.file_handler.scan_model_location(type_rec[loc], loc):
                     contents.location = Location
                     contents.sha256 = contents.metadata['sha256']
-                    contents.name = contents.metadata['name']
+                    contents.filename = contents.metadata['filename']
                     contents.type = type_name
                     self.repo.ensure_model_in_location(contents, scan_id)
 

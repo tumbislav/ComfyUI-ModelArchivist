@@ -22,7 +22,7 @@ def compute_sha256(path: Path, chunk_size: int = 1 << 20) -> str:
             h.update(chunk)
     return h.hexdigest()
 
-def ensure_metadata(model_path: Path) -> Tuple[Path | None, Dict | None]:
+def ensure_metadata(model_path: Path) -> Tuple[Path | None, Dict]:
     metadata_path = model_path.with_suffix('.metadata.json')
     is_changed = False
     if metadata_path.is_file():
@@ -45,7 +45,7 @@ def ensure_metadata(model_path: Path) -> Tuple[Path | None, Dict | None]:
     if is_changed:
         try:
             metadata_path.write_text(json.dumps(data), encoding='utf-8')
-        except Exception as e:  # noqa
+        except Exception as e:
             logger.error(f'Cannot write metadata for {model_path}: {e}')
             return None, data
     return metadata_path, data
