@@ -5,21 +5,21 @@
 # ---------------------------------------------------------------------------
 
 [paths]
-comfy_root = "c:/Users/marko/Development/ModelLibrarian/CUI"
-inactive_root = "c:/Users/marko/Development/ModelLibrarian/CUI_inactive"
-archive_root = "c:/Users/marko/Development/ModelLibrarian/CUI_archive"
-database = "c:/Users/marko/Development/ModelLibrarian/model_archivist.db"
-workflow_active = "c:/Users/marko/Development/ModelLibrarian/WorkflowActive"
-workflow_inactive = "c:/Users/marko/Development/ModelLibrarian/WorkflowInactive"
-workflow_archive = "c:/Users/marko/Development/ModelLibrarian/WorkflowArchive"
+comfy_root = "test/data/ComfyUI"
+inactive_root = "test/data/inactive"
+archive_root = "test/data/archive"
+database = "test/model_archivist.db"
+workflow_active = "test/data/workflow_active"
+workflow_inactive = "test/data/workflow_inactive"
+workflow_archive = "test/data/workflow_archive"
 
 [settings]
 restrict_to_known_types = false # ignored in current version
 
 [[extra_models]]
-yaml = "D:/ComfyUI/extra_model_paths.yaml"
-#inactive = "c:/Users/marko/Development/ModelLibrarian/CUI_inactive"
-#archive = "c:/Users/marko/Development/ModelLibrarian/CUI_archive"
+yaml = "test/data/extra_model_paths.yaml"
+inactive = "test/data/extra_inactive"
+archive = "test/data/extra_archive"
 
 [models]
 extensions = [".safetensors", ".sft", ".ckpt", ".pt", ".pth", ".gguf"]

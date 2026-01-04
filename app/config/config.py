@@ -9,7 +9,6 @@ import tomllib
 import tomli_w
 from pathlib import Path
 import logging
-from app.model.archivist import Location
 
 logger = logging.getLogger('model_archivist')
 
@@ -36,18 +35,18 @@ class Configuration:
         self.workflow_inactive = None
         self.workflow_archive = None
 
-    def attach(self, cfg_file: Path) -> None:
-        self.root = cfg_file.parent
-        self.cfg_file = Path(cfg_file)
+    def attach(self, cfg_file: str | None) -> None:
+        if cfg_file is None:
+            self.root = Path(__file__).resolve().parent
+            self.cfg_file = self.root / 'config.toml'
+        else:
+            self.cfg_file = Path(cfg_file)
+            self.root = self.cfg_file.parent
 
         raw = self.load_toml()
         self.extract(raw)
 
     def load_toml(self) -> Dict | None:
-        if self.cfg_file is None:
-            app_root = Path(__file__).resolve().parent
-            self.cfg_file = app_root / 'config.toml'
-
         if not self.cfg_file.exists():
             logger.warning('config.toml file not found. Creating a default one.')
             conf = self.create_default()
@@ -66,7 +65,7 @@ class Configuration:
                              'inactive_root': self.inactive_root,
                              'archive_root': self.archive_root,
                              'db_paths': self.db_path},
-                   workflow folders
+#TODO workflow folders
                    'config': {'restrict_to_known_types': self.restrict_to_known_types},
                    'model_extensions': self.model_extensions,
                    'model_types': self.model_types,
@@ -114,7 +113,7 @@ class Configuration:
             return
 
         self.model_extensions = {ext.lower() for ext in raw['models']['extensions']}
-        self.model_types = {ty.lower(): disp for ty, disp in raw['types'].items()}
+        self.model_types = {ty.lower(): disp for ty, disp in raw['model_types'].items()}
         extras_list = raw.get('extra_model_paths', [])
         settings = raw.get('settings', {})
         self.restrict_to_known_types = settings.get('restrict_to_known_types', False)

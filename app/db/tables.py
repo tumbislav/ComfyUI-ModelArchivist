@@ -4,14 +4,19 @@
 # purpose: Database tables
 # ---------------------------------------------------------------------------
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Field, Relationship, SQLModel, CheckConstraint
 from app.model.object_types import Location, ComponentType
-from pathlib import Path
 
 
-class ModelTagLink(SQLModel, table=True):
+class TagModelLink(SQLModel, table=True):
     model_id: int | None = Field(default=None, primary_key=True, foreign_key="model.id")
-    tag_id: int | None = Field(default=None, primary_key=True, foreign_key="tag.id")
+    tag_id: int | None =  Field(default=None, primary_key=True, foreign_key="tag.id")
+
+
+class Tag(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    tag: str
+    models: list['Model'] | None = Relationship(back_populates="tags", link_model=TagModelLink)
 
 
 class Model(SQLModel, table=True):
@@ -19,36 +24,17 @@ class Model(SQLModel, table=True):
     sha256: str
     name: str
     type: str
-    active_root: Path
-    inactive_root: Path
-    archive_root: Path | None
-    relative_path: Path
+    active_root: str
+    inactive_root: str
+    archive_root: str
     is_active: bool
+    is_inactive: bool
     is_archived: bool
-    status: str
     last_scan_id: str
     scan_errors: str
-    tags: list['Tag'] = Relationship(back_populates='models', link_model=ModelTagLink)
+    tags: list['Tag'] = Relationship(back_populates="models", link_model=TagModelLink)
+    components: list['Component'] = Relationship(back_populates="model")
 
-
-class Tag(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    tag: str
-    models: list[Model] = Relationship(back_populates='tags', link_model=ModelTagLink)
-
-
-class Component(SQLModel, table=True):
-    """
-    Part of a model or of a workflow.
-    """
-    id: int | None = Field(default=None, primary_key=True)
-    workflow_id: int | None = Field(default=None, foreign_key="workflow.id")
-    model_id: int | None = Field(default=None, foreign_key="model.id")
-    location: Location
-    relative_path: Path # relative to location root
-    filename: Path # stem+suffix
-    component_type: ComponentType
-    is_present: bool
 
 class WorkflowCollectionLink(SQLModel, table=True):
     workflow_id: int = Field(default=None, primary_key=True, foreign_key="workflow.id")
@@ -76,3 +62,23 @@ class Workflow(SQLModel, table=True):
     is_active: bool
     last_scan_id: str
     scan_errors: str
+    components: list['Component'] = Relationship(back_populates="workflow")
+
+
+class Component(SQLModel, table=True):
+    """
+    Part of a model or of a workflow.
+    """
+    __table_args__ = (CheckConstraint(
+            "(model_id IS NOT NULL AND workflow_id IS NULL) OR (model_id IS NULL AND workflow_id IS NOT NULL)"),)
+    id: int | None = Field(default=None, primary_key=True)
+    location: Location
+    relative_path: str # relative to location root
+    filename: str # stem+suffix
+    component_type: ComponentType
+    is_present: bool
+    model_id: int | None = Field(default=None, foreign_key="model.id")
+    workflow_id: int | None = Field(default=None, foreign_key="workflow.id")
+
+    model: Model | None = Relationship(back_populates="components")
+    workflow: Workflow | None = Relationship(back_populates="components")

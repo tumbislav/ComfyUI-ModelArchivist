@@ -7,3 +7,4 @@ class TestDB:
         assert(not repo_path.is_file())
         repo.attach(repo_path, False)
         assert(repo_path.is_file())
+

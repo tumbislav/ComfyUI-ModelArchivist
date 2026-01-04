@@ -20,6 +20,7 @@ class ComponentType(str, Enum):
     METADATA = 'metadata'
     TITLE = 'title'
     EXTRA = 'extra'
+    EXAMPLE = 'example'
     WORKFLOW = 'workflow'
 
 class ScanError(Enum):

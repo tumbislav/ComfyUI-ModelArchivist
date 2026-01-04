@@ -5,14 +5,13 @@
 # ---------------------------------------------------------------------------
 
 from sqlmodel import SQLModel, Session, create_engine, select
-# from sqlalchemy.exc import NoResultFound
 from pathlib import Path
-from typing import Sequence
-from app.db.tables import Model, Workflow, ModelFileTbl
-from app.model.object_types import ModelInLocation, ScanError
+from typing import Sequence, Iterable
+from app.db.tables import Model, Workflow
+from app.model.object_types import ScanError, Location
 
 
-def set_scan_error(obj: Model | Workflow | ModelFileTbl, error_code: ScanError, scan_id: str):
+def set_scan_error(obj: Model | Workflow | Model, error_code: ScanError, scan_id: str):
     if obj.last_scan_id == scan_id:
         errors = {_ for _ in obj.scan_errors.split(',')}
         errors.add(str(error_code))
@@ -34,46 +33,52 @@ class Repository:
         self.engine = create_engine(f'sqlite:///{db_path}', echo=verbose)
         SQLModel.metadata.create_all(self.engine)
 
-    def ensure_model_in_location(self, mdl_loc: ModelInLocation, scan_id: str) -> None:
+    def ensure_model_in_location(self, model: Model, location: Location) -> None:
         with Session(self.engine) as session:
-            model_ids = session.exec(select(Model.id).where(Model.sha256 == mdl_loc.sha256)).all()
-            if len(model_ids) > 1:
-                for id in model_ids:
-                    model = session.get(Model, id)
-                    set_scan_error(model, ScanError.DUPLICATES, scan_id)
-                    session.add(model)
+            model_ids = session.exec(select(Model.id).where(Model.sha256 == model.sha256)).all()
+            if len(model_ids) == 0:
+                model.is_active = location == Location.ACTIVE
+                model.is_inactive = location == Location.INACTIVE
+                model.is_archived = location == Location.ARCHIVE
+                session.add(model)
                 session.commit()
-            elif len(model_ids) == 0:
-                #TODO create a new model instance
-                model = Model()
-                model.sha256 = mdl_loc.sha256
-                model.name = mdl_loc.name
-                model.type = mdl_loc.type
-                model.last_scan_id = scan_id
-                model.relative_path= mdl_loc.relative_path
-                model.is_accessible = True
-
-                model.active_root: Path
-                model.inactive_root: Path
-                model.archive_root: Path | None
-                model.is_active: bool
-                model.is_archived: bool
-                model.status: str
-
             else:
-                pass #TODO see if model needs updating. If so, set last_scan_id to current scan_id
+                o_model = session.get(Model, model_ids[0])
+                o_model.is_active = o_model.is_active or (location == Location.ACTIVE)
+                o_model.is_inactive = o_model.is_inactive or (location == Location.INACTIVE)
+                o_model.is_archived = o_model.is_archived or (location == Location.ARCHIVE)
+                o_model.name = model.name
+                o_model.type = model.type
+                o_model.active_root = model.active_root
+                o_model.inactive_root = model.inactive_root
+                o_model.archive_root = model.archive_root
+                session.add(o_model)
+                session.refresh(o_model)
+                known_comps = {}
+                for o_comp in o_model.components:
+                    if o_comp.location == location:
+                        known_comps[(o_comp.filename, o_comp.relative_path)] = o_comp
+                for comp in model.components:
+                    if (comp.filename, comp.relative_path) not in known_comps:
+                        comp.model = o_model
+                        session.add(comp)
+                        del known_comps[(comp.filename, comp.relative_path)]
+                for comp in known_comps.values():
+                    comp.is_present = False
+                    session.add(comp)
+                session.commit()
 
     def save_model(self, model: Model) -> None:
         with Session(self.engine) as session:
             session.add(model)
 
-    def get_models(self) -> Sequence[Model]:
+    def get_models(self) -> Iterable:
         with Session(self.engine) as session:
-            return session.exec(select(Model)).all()
+            for model in session.exec(select(Model)).all():
+                yield model
 
-    def get_model_by_sha(self, sha256: str) -> Model | None:
+    def get_model_by_sha(self, sha256: str) -> Iterable:
         with Session(self.engine) as session:
             return session.get(Model, sha256)
-
 
 repo = Repository()

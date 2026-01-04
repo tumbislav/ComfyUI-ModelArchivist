@@ -26,7 +26,7 @@ def ensure_metadata(model_path: Path) -> Tuple[Path | None, Dict]:
     metadata_path = model_path.with_suffix('.metadata.json')
     is_changed = False
     if metadata_path.is_file():
-        data = json.loads(metadata_path.read_text(encoding='8tf-8'))
+        data = json.loads(metadata_path.read_text(encoding='utf-8'))
         if 'sha256' not in data:
             data['sha256'] = compute_sha256(model_path)
             is_changed = True
