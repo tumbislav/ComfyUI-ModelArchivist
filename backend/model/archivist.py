@@ -3,16 +3,17 @@
 # file: archivist.py
 # purpose: Main service
 # ---------------------------------------------------------------------------
+from selectors import SelectSelector
 
 import yaml
 from pathlib import Path
 import logging
 import uuid
 
-from app.db.repository import Repository
-from app.db.tables import Model, Tag
-from app.model.file_handler import FileHandler
-from app.model.object_types import Location
+from ..db.repository import Repository
+from ..db.tables import Model, Tag
+from .file_handler import FileHandler
+from .object_types import Location
 
 logger = logging.getLogger('model_archivist')
 
@@ -56,9 +57,9 @@ class ArchivistService:
             self.model_types = {}
         for model_sub in model_root.iterdir():
             relative_path = model_sub.relative_to(model_root)
-            if not model_sub.is_dir() or model_sub == 'examples':
+            model_type = model_sub.stem
+            if not model_sub.is_dir() or model_type == 'examples':
                 continue
-            model_type = str(model_sub)
             if model_type not in self.model_types:
                 self.model_types[model_type] = {}
             self.model_types[model_type] = [{Location.ACTIVE: model_sub,
@@ -113,9 +114,28 @@ class ArchivistService:
 
                         self.repo.ensure_model_in_location(model, location)
 
-    def get_models(self):
+    def get_models(self, tags=False, components=False):
+        result = []
         for model in self.repo.get_models():
-            yield model
+            json_model = {'id': str(model.id),
+            'sha256':model.sha256,
+            'name': model.name,
+            'type': self.config.model_types.get(model.type, model.type),
+            'status': 'ACTIVE' if model.is_active and not model.is_inactive else \
+                'INACTIVE' if model.is_inactive and not model.is_active else \
+                'UNDETERMINED',
+            'archived': model.is_archived}
+            if tags:
+                json_model['tags'] = [_.tag for _ in model.tags]
+            if components:
+                json_model['components']=[{
+                    'location': str(component.location),
+                    'relative_path': component.relative_path,
+                    'filename': component.filename,
+                    'type': str(component.component_type),
+                    'is_present': component.is_present} for component in model.components]
+            result.append(json_model)
+        return result
 
 
 archivist = ArchivistService()

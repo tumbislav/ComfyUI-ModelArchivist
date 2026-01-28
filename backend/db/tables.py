@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 from sqlmodel import Field, Relationship, SQLModel, CheckConstraint
-from app.model.object_types import Location, ComponentType
+from ..model.object_types import Location, ComponentType
 
 
 class TagModelLink(SQLModel, table=True):

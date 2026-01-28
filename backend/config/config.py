@@ -21,7 +21,8 @@ class Configuration:
     """
 
     def __init__(self) -> None:
-        self.root = None
+        self.app_root = None
+        self.cfg_root = None
         self.cfg_file = None
         self.comfy_root = None
         self.inactive_root = None
@@ -34,14 +35,17 @@ class Configuration:
         self.workflow_active = None
         self.workflow_inactive = None
         self.workflow_archive = None
+        self.html_root = None
+        self.url = None
+        self.port = None
 
-    def attach(self, cfg_file: str | None) -> None:
+    def attach(self, cfg_file: Path | None, app_root: Path) -> None:
+        self.app_root = app_root
         if cfg_file is None:
-            self.root = Path(__file__).resolve().parent
-            self.cfg_file = self.root / 'config.toml'
+            self.cfg_root = Path(__file__).parent
         else:
-            self.cfg_file = Path(cfg_file)
-            self.root = self.cfg_file.parent
+            self.cfg_root = cfg_file.parent
+        self.cfg_file = self.cfg_root / 'config.toml'
 
         raw = self.load_toml()
         self.extract(raw)
@@ -61,10 +65,10 @@ class Configuration:
 
     def write_toml(self, raw: Dict | None = None) -> None:
         if raw is None:
-            raw = {'paths': {'comfy_root': self.comfy_root,
-                             'inactive_root': self.inactive_root,
-                             'archive_root': self.archive_root,
-                             'db_paths': self.db_path},
+            raw = {'folder_paths': {'comfy_root': self.comfy_root,
+                                    'inactive_root': self.inactive_root,
+                                    'archive_root': self.archive_root,
+                                    'db_paths': self.db_path},
 #TODO workflow folders
                    'config': {'restrict_to_known_types': self.restrict_to_known_types},
                    'model_extensions': self.model_extensions,
@@ -79,20 +83,20 @@ class Configuration:
         """
         Try to find comfy_root, assuming we're sitting in a (sub)subdir
         """
-        root = self.root
-        if root.joinpath('models').is_dir():
+        root = self.app_root.parent
+        if (root /'models').is_dir():
             logger.info(f'Trying {root} as ComfyUI root')
         else:
             root = root.parent
-            if root.joinpath('models').is_dir():
+            if (root / 'models').is_dir():
                 logger.info(f'Trying {root} as ComfyUI root')
             else:
                 logger.critical('ComfyUI not found, giving up.')
                 raise Exception('ComfyUI not found.')
-        return {'paths': {'comfy_root': root,
-                          'inactive_root': root / 'inactive_models',
-                          'archive_root': root / 'model_archive',
-                          'db_paths': root / 'model_archivist.db'},
+        return {'folder_paths': {'comfy_root': root,
+                                 'inactive_root': root / 'inactive_models',
+                                 'archive_root': root / 'model_archive',
+                                 'db_paths': root / 'model_archivist.db'},
                 'config': {'restrict_to_known_types': False},
                 'model_extensions': ['safetensors', 'pth'],
                 'model_types': {'checkpoints': 'Checkpoint', 'loras': 'LoRA'},
@@ -100,14 +104,15 @@ class Configuration:
 
     def extract(self, raw: Dict) -> None:
         try:
-            self.comfy_root = Path(raw['paths']['comfy_root']).resolve()
-            self.inactive_root = Path(raw['paths']['inactive_root']).resolve()
-            if 'archive_root' not in raw['paths']:
+            self.comfy_root = Path(raw['folder_paths']['comfy_root']).resolve()
+            self.inactive_root = Path(raw['folder_paths']['inactive_root']).resolve()
+            if 'archive_root' not in raw['folder_paths']:
                 archive_root = None
             else:
-                archive_root = Path(raw['paths']['archive_root']).resolve()
+                archive_root = Path(raw['folder_paths']['archive_root']).resolve()
             self.archive_root = archive_root
-            self.db_path = Path(raw['paths'].get('database', self.comfy_root / 'model_archivist.db')).resolve()
+            self.db_path = Path(raw['folder_paths'].get('database',
+                                                        self.comfy_root / 'model_archivist.db')).resolve()
         except KeyError as e:
             logger.critical(f'Missing paths in config.toml, cannot continue\n{e}')
             return
@@ -129,6 +134,11 @@ class Configuration:
             else:
                 extras['archive'] = self.archive_root
             self.extra_models.append(extras)
+        web_params = raw.get('web', {})
+        self.html_root = web_params.get('html_root', self.app_root.parent.parent / 'frontend' / 'build')
+        url_base = web_params.get('url_base', 'http://127.0.0.1')
+        self.port = web_params.get('port', 5173)
+        self.url = f'{url_base}:{self.port}'
 
 
 config = Configuration()

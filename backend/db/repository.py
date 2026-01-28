@@ -6,9 +6,9 @@
 
 from sqlmodel import SQLModel, Session, create_engine, select
 from pathlib import Path
-from typing import Sequence, Iterable
-from app.db.tables import Model, Workflow
-from app.model.object_types import ScanError, Location
+from typing import Iterable
+from .tables import Model, Workflow
+from ..model.object_types import ScanError, Location
 
 
 def set_scan_error(obj: Model | Workflow | Model, error_code: ScanError, scan_id: str):

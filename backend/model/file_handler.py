@@ -7,10 +7,10 @@
 import logging
 from typing import Iterable
 from pathlib import Path
-from app.config.config import Configuration
-from app.model.file_utils import ensure_metadata
-from app.model.object_types import Location, ComponentType
-from app.db.tables import Component
+from ..config.config import Configuration
+from .file_utils import ensure_metadata
+from .object_types import Location, ComponentType
+from ..db.tables import Component
 
 logger = logging.getLogger('model_archivist')
 

@@ -4,9 +4,6 @@
 # purpose: Declarations of complex object types that get passed around
 # ---------------------------------------------------------------------------
 
-from pydantic import BaseModel
-from pathlib import Path
-from typing import List, Dict
 from enum import Enum
 
 
@@ -32,3 +29,4 @@ class ScanError(Enum):
     INCOMPLETE = 'Part of the model is in active and part in inactive locations'
     ARCHIVE_INCOMPLETE = 'Some of the model components are archived, some not'
     DUPLICATES = 'Multiple models with the same sha256 value exist'
+

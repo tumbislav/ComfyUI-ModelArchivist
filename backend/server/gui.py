@@ -1,26 +1,25 @@
 # ---------------------------------------------------------------------------
 # system: ModelArchivist
 # file: gui.py
-# purpose: REST interface to web GUI
+# purpose: REST interface to frontend GUI
 # ---------------------------------------------------------------------------
 
-from app.model.archivist import archivist
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Any
+from fastapi.staticfiles import StaticFiles
+import uvicorn
 import webbrowser
 
-
-def open_gui() -> None:
-    webbrowser.open_new_tab("http://127.0.0.1:5173")
+from ..config.config import config
+from ..model.archivist import archivist
 
 
 app = FastAPI(title='Model Archivist API', version='0.1.0')
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['http://127.0.0.1:5173', 'http://localhost:5173'],
+    allow_origins=[config.url],
     allow_credentials=True,
     allow_methods=['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
     allow_headers=['*'],
@@ -28,11 +27,14 @@ app.add_middleware(
 
 
 @app.get('/models')
-def get_models() -> list[dict[str, Any]]:
+def get_models() -> list[dict]:
     models = archivist.get_models()
-    return list(models)
+    return models
 
 
-@app.get('/health')
-def health() -> dict[str, str]:
-    return {'status': 'ok'}
+app.mount('/', app= StaticFiles(directory=config.html_root, html=True), name='static')
+
+
+def start_server():
+    webbrowser.open(f'{config.url}')
+    uvicorn.run(app, port=config.port, log_level='info')

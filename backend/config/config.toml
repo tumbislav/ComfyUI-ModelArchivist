@@ -4,7 +4,7 @@
 # purpose: Application configuration
 # ---------------------------------------------------------------------------
 
-[paths]
+[folder_paths]
 comfy_root = "test/data/ComfyUI"
 inactive_root = "test/data/inactive"
 archive_root = "test/data/archive"
@@ -25,5 +25,27 @@ archive = "test/data/extra_archive"
 extensions = [".safetensors", ".sft", ".ckpt", ".pt", ".pth", ".gguf"]
 
 [model_types]
-loras = "LoRA"
 checkpoints = "Checkpoint"
+clip = "CLIP"
+clip_vision = "CLIP Vision"
+controlnet = "Controlnet"
+diffusers = "Diffuser"
+diffusion_models = "Diffusion model"
+embeddings = "Embedding"
+gligen = "GLIGEN"
+hypernetworks = "Hypernetwork"
+latent_upscale_models = "Upscaler (latent)"
+loras = "LoRA"
+model_patches = "Model patch"
+photomaker = "PhotoMaker"
+style_models = "Style"
+text_encoders = "Text encoder"
+unet = "U-Net"
+upscale_models = "Upscaler"
+vae = "VAE"
+vae_approx = "Tiny AutoEncoder"
+
+[web]
+# html_root = ...
+url_base = "http://127.0.0.1"
+port = 5173
