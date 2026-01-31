@@ -37,12 +37,14 @@ class Repository:
         with Session(self.engine) as session:
             model_ids = session.exec(select(Model.id).where(Model.sha256 == model.sha256)).all()
             if len(model_ids) == 0:
+                # model not known
                 model.is_active = location == Location.ACTIVE
                 model.is_inactive = location == Location.INACTIVE
                 model.is_archived = location == Location.ARCHIVE
                 session.add(model)
                 session.commit()
             else:
+                # model known: find all known locations
                 o_model = session.get(Model, model_ids[0])
                 o_model.is_active = o_model.is_active or (location == Location.ACTIVE)
                 o_model.is_inactive = o_model.is_inactive or (location == Location.INACTIVE)
@@ -62,7 +64,6 @@ class Repository:
                     if (comp.filename, comp.relative_path) not in known_comps:
                         comp.model = o_model
                         session.add(comp)
-                        del known_comps[(comp.filename, comp.relative_path)]
                 for comp in known_comps.values():
                     comp.is_present = False
                     session.add(comp)
