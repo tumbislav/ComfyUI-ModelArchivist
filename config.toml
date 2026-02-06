@@ -1,28 +1,23 @@
 # ---------------------------------------------------------------------------
 # system: ModelArchivist
 # file: config.toml
-# purpose: Application configuration
+# purpose: Application config
 # ---------------------------------------------------------------------------
 
-[folder_paths]
+[folders]
 comfy_root = "test/data/ComfyUI"
-inactive_root = "test/data/inactive"
 archive_root = "test/data/archive"
 database = "test/model_archivist.db"
-workflow_active = "test/data/workflow_active"
-workflow_inactive = "test/data/workflow_inactive"
+workflow_root = "test/data/workflow_root"
 workflow_archive = "test/data/workflow_archive"
 
-[settings]
-restrict_to_known_types = false # ignored in current version
-
 [[extra_models]]
-yaml = "test/data/extra_model_paths.yaml"
-inactive = "test/data/extra_inactive"
-archive = "test/data/extra_archive"
+yaml = "test/data/extra_models_1.yaml"
+archive = "test/data/extra_archive_1"
 
 [models]
 extensions = [".safetensors", ".sft", ".ckpt", ".pt", ".pth", ".gguf"]
+ignore_types = ["examples", "configs"]
 
 [model_types]
 checkpoints = "Checkpoint"
@@ -46,6 +41,11 @@ vae = "VAE"
 vae_approx = "Tiny AutoEncoder"
 
 [web]
-# html_root = ...
-url_base = "http://127.0.0.1"
-port = 5173
+url = "http://127.0.0.1:5173"
+
+[options]
+update_json_metadata = true     # update metadata when values change - has consequences for Lora
+force_rehash = false    # re-calculate all the hashes when scanning the files
+reset_force_rehash = true       # reset force_rehash to false after scan
+ignore_unknown_types = false    # ignore models not in the model_types list
+remove_inaccessible = true      # remove all models from inaccessible folders

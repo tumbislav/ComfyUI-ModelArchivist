@@ -7,10 +7,11 @@
 import logging
 from typing import Iterable
 from pathlib import Path
-from ..config.config import Configuration
+from itertools import chain
+from backend.config import Configuration
 from .file_utils import ensure_metadata
-from .object_types import Location, ComponentType
-from ..db.tables import Component
+from .object_types import ComponentType, ArchivistException, ArchivistError
+
 
 logger = logging.getLogger('model_archivist')
 
@@ -20,47 +21,73 @@ class FileHandler:
     Locates and moves files
     """
     def __init__(self, config: Configuration) -> None:
-        self.configuration = config
-        self.extensions = config.model_extensions
+        self.config = config
 
-    def scan_model_location(self, root: Path, location: Location) -> Iterable:
+    def scan_models(self, active_root: Path, archive_root: Path) -> Iterable:
         """
-        Scan a dir with subdirs and return all model file_handler found.
-        For models with an associated metadata file, return that too.
+        Scan a directory with subdirectories and return all model and sidecar files found.
+        The active and archive directories are scanned in parallel.
         """
-        examples_root = root.parent / 'examples'
-        for dirpath, dirnames, filenames in root.walk():
-            for name in filenames:
-                model_path = dirpath / name
-                if model_path.suffix in self.extensions:
-                    file_list = []
-                    relative_path = str(dirpath.relative_to(root))
-                    metadata_path, metadata = ensure_metadata(model_path)
-                    file_list.append(Component(location=location,
-                                               relative_path=relative_path,
-                                               filename=name,
-                                               component_type=ComponentType.MODEL,
-                                               is_present=True))
-                    file_list.append(Component(location=location,
-                                               relative_path=relative_path,
-                                               filename=metadata_path.name,
-                                               component_type=ComponentType.METADATA,
-                                               is_present=metadata_path is not None))
-                    for filename in filenames:
-                        if model_path.stem == Path(filename).stem and model_path.name != filename:
-                            file_list.append(Component(location=location,
-                                                       relative_path=relative_path,
-                                                       filename=filename,
-                                                       component_type=ComponentType.EXTRA,
-                                                       is_present=True))
-                    if examples_root.is_dir():
-                        examples_dir = examples_root / metadata['sha256']
-                        examples_relative_path = str(examples_dir.relative_to(root, walk_up=True))
-                        if examples_dir.is_dir():
-                            for example in examples_dir.iterdir():
-                                file_list.append(Component(location=location,
-                                                           relative_path=examples_relative_path,
-                                                           filename=str(example),
-                                                           component_type=ComponentType.EXAMPLE,
-                                                           is_present=True))
-                    yield metadata, file_list
+        active_examples = active_root.parent / 'examples'
+        archive_examples = archive_root.parent / 'examples'
+
+        logger.info(f'FileHandler.scan_models: scanning level 1 {active_root}')
+        for active_dir, subdirs, filenames in active_root.walk():
+            # make sure the archive and active trees are equal
+            relative_path = str(active_dir.relative_to(active_root))
+            archive_dir = archive_root / relative_path
+            for d in subdirs:
+                (archive_dir / d).mkdir(exist_ok=True)
+            for subdir in (d.name for d in archive_dir.iterdir() if d.is_dir()):
+                if subdir not in subdirs:
+                    (active_dir / subdir).mkdir()
+                    subdirs.append(subdir)
+
+            # Make a list of all files. Model files in archive and active folders match by hash, but they
+            # must also match by filename. Extra files are matched by file stem, examples also by hash, but they
+            # are in a different branch of the directory tree.
+            models = {}
+            others = {}
+
+            logger.info(f'FileHandler.scan_models: scanning level 2 {active_dir}')
+            for file_path, is_archive in chain(((active_dir / name, False) for name in filenames),
+                                                ((f.resolve(), True) for f in archive_dir.iterdir() if f.is_file())):
+                stem = file_path.stem
+                if file_path.suffix in self.config.model_extensions:
+                    metadata_file = file_path.with_suffix('.metadata.json')
+                    metadata = ensure_metadata(file_path, metadata_file)
+                    model_hash = metadata['sha256']
+                    if model_hash not in models:
+                        models[model_hash] = {'stem': stem,
+                                              'hash': model_hash,
+                                              'name': metadata.get('model_name', stem),
+                                              'tags': metadata.get('tags', []),
+                                              'relative_path': relative_path,
+                                              'files': []}
+                    elif models[model_hash]['stem'] != stem:
+                        raise ArchivistException(ArchivistError.INCONSISTENT_FILENAME, str(file_path))
+                    models[model_hash]['files'].append((file_path, ComponentType.MODEL, is_archive))
+                    models[model_hash]['files'].append((metadata_file, ComponentType.METADATA, is_archive))
+                elif not file_path.name.endswith('.metadata.json'):
+                    if stem not in others:
+                        others[stem] = [(file_path, ComponentType.EXTRA, is_archive)]
+                    else:
+                        others[stem].append((file_path, ComponentType.EXTRA, is_archive))
+
+            # Complete and return all models collected
+            for model_hash, model_dict in models.items():
+                stem = model_dict['stem']
+                logger.info(f'FileHandler.scan_models: finalizing model {stem}')
+                if stem in others:
+                    for file_path, component_type, is_archive in others[stem]:
+                        model_dict['files'].append((file_path, component_type, is_archive))
+                examples_dir = active_examples / model_hash
+                if examples_dir.is_dir():
+                    for example in examples_dir.iterdir():
+                        model_dict['files'].append((example.resolve(), False, ComponentType.EXAMPLE))
+                examples_dir = archive_examples / model_hash
+                if examples_dir.is_dir():
+                    for example in examples_dir.iterdir():
+                        model_dict['files'].append((example.resolve(), True, ComponentType.EXAMPLE))
+
+                yield model_dict

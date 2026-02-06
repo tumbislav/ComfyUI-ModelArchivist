@@ -1,16 +1,32 @@
 # ---------------------------------------------------------------------------
 # system: ModelArchivist
-# file: object_types.py
-# purpose: Declarations of complex object types that get passed around
+# file: enums.py
+# purpose: Declarations of enum types
 # ---------------------------------------------------------------------------
 
 from enum import Enum
 
+class ArchivistError(Enum):
+    """
+    Errors codes
+    """
+    INACCESSIBLE = 'Inaccessible folder'
+    MODEL_MISSING = 'Missing model file'
+    INCOMPLETE = 'Incomplete model'
+    DUPLICATE_MODEL = 'Duplicate model hash'
+    DUPLICATE_ARCHIVE = 'Duplicate archive location'
+    MULTIPLE_PATHS_PER_TYPE = 'Multiple extra paths per type are not supported'
+    INCONSISTENT_FILENAME = 'Model files have different names'
 
-class Location(str, Enum):
-    ACTIVE = 'active'
-    INACTIVE = 'inactive'
-    ARCHIVE = 'archive'
+
+class ArchivistException(Exception):
+    def __init__(self, error_code: ArchivistError, message: str):
+        super().__init__()
+        self.message = message
+        self.code = error_code
+
+    def __str__(self):
+        return f'{self.code}: {self.message}'
 
 class ComponentType(str, Enum):
     MODEL = 'model'
@@ -19,14 +35,4 @@ class ComponentType(str, Enum):
     EXTRA = 'extra'
     EXAMPLE = 'example'
     WORKFLOW = 'workflow'
-
-class ScanError(Enum):
-    """
-    Errors encountered during a file system scan
-    """
-    INACCESSIBLE = 'A registered folder is not accessible'
-    MODEL_MISSING = 'Main model file is neither in the active nor in inactive location'
-    INCOMPLETE = 'Part of the model is in active and part in inactive locations'
-    ARCHIVE_INCOMPLETE = 'Some of the model components are archived, some not'
-    DUPLICATES = 'Multiple models with the same sha256 value exist'
 

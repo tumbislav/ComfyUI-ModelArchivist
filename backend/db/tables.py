@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 from sqlmodel import Field, Relationship, SQLModel, CheckConstraint
-from ..model.object_types import Location, ComponentType
+from ..model.object_types import ComponentType
 
 
 class TagModelLink(SQLModel, table=True):
@@ -24,14 +24,12 @@ class Model(SQLModel, table=True):
     sha256: str
     name: str
     type: str
-    active_root: str
-    inactive_root: str
-    archive_root: str
+    relative_path: str
+    active_type_dir: str
+    archive_type_dir: str
     is_active: bool
-    is_inactive: bool
     is_archived: bool
     last_scan_id: str
-    scan_errors: str
     tags: list['Tag'] = Relationship(back_populates="models", link_model=TagModelLink)
     components: list['Component'] = Relationship(back_populates="model")
 
@@ -67,16 +65,16 @@ class Workflow(SQLModel, table=True):
 
 class Component(SQLModel, table=True):
     """
-    Part of a model or of a workflow.
+    A file, part of a model or of a workflow.
     """
     __table_args__ = (CheckConstraint(
             "(model_id IS NOT NULL AND workflow_id IS NULL) OR (model_id IS NULL AND workflow_id IS NOT NULL)"),)
     id: int | None = Field(default=None, primary_key=True)
-    location: Location
-    relative_path: str # relative to location root
-    filename: str # stem+suffix
+    is_archive: bool
+    file_name: str
+    file_dir: str
     component_type: ComponentType
-    is_present: bool
+    last_scan_id: str
     model_id: int | None = Field(default=None, foreign_key="model.id")
     workflow_id: int | None = Field(default=None, foreign_key="workflow.id")
 

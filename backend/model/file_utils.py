@@ -22,30 +22,22 @@ def compute_sha256(path: Path, chunk_size: int = 1 << 20) -> str:
             h.update(chunk)
     return h.hexdigest()
 
-def ensure_metadata(model_path: Path) -> Tuple[Path | None, Dict]:
-    metadata_path = model_path.with_suffix('.metadata.json')
-    is_changed = False
-    if metadata_path.is_file():
-        data = json.loads(metadata_path.read_text(encoding='utf-8'))
-        if 'sha256' not in data:
-            data['sha256'] = compute_sha256(model_path)
-            is_changed = True
-        if 'model_name' not in data:
-            data['model_name'] = model_path.stem
-            is_changed = True
-        if 'tags' not in data:
-            data['tags'] = []
-            is_changed = True
-        if is_changed:
-            logger.info(f'Updating metadata for {model_path}')
+def ensure_metadata(model_file: Path, metadata_file) -> Dict:
+    if metadata_file.is_file():
+        data = json.loads(metadata_file.read_text(encoding='utf-8'))
     else:
+        data = {}
+    is_changed = False
+    if 'sha256' not in data:
+        data['sha256'] = compute_sha256(model_file)
         is_changed = True
-        logger.info(f'Creating metadata for {model_path}')
-        data = {'model_name': model_path.stem, 'tags': [], 'sha256': compute_sha256(model_path)}
+    if 'model_name' not in data:
+        data['model_name'] = model_file.stem
+        is_changed = True
+    if 'tags' not in data:
+        data['tags'] = []
+        is_changed = True
     if is_changed:
-        try:
-            metadata_path.write_text(json.dumps(data), encoding='utf-8')
-        except Exception as e:
-            logger.error(f'Cannot write metadata for {model_path}: {e}')
-            return None, data
-    return metadata_path, data
+        logger.info(f'Updating metadata for {model_file}')
+        metadata_file.write_text(json.dumps(data), encoding='utf-8')
+    return data
