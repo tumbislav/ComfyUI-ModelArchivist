@@ -1,1 +1,102 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="107" height="128" viewBox="0 0 107 128"><title>svelte-logo</title><path d="M94.157 22.819c-10.4-14.885-30.94-19.297-45.792-9.835L22.282 29.608A29.92 29.92 0 0 0 8.764 49.65a31.5 31.5 0 0 0 3.108 20.231 30 30 0 0 0-4.477 11.183 31.9 31.9 0 0 0 5.448 24.116c10.402 14.887 30.942 19.297 45.791 9.835l26.083-16.624A29.92 29.92 0 0 0 98.235 78.35a31.53 31.53 0 0 0-3.105-20.232 30 30 0 0 0 4.474-11.182 31.88 31.88 0 0 0-5.447-24.116" style="fill:#ff3e00"/><path d="M45.817 106.582a20.72 20.72 0 0 1-22.237-8.243 19.17 19.17 0 0 1-3.277-14.503 18 18 0 0 1 .624-2.435l.49-1.498 1.337.981a33.6 33.6 0 0 0 10.203 5.098l.97.294-.09.968a5.85 5.85 0 0 0 1.052 3.878 6.24 6.24 0 0 0 6.695 2.485 5.8 5.8 0 0 0 1.603-.704L69.27 76.28a5.43 5.43 0 0 0 2.45-3.631 5.8 5.8 0 0 0-.987-4.371 6.24 6.24 0 0 0-6.698-2.487 5.7 5.7 0 0 0-1.6.704l-9.953 6.345a19 19 0 0 1-5.296 2.326 20.72 20.72 0 0 1-22.237-8.243 19.17 19.17 0 0 1-3.277-14.502 17.99 17.99 0 0 1 8.13-12.052l26.081-16.623a19 19 0 0 1 5.3-2.329 20.72 20.72 0 0 1 22.237 8.243 19.17 19.17 0 0 1 3.277 14.503 18 18 0 0 1-.624 2.435l-.49 1.498-1.337-.98a33.6 33.6 0 0 0-10.203-5.1l-.97-.294.09-.968a5.86 5.86 0 0 0-1.052-3.878 6.24 6.24 0 0 0-6.696-2.485 5.8 5.8 0 0 0-1.602.704L37.73 51.72a5.42 5.42 0 0 0-2.449 3.63 5.79 5.79 0 0 0 .986 4.372 6.24 6.24 0 0 0 6.698 2.486 5.8 5.8 0 0 0 1.602-.704l9.952-6.342a19 19 0 0 1 5.295-2.328 20.72 20.72 0 0 1 22.237 8.242 19.17 19.17 0 0 1 3.277 14.503 18 18 0 0 1-8.13 12.053l-26.081 16.622a19 19 0 0 1-5.3 2.328" style="fill:#fff"/></svg>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="86.179459"
+   height="94.994972"
+   viewBox="0 0 86.179459 94.994972"
+   version="1.1"
+   id="svg2"
+   sodipodi:docname="favicon.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   inkscape:export-filename="favicon.png"
+   inkscape:export-xdpi="36.380875"
+   inkscape:export-ydpi="36.380875"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="namedview2"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     showguides="false"
+     inkscape:zoom="9.1796875"
+     inkscape:cx="70.372766"
+     inkscape:cy="42.757447"
+     inkscape:window-width="2560"
+     inkscape:window-height="1377"
+     inkscape:window-x="2552"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg2" />
+  <title
+     id="title1">svelte-logo</title>
+  <path
+     style="fill:none;stroke:#000000;stroke-width:7.55906;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+     d="M 3.77953,3.77953 17.832296,4.32421 47.136125,77.311445 82.399926,61.702605"
+     id="path2"
+     sodipodi:nodetypes="cccc" />
+  <circle
+     style="fill:none;stroke:#000000;stroke-width:7.55906;stroke-dasharray:none;stroke-opacity:1"
+     id="path3"
+     cx="46.484112"
+     cy="84.798134"
+     r="6.4173074" />
+  <path
+     sodipodi:type="star"
+     style="fill:#770307;stroke:#770307;stroke-width:3.77953;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;fill-opacity:1"
+     id="path5"
+     inkscape:flatsided="true"
+     sodipodi:sides="6"
+     sodipodi:cx="60.083015"
+     sodipodi:cy="42.828403"
+     sodipodi:r1="15.434376"
+     sodipodi:r2="7.7171879"
+     sodipodi:arg1="0.47703967"
+     sodipodi:arg2="1.0006384"
+     inkscape:rounded="0"
+     inkscape:randomized="0"
+     d="m 73.794267,49.915118 -12.9929,8.330935 -13.711252,-7.086714 -0.718352,-15.41765 12.992901,-8.330935 13.711252,7.086714 z"
+     transform="translate(-0.43347855,4.876861)" />
+  <path
+     sodipodi:type="star"
+     style="fill:#12055a;stroke:#12055a;stroke-width:3.77953;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;fill-opacity:1"
+     id="path6"
+     inkscape:flatsided="true"
+     sodipodi:sides="3"
+     sodipodi:cx="41.904053"
+     sodipodi:cy="7.8570094"
+     sodipodi:r1="7.8434052"
+     sodipodi:r2="17.496214"
+     sodipodi:arg1="0.78539814"
+     sodipodi:arg2="1.8325957"
+     inkscape:rounded="0"
+     inkscape:randomized="0"
+     d="M 47.450178,13.403134 34.327905,9.8870322 43.934075,0.28086167 Z"
+     transform="rotate(41.434503,16.406841,16.37771)" />
+  <path
+     sodipodi:type="star"
+     style="fill:#05470a;stroke:#05470a;stroke-width:3.77953;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;fill-opacity:1"
+     id="path7"
+     inkscape:flatsided="false"
+     sodipodi:sides="5"
+     sodipodi:cx="58.234306"
+     sodipodi:cy="22.800734"
+     sodipodi:r1="7.8538389"
+     sodipodi:r2="12.466411"
+     sodipodi:arg1="0.8728935"
+     sodipodi:arg2="1.501212"
+     inkscape:rounded="1.3530843e-16"
+     inkscape:randomized="0"
+     d="m 63.28128,28.818279 -4.180207,6.418696 -5.030191,-5.776761 -7.396299,-1.992126 3.939612,-6.569114 -0.390957,-7.649899 7.465005,1.716826 7.154674,-2.735771 0.674015,7.63017 4.812789,5.959099 z"
+     inkscape:transform-center-x="1.1761323"
+     inkscape:transform-center-y="-3.874597"
+     transform="rotate(34.753807,71.858067,23.244647)" />
+</svg>

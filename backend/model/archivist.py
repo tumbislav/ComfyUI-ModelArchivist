@@ -95,7 +95,7 @@ class ArchivistService:
             for active_dir, archive_dir in type_locations:
                 for model_dict in self.file_handler.scan_models(active_dir, archive_dir):
                     archive_count = sum(1 if is_archive else 0 for fn, ft, is_archive in model_dict['files'])
-                    logger.info(f'archivist.scan_models: located model {model_dict["name"]}')
+                    logger.info(f'Archivist.scan_models: located model {model_dict["name"]}')
                     model = Model(sha256=model_dict['hash'],
                                   name=model_dict['name'],
                                   relative_path=model_dict['relative_path'],
@@ -114,6 +114,7 @@ class ArchivistService:
                                               for file_path, file_type, is_archive in model_dict['files']],
                                   scan_errors='')
                     self.repo.save_model(model)
+        self.repo.clean_repository(scan_id)
 
     def get_models(self, tags=False, components=False):
         result = []

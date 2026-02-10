@@ -31,7 +31,16 @@ class Model(SQLModel, table=True):
     is_archived: bool
     last_scan_id: str
     tags: list['Tag'] = Relationship(back_populates="models", link_model=TagModelLink)
-    components: list['Component'] = Relationship(back_populates="model")
+    components: list['Component'] = Relationship(back_populates="model", cascade_delete=True)
+
+    def update_from(self, other) -> None:
+        self.last_scan_id = other.last_scan_id
+        self.name = other.name
+        self.relative_path = other.relative_path
+        self.is_active = other.is_active
+        self.active_type_dir = other.active_type_dir
+        self.archive_type_dir = other.archive_type_dir
+        self.type = other.type
 
 
 class WorkflowCollectionLink(SQLModel, table=True):

@@ -37,11 +37,11 @@ class Repository:
         with Session(self.engine) as session:
             known_models = session.exec(select(Model).where(Model.sha256 == model.sha256)).all()
             if len(known_models) == 0:
-                logger.info(f'repository.save_model:adding model {model.name}')
+                logger.info(f'Repository.save_model:adding model {model.name}')
                 session.add(model)
                 session.commit()
             else:
-                logger.info(f'repository.save_model:updating model {model.name}')
+                logger.info(f'Repository.save_model:updating model {model.name}')
                 if len(known_models) > 1:
                     all_names = ', '.join(m.name for m in known_models)
                     raise ArchivistException(ArchivistError.DUPLICATE_MODEL,
@@ -51,16 +51,30 @@ class Repository:
                     raise ArchivistException(ArchivistError.DUPLICATE_MODEL,
                                              f'{model.name} {model.sha256}, {old_model.last_scan_id}')
                 # see which components no longer exist and remove them
-                old_components = {(c.file_name, c.component_type, c.is_archive): c.id for c in old_model.components}
+                known_components = {(c.file_name, c.component_type, c.is_archive): c.id for c in old_model.components}
+                # update the old model
+                old_model.update_from(model)
+                session.add(old_model)
+                session.commit()
+                # add new components
                 for c in model.components:
-                    if (c.file_name, c.component_type, c.is_archive) in old_components:
-                        del old_components[(c.file_name, c.component_type, c.is_archive)]
-                for c_id in old_components.values():
+                    if (c.file_name, c.component_type, c.is_archive) in known_components:
+                        del known_components[(c.file_name, c.component_type, c.is_archive)]
+                    else:
+                        c.model = old_model
+                        session.add(c)
+                # remove components that no longer exist
+                for c_id in known_components.values():
                     c = session.exec(select(Component).where(Component.id == c_id)).one()
                     session.delete(c)
-                model.id = old_model.id
-                session.add(model)
                 session.commit()
+
+    def clean_repository(self, scan_id: str):
+        with Session(self.engine) as session:
+            models = session.exec(select(Model).where(Model.last_scan_id != scan_id))
+            for model in models:
+                session.delete(model)
+            session.commit()
 
     def get_models(self) -> Iterable:
         with Session(self.engine) as session:

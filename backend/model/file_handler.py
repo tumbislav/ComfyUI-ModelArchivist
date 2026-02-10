@@ -84,10 +84,10 @@ class FileHandler:
                 examples_dir = active_examples / model_hash
                 if examples_dir.is_dir():
                     for example in examples_dir.iterdir():
-                        model_dict['files'].append((example.resolve(), False, ComponentType.EXAMPLE))
+                        model_dict['files'].append((example.resolve(), ComponentType.EXAMPLE, False))
                 examples_dir = archive_examples / model_hash
                 if examples_dir.is_dir():
                     for example in examples_dir.iterdir():
-                        model_dict['files'].append((example.resolve(), True, ComponentType.EXAMPLE))
+                        model_dict['files'].append((example.resolve(), ComponentType.EXAMPLE, True))
 
                 yield model_dict

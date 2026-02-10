@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
 # system: ModelArchivist
-# file: enums.py
-# purpose: Declarations of enum types
+# file: Object types.py
+# purpose: Declarations of general object types
 # ---------------------------------------------------------------------------
 
 from enum import Enum

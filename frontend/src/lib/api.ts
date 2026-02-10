@@ -16,3 +16,11 @@ export async function getModels(): Promise<ModelRecord[]> {
   }
   return await res.json();
 }
+
+export async function getModelsRescan(): Promise<ModelRecord[]> {
+  const res = await fetch(`${API_BASE}/models?rescan=true`);
+  if (!res.ok) {
+    throw new Error(`GET /models failed: ${res.status} ${res.statusText}`);
+  }
+  return await res.json();
+}
