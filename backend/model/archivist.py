@@ -116,14 +116,14 @@ class ArchivistService:
                     self.repo.save_model(model)
         self.repo.clean_repository(scan_id)
 
-    def get_models(self, tags=False, components=False):
+    def get_models(self, sorted=True,tags=False, components=False):
         result = []
-        for model in self.repo.get_models():
+        for model in self.repo.get_models(sorted):
             json_model = {'id': str(model.id),
             'sha256':model.sha256,
             'name': model.name,
             'type': self.config.model_types.get(model.type, model.type),
-            'status': 'ACTIVE' if model.is_active else 'NOT_ACTIVE',
+            'active': model.is_active,
             'archived': model.is_archived}
             if tags:
                 json_model['tags'] = [_.tag for _ in model.tags]

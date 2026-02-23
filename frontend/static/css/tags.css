@@ -1,0 +1,55 @@
+/* Variables --------------------------------------*/
+
+:root {
+    --tag-font-size: 10pt;
+    --tag-padding: 0.25rem;
+    --tag-margin: 0.25rem;
+}
+
+
+/* Tag list ---------------------------------------*/
+    .tag-list {
+        /* List of selected tags with editing functions */
+        background: var(--bg-highlight);
+        border: 1px dashed var(--border-color);
+        border-radius: var(--border-radius-mid);
+        height: 4rem;
+        display: flex;
+        flex-direction: row;
+        flex-flow: wrap;
+        overflow-y: auto;
+        padding: var(--tag-padding);
+    }
+
+    .tag-container {
+        /* Container for a single tag */
+        border-radius: var(--border-radius-small);
+        background: var(--bg-color);
+        margin: var(--tag-margin);
+/*        margin: 0px var(--tag-padding) 0px var(--tag-padding); */
+        padding: 0px var(--tag-padding) 0px var(--tag-padding);
+    }
+
+    .tag-content {
+        width: auto;
+        font-size: var(--tag-font-size)
+    }
+
+    .tag-selected {
+        background: var(--bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius-small);
+    }
+
+    .tag-close {
+        border-radius: 50%;
+        background: #333333;
+        color: #cccccc;
+        font-size: 6pt;
+        padding: 3px 2px 1px 2px;
+        width: 0.6rem;
+        height: 0.6rem;
+        position: relative;
+        left: 5px;
+        top: -10px;
+    }

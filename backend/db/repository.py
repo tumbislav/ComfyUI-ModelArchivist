@@ -76,9 +76,13 @@ class Repository:
                 session.delete(model)
             session.commit()
 
-    def get_models(self) -> Iterable:
+    def get_models(self, sorted) -> Iterable:
         with Session(self.engine) as session:
-            for model in session.exec(select(Model)).all():
+            if sorted:
+                statement = select(Model).order_by(Model.type, Model.name)
+            else:
+                statement = select(Model).order_by(Model.type)
+            for model in session.exec(statement).all():
                 yield model
 
     def get_model_by_sha(self, sha256: str) -> Iterable:
