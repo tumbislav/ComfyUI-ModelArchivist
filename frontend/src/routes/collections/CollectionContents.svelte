@@ -11,12 +11,12 @@
 
 
 <div class="three-panel">
-    <CollectionFilter loading={ false } />
+    <CollectionFilter loading={ false }/>
     <div class="content-with-actions">
-        <CollectionActions />
-        <CollectionTable collections={ collections } error={ error } loading={ loading } />
+        <CollectionActions/>
+        <CollectionTable collections={ collections } error={ error } loading={ loading }/>
     </div>
-    <CollectionDetails />
+    <CollectionDetails/>
 </div>
 
 

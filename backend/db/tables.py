@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 from sqlmodel import Field, Relationship, SQLModel, CheckConstraint
-from ..model.object_types import ComponentType
+from ..model.object_types import ComponentFileType
 
 
 # ---------------------------------------------------------------------------
@@ -13,37 +13,41 @@ from ..model.object_types import ComponentType
 # ---------------------------------------------------------------------------
 
 class TagModelLink(SQLModel, table=True):
-    model_id: int | None = Field(default=None, primary_key=True, foreign_key="model.id")
-    tag_id: int | None =  Field(default=None, primary_key=True, foreign_key="tag.id")
+    model_id: str | None = Field(default=None, primary_key=True, foreign_key="model.hash")
+    tag: int | None = Field(default=None, primary_key=True, foreign_key="tag.tag")
+
 
 class TagWorkflowLink(SQLModel, table=True):
     workflow_id: int | None = Field(default=None, primary_key=True, foreign_key="workflow.id")
-    tag_id: int | None =  Field(default=None, primary_key=True, foreign_key="tag.id")
+    tag: int | None = Field(default=None, primary_key=True, foreign_key="tag.tag")
 
 
 class TagCollectionLink(SQLModel, table=True):
     collection_id: int | None = Field(default=None, primary_key=True, foreign_key="collection.id")
-    tag_id: int | None =  Field(default=None, primary_key=True, foreign_key="tag.id")
+    tag: int | None = Field(default=None, primary_key=True, foreign_key="tag.tag")
+
 
 class ModelCollectionLink(SQLModel, table=True):
-    model_id: int | None = Field(default=None, primary_key=True, foreign_key="model.id")
+    model_id: str | None = Field(default=None, primary_key=True, foreign_key="model.hash")
     collection_id: int | None = Field(default=None, primary_key=True, foreign_key="collection.id")
+
 
 class WorkflowCollectionLink(SQLModel, table=True):
     workflow_id: int = Field(default=None, primary_key=True, foreign_key="workflow.id")
     collection_id: int = Field(default=None, primary_key=True, foreign_key="collection.id")
 
+
 class CollectionCollectionLink(SQLModel, table=True):
     child_collection_id: int | None = Field(default=None, primary_key=True, foreign_key="collection.id")
     master_collection_id: int | None = Field(default=None, primary_key=True, foreign_key="collection.id")
+
 
 # ---------------------------------------------------------------------------
 # Models
 # ---------------------------------------------------------------------------
 
 class Model(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    sha256: str
+    hash: str = Field(primary_key=True)
     name: str
     type: str
     relative_path: str
@@ -66,12 +70,13 @@ class Model(SQLModel, table=True):
         self.archive_type_dir = other.archive_type_dir
         self.type = other.type
 
+
 # ---------------------------------------------------------------------------
 # Workflows
 # ---------------------------------------------------------------------------
 
 class Workflow(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
+    id: str = Field(primary_key=True)
     name: str
     purpose: str
     relative_path: str
@@ -83,6 +88,7 @@ class Workflow(SQLModel, table=True):
 
     tags: list['Tag'] = Relationship(back_populates="workflows", link_model=TagWorkflowLink)
     collections: list['Collection'] = Relationship(back_populates="workflows", link_model=WorkflowCollectionLink)
+
 
 # ---------------------------------------------------------------------------
 # Collections
@@ -115,6 +121,7 @@ class Collection(SQLModel, table=True):
         }
     )
 
+
 # ---------------------------------------------------------------------------
 # Component files
 # ---------------------------------------------------------------------------
@@ -124,26 +131,26 @@ class Component(SQLModel, table=True):
     A file, part of a model or of a workflow.
     """
     __table_args__ = (CheckConstraint(
-            "(model_id IS NOT NULL AND workflow_id IS NULL) OR (model_id IS NULL AND workflow_id IS NOT NULL)"),)
+        "(model_id IS NOT NULL AND workflow_id IS NULL) OR (model_id IS NULL AND workflow_id IS NOT NULL)"),)
     id: int | None = Field(default=None, primary_key=True)
     is_archive: bool
     file_name: str
     file_dir: str
-    component_type: ComponentType
+    component_type: ComponentFileType
     last_scan_id: str
-    model_id: int | None = Field(default=None, foreign_key="model.id")
+    model_id: int | None = Field(default=None, foreign_key="model.hash")
     workflow_id: int | None = Field(default=None, foreign_key="workflow.id")
 
     model: Model | None = Relationship(back_populates="components")
     workflow: Workflow | None = Relationship(back_populates="components")
+
 
 # ---------------------------------------------------------------------------
 # Tags
 # ---------------------------------------------------------------------------
 
 class Tag(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    tag: str
+    tag: str = Field(default=None, primary_key=True)
     models: list['Model'] | None = Relationship(back_populates="tags", link_model=TagModelLink)
     workflows: list['Workflow'] | None = Relationship(back_populates="tags", link_model=TagWorkflowLink)
     collections: list['Collection'] | None = Relationship(back_populates="tags", link_model=TagCollectionLink)

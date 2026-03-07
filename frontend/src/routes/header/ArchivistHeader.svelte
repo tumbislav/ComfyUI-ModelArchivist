@@ -10,19 +10,22 @@
     </div>
 
     <nav class="main-nav">
-        <button class="archivist-button nav-button" onclick={() => selectContents("models")}>
-            <img src="model-32.png" class="nav-icon" alt="Models">
-            <span>Models</span>
+        <button class="archivist-button nav-button" onclick={()
+        => selectContents("models")}>
+        <img src="model-32.png" class="nav-icon" alt="Models">
+        <span>Models</span>
         </button>
 
-        <button class="archivist-button nav-button" onclick={() => selectContents("workflows")} >
-            <img src="workflow-32.png" class="nav-icon" alt="Workflows">
-            <span>Workflows</span>
+        <button class="archivist-button nav-button" onclick={()
+        => selectContents("workflows")} >
+        <img src="workflow-32.png" class="nav-icon" alt="Workflows">
+        <span>Workflows</span>
         </button>
 
-        <button class="archivist-button nav-button" onclick={() => selectContents("collections")}>
-            <img src="collection-32.png" class="nav-icon" alt="Collections">
-            <span>Collections</span>
+        <button class="archivist-button nav-button" onclick={()
+        => selectContents("collections")}>
+        <img src="collection-32.png" class="nav-icon" alt="Collections">
+        <span>Collections</span>
         </button>
 
         <button class="archivist-button nav-button">

@@ -10,12 +10,12 @@
 </script>
 
 <div class="three-panel">
-    <WorkflowFilter loading = { false } />
+    <WorkflowFilter loading={ false }/>
     <div class="content-with-actions">
-        <WorkflowActions />
+        <WorkflowActions/>
         <WorkflowTable workflows={ workflows } error={ error } loading={ loading }/>
     </div>
-    <WorkflowDetails />
+    <WorkflowDetails/>
 </div>
 
 

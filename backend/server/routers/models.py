@@ -10,8 +10,9 @@ from fastapi import APIRouter
 
 router = APIRouter()
 
+
 @router.get('/models')
-async def get_models(rescan: bool=False) -> list[dict]:
+async def get_models(rescan: bool = False) -> list[dict]:
     if rescan:
         archivist.scan_models()
     models = archivist.get_models()

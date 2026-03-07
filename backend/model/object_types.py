@@ -4,9 +4,10 @@
 # purpose: Declarations of general object types
 # ---------------------------------------------------------------------------
 
-from enum import Enum
+from enum import StrEnum
 
-class ArchivistError(Enum):
+
+class ArchivistError(StrEnum):
     """
     Errors codes
     """
@@ -28,11 +29,16 @@ class ArchivistException(Exception):
     def __str__(self):
         return f'{self.code}: {self.message}'
 
-class ComponentType(str, Enum):
+
+class ComponentFileType(StrEnum):
     MODEL = 'model'
     METADATA = 'metadata'
-    TITLE = 'title'
     EXTRA = 'extra'
     EXAMPLE = 'example'
     WORKFLOW = 'workflow'
 
+
+class Taggable(StrEnum):
+    MODEL = 'model'
+    WORKFLOW = 'workflow'
+    COLLECTION = 'collection'

@@ -13,8 +13,7 @@ import uvicorn
 import webbrowser
 
 from backend.config import config
-from .routers import models, health, admin
-
+from .routers import models, health, admin, tags
 
 app = FastAPI(title='Model Archivist API', version='0.1.0')
 
@@ -27,6 +26,7 @@ app.add_middleware(
 )
 
 app.include_router(models.router)
+app.include_router(tags.router)
 app.include_router(health.router)
 app.include_router(admin.router)
 
@@ -38,6 +38,7 @@ class SPAStaticFiles(StaticFiles):
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
         return response
+
 
 app.mount('/', app=StaticFiles(directory=config.html_root, html=True), name='static')
 

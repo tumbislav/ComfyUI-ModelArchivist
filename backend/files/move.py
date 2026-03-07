@@ -29,6 +29,7 @@ class Scanner(threading.Thread):
     """
     Full library scan
     """
+
     def __init__(self, active_dir: Path, repository):
         super().__init__()
         self.active_dir = active_dir
@@ -40,7 +41,6 @@ class Scanner(threading.Thread):
         :return:
         """
         pass
-
 
     def scan(self) -> List[ModelRecord]:
         """
@@ -103,8 +103,6 @@ class Scanner(threading.Thread):
                 tags=tags,
             )
             self.repo.upsert_model(rec)
-
-
 
             # original_path might have been stored earlier; reuse if present
             existing = self.repo.get_model_by_sha(sha)

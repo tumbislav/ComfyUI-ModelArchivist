@@ -8,18 +8,20 @@
 comfy_root = "test/data/ComfyUI"
 archive_root = "test/data/archive"
 database = "test/model_archivist.db"
-workflow_root = "test/data/workflow_root"
-workflow_archive = "test/data/workflow_archive"
+ignore = ["examples", "configs"]
 
-[[extra_models]]
+[[folders.workflows]]
+active = "test/data/workflow_root"
+archive = "test/data/workflow_archive"
+
+[[folders.extra_models]]
 yaml = "test/data/extra_models_1.yaml"
 archive = "test/data/extra_archive_1"
 
 [models]
 extensions = [".safetensors", ".sft", ".ckpt", ".pt", ".pth", ".gguf"]
-ignore_types = ["examples", "configs"]
 
-[model_types]
+[modes.types]
 checkpoints = "Checkpoint"
 clip = "CLIP"
 clip_vision = "CLIP Vision"
@@ -41,7 +43,8 @@ vae = "VAE"
 vae_approx = "Tiny AutoEncoder"
 
 [web]
-url = "http://127.0.0.1:5173"
+base_url = "http://127.0.0.1"
+port = 5173
 
 [options]
 update_json_metadata = true     # update metadata when values change - has consequences for Lora
