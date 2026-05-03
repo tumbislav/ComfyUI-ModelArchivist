@@ -11,15 +11,20 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response
 import uvicorn
 import webbrowser
+from threading import Thread
+import socket
+import time
 
-from backend.config import config
+from backend.config import get_config
 from .routers import models, health, admin, tags
 
-app = FastAPI(title='Model Archivist API', version='0.1.0')
+app = FastAPI(title='Model Archivist API', version='1.0.0')
+
+config = get_config()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[config.url],
+    allow_origins=[config.http_port],
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*']
@@ -31,7 +36,7 @@ app.include_router(health.router)
 app.include_router(admin.router)
 
 
-class SPAStaticFiles(StaticFiles):
+class AppFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         response: Response = await super().get_response(path, scope)
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
@@ -40,9 +45,29 @@ class SPAStaticFiles(StaticFiles):
         return response
 
 
-app.mount('/', app=StaticFiles(directory=config.html_root, html=True), name='static')
+app.mount('/', app=AppFiles(directory=config.static_html, html=True), name='static')
 
+def await_port(interval: float, timeout: float) -> bool:
+    cutoff = time.time() + timeout
+    while time.time() < cutoff:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as the_socket:
+            the_socket.settimeout(interval)
+            try:
+                the_socket.connect((config.host, config.http_port))
+                return True
+            except OSError as e:
+                interval *= 2.0
+    return False
 
-def start_server():
-    webbrowser.open(f'{config.url}')
-    uvicorn.run(app, host='127.0.0.1', port=config.port, log_level='info')
+def run_server():
+    uvicorn.run(app, host=config.host, port=config.http_port, log_level='info')
+
+def start_ui():
+    t = Thread(target=run_server, daemon=True)
+    t.start()
+    if await_port(0.1, 10):
+        webbrowser.open(f'{config.full_url}')
+    else:
+        raise RuntimeError('Server not ready in time.')
+    t.join()
+

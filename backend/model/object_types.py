@@ -15,8 +15,6 @@ class ArchivistError(StrEnum):
     MODEL_MISSING = 'Missing model file'
     INCOMPLETE = 'Incomplete model'
     DUPLICATE_MODEL = 'Duplicate model hash'
-    DUPLICATE_ARCHIVE = 'Duplicate archive location'
-    MULTIPLE_PATHS_PER_TYPE = 'Multiple extra paths per type are not supported'
     INCONSISTENT_FILENAME = 'Model files have different names'
 
 

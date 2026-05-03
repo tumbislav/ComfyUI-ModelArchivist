@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 from fastapi import APIRouter, HTTPException
-from backend.model.archivist import archivist
+from backend.model.archivist import get_archivist
 
 router = APIRouter()
 
@@ -17,7 +17,7 @@ def admin() -> dict[str, str]:
 
 @router.post('/admin/scan')
 def admin() -> str:
-    scan_id = archivist.start_scan()
+    scan_id = get_archivist.start_scan()
     if scan_id is None:
         raise HTTPException(400, 'Scan already running')
     return scan_id

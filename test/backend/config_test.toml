@@ -8,10 +8,7 @@
 comfy = "{$app}/test/data/ComfyUI"
 archive = "{$app}/test/data/archive"
 user = "{$app}/test/data"
-
-[database]
-database_file = "{$app}/test/model_archivist.db"
-dbms = "sqlite"
+database = "{$app}/test/model_archivist.db"
 
 [models]
 active = "{$comfy}/models"
@@ -51,10 +48,8 @@ active = "{$user}/workflows"
 archive = "{$archive}/workflows"
 
 [web]
-host = "127.0.0.1"
+base_url = "http://127.0.0.1"
 port = 5173
-static_html = "{$app}/frontend/build"
-
 
 [options]
 update_json_metadata = true     # update metadata when values change - has consequences for Lora
