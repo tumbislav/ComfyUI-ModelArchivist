@@ -20,7 +20,6 @@
         <p>{error}</p>
     </div>
     {:else}
-    <p>Found {tags.length} tags.</p>
 
     <label for="model-filter-include-tags"><span class="actions-label">Include tags</span></label>
     <div class="tag-list" id="model-filter-include-tags">

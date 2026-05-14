@@ -143,12 +143,15 @@
         padding: 0px 0.5rem 0px 0.5rem;
         text-align: left;
     }
+
     .main-table tr:nth-child(even) {
         background-color: #E7E9EB;
+        cursor: pointer;
     }
 
     .main-table tr:nth-child(odd) {
         background-color: #ffffff;
+        cursor: pointer;
     }
 
     .main-table td.clear {
@@ -162,4 +165,8 @@
     .main-table tr.table-head {
         font-weight: bold;
         font-size: 11pt;
+    }
+
+    .main-table tr.selected {
+        font-style: italic;
     }

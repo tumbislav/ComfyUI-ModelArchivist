@@ -5,14 +5,65 @@
     import ModelDetails from './ModelDetails.svelte'
 
     import { onMount } from "svelte";
-    import { getModels, getModelsRescan, getTags, type PrimaryObjectType, type ModelRecord } from "$lib/api";
+    import {
+        clone,
+        getModels,
+        saveModel,
+        getModelsRescan,
+        getTags,
+        type PrimaryObjectType,
+        type ModelRecord
+        } from "$lib/api";
 
     let models: ModelRecord[] = $state([]);
+    let selectedId: string | null = $state(null);
+    let dirty = $state(false);
     let tags: str[] = $state([]);
     let models_error: string | null = $state(null);
     let tags_error: string | null = $state(null);
-    let models_loading = $state(true);
-    let tags_loading = $state(true);
+    let models_loading: boolean | null = $state(true);
+    let tags_loading: boolean | null = $state(true);
+
+    let selectedModel = $derived(models.find(m => m.id == selectedId) ?? null);
+
+
+
+    function ifDiscardChanges() {
+        return !dirty || confirm('The model is changed. Discard changes?');
+    }
+
+    function selectModel(id: string) {
+        if (id == selectedId) return;
+
+        if (!ifDiscardChanges()) return;
+
+        selectedId = id;
+        dirty = false;
+    }
+
+    function closeDetails() {
+        if (!ifDiscardChanges()) return;
+        selectedId = null;
+        dirty = false;
+    }
+
+    function updateModel(updatedModel: ModelRecord) {
+        saved = saveModel(updatedModel);
+        models = models.map(m =>
+          m.id === saved.id ? saved : m
+        );
+
+        selectedId = saved.id;
+        dirty = false;
+    }
+
+    function handleOutsideTableClick(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+
+        if ( target.closest('#model-table') || target.closest('#model-details') ) { return; }
+
+        if (selectedId) closeDetails();
+    }
 
     async function loadModels() {
         models_loading = true;
@@ -57,13 +108,19 @@
 </script>
 
 
-<div class="three-panel">
-    <ModelFilter tags={tags} error={tags_error} loading={tags_loading} on:submit={refreshFilter}/>
+<div class="three-panel" onclick={handleOutsideTableClick}>
+    <ModelFilter tags={tags} error={tags_error} loading={tags_loading} on:submit={refreshFilter} />
     <div class="content-with-actions">
         <ModelActions/>
-        <ModelTable models={models} error={models_error} loading={models_loading}/>
+        <ModelTable {models} {selectedId} onSelect={selectModel} error={models_error} loading={models_loading} />
     </div>
-    <ModelDetails/>
+    <ModelDetails
+        model={draft}
+        {dirty}
+        {saving}
+        onDirtyChange={(value) => dirty = value}
+        onSave={updateModel}
+        onClose={closeDetails} />
 </div>
 
 

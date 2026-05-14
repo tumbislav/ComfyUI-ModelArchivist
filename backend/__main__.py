@@ -5,23 +5,22 @@
 # ---------------------------------------------------------------------------
 
 import argparse
-import logging
+import logging.config
 from backend.config import load_config
 from backend.model.archivist import start_archivist
-
-logger = logging.getLogger('model_archivist')
-logging.basicConfig(filename='model_archivist.log', level=logging.INFO)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', help='full path of config file', default=None)
     args = parser.parse_args()
     try:
-        load_config(args.config)
+        config = load_config(args.config)
+        logging.config.dictConfig(config.log_config)
+        logger = logging.getLogger('archivist.root')
+        logger.debug('Logging initialized')
         start_archivist()
+        logger.info('Back end initialized')
     except Exception as e:  # noqa
-        logger.critical(f'Could not initialize service, aborting.')
         raise e
     from .server.gui import start_ui
     start_ui()

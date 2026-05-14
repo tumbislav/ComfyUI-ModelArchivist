@@ -5,13 +5,10 @@
 # ---------------------------------------------------------------------------
 
 from pathlib import Path
-import logging
 import yaml
 from fancy_dataclass import TOMLDataclass
 from dataclasses import dataclass, field
 from enum import StrEnum
-
-logger = logging.getLogger('model_archivist')
 
 
 class ConfigError(StrEnum):
@@ -31,8 +28,15 @@ class ConfigException(Exception):
         return f'{self.code}: {self.message}'
 
 @dataclass
+class LoggingConfig(TOMLDataclass):
+    level: str
+    sql_level: str
+    file: str
+
+@dataclass
 class OptionsConfig(TOMLDataclass):
-    update_json_metadata: bool = True
+    update_json_metadata: bool
+    ignore_unknown_types: bool
 
 @dataclass
 class WebConfig(TOMLDataclass):
@@ -43,7 +47,7 @@ class WebConfig(TOMLDataclass):
 @dataclass
 class DatabaseConfig(TOMLDataclass):
     database_file: str
-    dbms: str
+    dbms_prefix: str
 
 @dataclass
 class WorkflowFolders(TOMLDataclass):
@@ -94,6 +98,7 @@ purpose: Application config
     workflows: WorkflowConfig
     web: WebConfig
     options: OptionsConfig
+    logging: LoggingConfig
 
     model_folders: dict[str, set[tuple[Path, Path]]] = field(default_factory=dict, metadata={'suppress': True})
     workflow_folders: list[tuple[Path, Path]] = field(default_factory=list, metadata={'suppress': True})
@@ -261,8 +266,8 @@ purpose: Application config
         return self.path_from_string(self.database.database_file)
 
     @property
-    def dbms(self) -> str:
-        return self.database.dbms
+    def dbms_prefix(self) -> str:
+        return self.database.dbms_prefix
 
     @property
     def static_html(self) -> Path:
@@ -281,8 +286,137 @@ purpose: Application config
         return f'http://{self.web.host}:{self.web.port}'
 
     @property
+    def model_extensions(self) -> list[str]:
+        return self.models.extensions
+
+    @property
     def model_types(self) -> dict[str, str]:
         return self.models.types
+
+    @property
+    def log_file(self) -> str:
+        return str(self.path_from_string(self.logging.file))
+
+    @property
+    def sql_log_level(self) -> str:
+        return self.logging.sql_level
+
+    @property
+    def log_config(self) -> dict:
+        filename = str(self.log_file)
+        return {
+            'version': 1,
+            'disable_existing_loggers': False,
+            'formatters': {
+                'default': {
+                    'format': 'ARCHIVIST %(asctime)s - %(levelname)s: %(funcName)s::%(message)s',
+                    'datefmt': '%Y-%m-%d %H:%M:%S'
+                },
+                'database': {
+                    'format': 'DATABASE  %(asctime)s - %(levelname)s: %(funcName)s::%(message)s',
+                    'datefmt': '%Y-%m-%d %H:%M:%S'
+                },
+                'files': {
+                    'format': 'FILES     %(asctime)s - %(levelname)s: %(funcName)s!%(thread)d::%(message)s',
+                    'datefmt': '%Y-%m-%d %H:%M:%S'
+                },
+                'core': {
+                    'format': 'CORE      %(asctime)s - %(levelname)s: %(funcName)s!%(thread)d::%(message)s',
+                    'datefmt': '%Y-%m-%d %H:%M:%S'
+                }
+            },
+            'handlers': {
+                'default': {
+                    'formatter': 'default',
+                    'class': 'logging.FileHandler',
+                    'filename': filename
+                },
+                'database': {
+                    'formatter': 'database',
+                    'class': 'logging.FileHandler',
+                    'filename': filename
+                },
+                'files': {
+                    'formatter': 'files',
+                    'class': 'logging.FileHandler',
+                    'filename': filename
+                },
+                'core': {
+                    'formatter': 'core',
+                    'class': 'logging.FileHandler',
+                    'filename': filename
+                }
+            },
+            'loggers': {
+                'archivist': {
+                    'handlers': ['default'],
+                    'level': self.logging.level,
+                    'propagate': False
+                },
+                'archivist.database': {
+                    'handlers': ['database'],
+                    'level': self.logging.level,
+                    'propagate': False
+                },
+                'archivist.files': {
+                    'handlers': ['files'],
+                    'level': self.logging.level,
+                    'propagate': False
+                },
+                'archivist.core': {
+                    'handlers': ['core'],
+                    'level': self.logging.level,
+                    'propagate': False
+                }
+            }
+        }
+
+    @property
+    def uvicorn_log_config(self) -> dict:
+        filename = str(self.path_from_string(self.logging.file))
+        return {
+            'version': 1,
+            'disable_existing_loggers': False,
+            'formatters': {
+                'default': {
+                    '()': 'uvicorn.logging.DefaultFormatter',
+                    'fmt': 'UVICORN   %(asctime)s - %(levelname)s: %(message)s',
+                    'datefmt': '%Y-%m-%d %H:%M:%S',
+                },
+                'access': {
+                    '()': 'uvicorn.logging.AccessFormatter',
+                    'fmt': 'REQUEST   %(asctime)s - %(levelname)s: %(client_addr)s - "%(request_line)s" %(status_code)s',
+                    'datefmt': '%Y-%m-%d %H:%M:%S',
+                },
+            },
+            'handlers': {
+                'default': {
+                    'formatter': 'default',
+                    'class': 'logging.FileHandler',
+                    'filename': filename
+                },
+                'access': {
+                    'formatter': 'access',
+                    'class': 'logging.FileHandler',
+                    'filename': filename
+                },
+            },
+            'loggers': {
+                'uvicorn': {
+                    'handlers': ['default'],
+                    'level': self.logging.level,
+                    'propagate': False
+                },
+                'uvicorn.error': {
+                    'level': self.logging.level
+                },
+                'uvicorn.access': {
+                    'handlers': ['access'], 
+                    'level': self.logging.level, 
+                    'propagate': False
+                },
+            },
+        }
 
 
 _config: Configuration | None = None

@@ -13,7 +13,7 @@ from ..model.object_types import ComponentFileType
 # ---------------------------------------------------------------------------
 
 class TagModelLink(SQLModel, table=True):
-    model_id: str | None = Field(default=None, primary_key=True, foreign_key="model.hash")
+    model_id: str | None = Field(default=None, primary_key=True, foreign_key="model.id")
     tag: int | None = Field(default=None, primary_key=True, foreign_key="tag.tag")
 
 
@@ -28,7 +28,7 @@ class TagCollectionLink(SQLModel, table=True):
 
 
 class ModelCollectionLink(SQLModel, table=True):
-    model_id: str | None = Field(default=None, primary_key=True, foreign_key="model.hash")
+    model_id: str | None = Field(default=None, primary_key=True, foreign_key="model.id")
     collection_id: int | None = Field(default=None, primary_key=True, foreign_key="collection.id")
 
 
@@ -38,8 +38,8 @@ class WorkflowCollectionLink(SQLModel, table=True):
 
 
 class CollectionCollectionLink(SQLModel, table=True):
-    child_collection_id: int | None = Field(default=None, primary_key=True, foreign_key="collection.id")
-    master_collection_id: int | None = Field(default=None, primary_key=True, foreign_key="collection.id")
+    contains_id: int | None = Field(default=None, primary_key=True, foreign_key="collection.id")
+    contained_in_id: int | None = Field(default=None, primary_key=True, foreign_key="collection.id")
 
 
 # ---------------------------------------------------------------------------
@@ -47,7 +47,7 @@ class CollectionCollectionLink(SQLModel, table=True):
 # ---------------------------------------------------------------------------
 
 class Model(SQLModel, table=True):
-    hash: str = Field(primary_key=True)
+    id: str = Field(primary_key=True)
     name: str
     type: str
     relative_path: str
@@ -83,7 +83,6 @@ class Workflow(SQLModel, table=True):
     is_archived: bool
     is_active: bool
     last_scan_id: str
-    scan_errors: str
     components: list['Component'] = Relationship(back_populates="workflow")
 
     tags: list['Tag'] = Relationship(back_populates="workflows", link_model=TagWorkflowLink)
@@ -104,20 +103,20 @@ class Collection(SQLModel, table=True):
 
     models: list['Model'] = Relationship(back_populates="collections", link_model=ModelCollectionLink)
     workflows: list['Workflow'] = Relationship(back_populates="collections", link_model=WorkflowCollectionLink)
-    parent_collections: list['Collection'] = Relationship(
-        back_populates="child_collections",
+    contained_in: list['Collection'] = Relationship(
+        back_populates="contains",
         link_model=CollectionCollectionLink,
         sa_relationship_kwargs={
-            "primaryjoin": lambda: Collection.id == CollectionCollectionLink.child_collection_id,
-            "secondaryjoin": lambda: Collection.id == CollectionCollectionLink.master_collection_id
+            "primaryjoin": lambda: Collection.id == CollectionCollectionLink.contains_id,
+            "secondaryjoin": lambda: Collection.id == CollectionCollectionLink.contained_in_id
         }
     )
-    child_collections: list['Collection'] = Relationship(
-        back_populates="parent_collections",
+    contains: list['Collection'] = Relationship(
+        back_populates="contained_in",
         link_model=CollectionCollectionLink,
         sa_relationship_kwargs={
-            "primaryjoin": lambda: Collection.id == CollectionCollectionLink.master_collection_id,
-            "secondaryjoin": lambda: Collection.id == CollectionCollectionLink.child_collection_id
+            "primaryjoin": lambda: Collection.id == CollectionCollectionLink.contained_in_id,
+            "secondaryjoin": lambda: Collection.id == CollectionCollectionLink.contains_id
         }
     )
 
@@ -138,7 +137,7 @@ class Component(SQLModel, table=True):
     file_dir: str
     component_type: ComponentFileType
     last_scan_id: str
-    model_id: int | None = Field(default=None, foreign_key="model.hash")
+    model_id: int | None = Field(default=None, foreign_key="model.id")
     workflow_id: int | None = Field(default=None, foreign_key="workflow.id")
 
     model: Model | None = Relationship(back_populates="components")

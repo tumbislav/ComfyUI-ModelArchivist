@@ -1,5 +1,5 @@
 <script lang=ts>
-    let { loading } = $props();
+    let { tags, error, loading } = $props();
 
     import { createEventDispatcher } from 'svelte';
 
@@ -15,10 +15,32 @@
 </script>
 
 <aside class="left-sidebar">
-    <!--
-        <meter>
-        <output>
-    -->
+    {#if error}
+    <div class="message-container error-message">
+        <p>{error}</p>
+    </div>
+    {:else}
+
+    <label for="model-filter-include-tags"><span class="actions-label">Include tags</span></label>
+    <div class="tag-list" id="model-filter-include-tags">
+        <div class="tag-container"><span class="tag-content">+</span></div>
+        {#each tags as t, i}
+        <div class="tag-container"><span class="tag-content">
+                    {t}<i class="fas fa-close tag-close"></i></span>
+        </div>
+        {/each}
+    </div>
+
+    <label class="actions-label" for="model-filter-exclude-tags">Exclude tags</label>
+    <div class="tag-list" id="model-filter-exclude-tags">
+        <div class="tag-container"><span class="tag-content">+</span></div>
+        {#each tags as t, i}
+        <div class="tag-container"><span class="tag-content">
+                    {t}<i class="fas fa-close tag-close"></i></span>
+        </div>
+        {/each}
+    </div>
+    {/if}
     <button class="action-button" onclick={ submit } disabled={loading}>
         {loading ? "Loading..." : "Re-scan"}
     </button>

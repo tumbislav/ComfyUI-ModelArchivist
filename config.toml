@@ -11,7 +11,7 @@ user = "{$app}/test/data"
 
 [database]
 database_file = "{$app}/test/model_archivist.db"
-dbms = "sqlite"
+dbms_prefix = "sqlite:///"
 
 [models]
 active = "{$comfy}/models"
@@ -55,7 +55,11 @@ host = "127.0.0.1"
 port = 5173
 static_html = "{$app}/frontend/build"
 
-
 [options]
 update_json_metadata = true     # update metadata when values change - has consequences for Lora
 ignore_unknown_types = false    # ignore models not in the model_types list
+
+[logging]
+level = "WARNING"
+sql_level = "WARNING"
+file = "{$app}archivist.log"

@@ -6,8 +6,7 @@
 
     let currentContents = $state( 'models' );
 
-    function selectContentsA(newContents) {
-        console.log(newContents)
+    function selectMainContents(newContents) {
         currentContents = newContents;
     }
 
@@ -15,23 +14,10 @@
 </script>
 
 <heading class="page-header">
-    <ArchivistHeader selectContents={ selectContentsA }/>
+    <ArchivistHeader selectContents={ selectMainContents }/>
 </heading>
 
 <div class="page-contents">
-    <!--
-        <dialog>
-        <fieldset>
-        <label>
-        <input>
-        <legend>
-        <optgroup>
-        <option>
-        <select>
-        <textarea>
-
-        <noscript>
-    -->
 
     {#if currentContents === 'models'}
     <ModelContents/>
