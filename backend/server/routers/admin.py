@@ -5,27 +5,27 @@
 # ---------------------------------------------------------------------------
 
 from fastapi import APIRouter, HTTPException
-from backend.model.archivist import get_archivist
+from backend.files.scanner import get_scanner, create_scanner
+from backend.repository.repository import repo_status
 
 router = APIRouter()
 
+@router.get('/server-status')
+def server_status() -> dict:
+    return repo_status()
 
-@router.get('/admin')
-def admin() -> dict[str, str]:
-    return {}
 
-
-@router.post('/admin/scan')
-def admin() -> str:
-    scan_id = get_archivist.start_scan()
-    if scan_id is None:
+@router.post('/scan')
+def start_scan() -> str:
+    sc = create_scanner()
+    if sc is None:
         raise HTTPException(400, 'Scan already running')
-    return scan_id
+    return sc.start()
 
 
-@router.get('/admin/scan/{scanId}')
-def admin(scanId: int) -> int:
-    progress = archivist.status(scanId)
-    if progress is None:
-        raise HTTPException(400, 'No scan running')
-    return progress
+@router.get('/scan/{timestamps}')
+def scan_status(timestamp: str) -> dict:
+    sc = get_scanner(timestamp)
+    if sc is None:
+        raise HTTPException(404, 'No such scan job')
+    return sc.progress()

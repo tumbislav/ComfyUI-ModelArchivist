@@ -4,26 +4,26 @@
 # purpose: REST interface for workflows
 # ---------------------------------------------------------------------------
 
-from backend.model.archivist import get_archivist
-from fastapi import APIRouter
+import backend.repository.repository as repo
+from fastapi import APIRouter, HTTPException
+
+from backend.exception import ArcException
 
 router = APIRouter()
 
 @router.get('/workflows')
 async def get_workflows() -> list[dict]:
-    workflows = get_archivist().get_workflow_list()
+    workflows = repo.list_workflows(True)
     return workflows
 
 @router.get('/workflows/{id}')
-async def get_workflow(id: str) -> dict:
-    workflow = get_archivist().get_workflow(id)
-    return workflow
+async def get_workflow(id: str) -> dict | None:
+    try:
+        return repo.get_workflow(id)
+    except ArcException as e:
+        if e.code == ArcException.Code.UNKNOWN_WORKFLOW:
+            raise HTTPException(404, e.message)
 
 @router.post('/workflows/search')
 async def search_workflows(criteria: dict) -> list[dict]:
-    workflows = get_archivist().get_workflow_list(criteria)
-    return workflows
-
-@router.put('/workflows/{id}')
-async def search_workflows(id: str, criteria: dict) -> list[dict]:
-    pass
+    return repo.list_workflows(True, criteria)

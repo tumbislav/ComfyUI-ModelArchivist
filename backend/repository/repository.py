@@ -3,40 +3,82 @@
 # file: repository.py
 # purpose: Database operations
 # ---------------------------------------------------------------------------
-from sqlalchemy.util.preloaded import sql_dml
+
+from typing import Set
+from threading import Lock
+import logging
+
 from sqlmodel import SQLModel, Session, create_engine, select, or_
 from sqlalchemy.engine.base import Engine
-from typing import Iterable, Set
-from threading import Lock
 from .tables import Model, Workflow, Collection, Component, Tag
-from ..model.object_types import ArchivistError, ArchivistException, Taggable
-from ..config import get_config
+from backend.exception import ArcException
+from backend.config import Configuration, get_config
+from backend.files.scanner import get_scanner, create_scanner
+from enum import StrEnum
 
-import logging
+
+class PrimaryObjectType(StrEnum):
+    MODEL = 'md'
+    WORKFLOW = 'wf'
+    COLLECTION = 'cl'
 
 _logger: logging.Logger | None = None
 _engine: Engine | None = None
+_config: Configuration | None = None
 
 lock = Lock()
 
-def start_repo() -> bool:
-    global _engine, _logger
-    config = get_config()
+_first_run: bool = False
+_repo_started: bool = False
+
+def start_repo():
+    global _engine, _logger, _config, _first_run, _repo_started
+    if _repo_started:
+        return
+    _config = get_config()
     _logger = logging.getLogger('archivist.database')
-    is_first_run = not config.db_file.is_file()
-    db_name = f'{config.dbms_prefix}{config.db_file}'
+    _first_run = not _config.db_file.is_file()
+    db_name = f'{_config.dbms_prefix}{_config.db_file}'
     _engine = create_engine(db_name, echo=False)
     sql_logger = logging.getLogger('sqlalchemy.engine')
-    sql_logger.addHandler(logging.FileHandler(config.log_file))
-    sql_logger.setLevel(config.sql_log_level)
-    if is_first_run:
+    sql_logger.addHandler(logging.FileHandler(_config.log_file))
+    sql_logger.setLevel(_config.sql_log_level)
+    if _first_run:
         _logger.info(f'First run, creating the database in {db_name}')
         SQLModel.metadata.create_all(_engine)
-    return is_first_run
+        sc = create_scanner()
+        if sc is None:
+            msg = 'Cannot create a scanner, aborting'
+            _logger.critical(msg)
+            raise RuntimeError(msg)
+        sc.start(_config.options.always_recalc_hashes)
+    _repo_started = True
 
-def save_model(model: Model, tag_names: list[str]) -> None:
+
+def repo_status():
+    if not _repo_started:
+        return {'started': False,
+                'ready': False}
+    status_dict = {'started': True,
+                   'first_run': _first_run}
+    sc = get_scanner()
+    if sc is None:
+        status_dict['ready'] = True
+    else:
+        scan_progress = sc.progress()
+        status_dict['scanning'] = scan_progress['started'] and not scan_progress['finished']
+        status_dict['ready'] = not status_dict['scanning']
+    return status_dict
+
+#-----------------------------------------------------------------------------------
+#
+# Scan
+#
+#-----------------------------------------------------------------------------------
+
+def save_scanned_model(model: Model, tag_names: list[str]) -> None:
     """
-    Save a full model record. We have the following possibilities:
+    Save a full model from a scan. We have the following possibilities:
     - the model is not known: add the model,
     - the model is known, but has not been seen in this scan: update it,
     - the model is known and has already been seen in this scan: raise an exception.
@@ -52,13 +94,13 @@ def save_model(model: Model, tag_names: list[str]) -> None:
             _logger.debug(f'updating model {model.name}')
             if len(known_models) > 1:
                 all_names = ', '.join(m.name for m in known_models)
-                raise ArchivistException(ArchivistError.DUPLICATE_MODEL,
+                raise ArcException(ArcException.Code.DUPLICATE_MODEL,
                                          f'{model.id}, {all_names}')
             old_model = known_models[0]
-            if old_model.last_scan_id == model.last_scan_id:
+            if old_model.scan_timestamp == model.scan_timestamp:
                 _logger.error(f'model {model.name} / {model.id} already seen in this scan')
-                raise ArchivistException(ArchivistError.DUPLICATE_MODEL,
-                                         f'{model.name} {model.id}, {old_model.last_scan_id}')
+                raise ArcException(ArcException.Code.DUPLICATE_MODEL,
+                                         f'{model.name} {model.id}, {old_model.scan_timestamp}')
             # see which components no longer exist and remove them
             known_components = {(c.file_name, c.component_type, c.is_archive): c.id for c in old_model.components}
             # update the old model
@@ -79,7 +121,7 @@ def save_model(model: Model, tag_names: list[str]) -> None:
                 session.delete(c)
             session.commit()
 
-def save_workflow(workflow: Workflow, tag_names: list[str]) -> None:
+def save_scanned_workflow(workflow: Workflow, tag_names: list[str]) -> None:
     """
     Save a full workflow record.
     """
@@ -94,12 +136,12 @@ def save_workflow(workflow: Workflow, tag_names: list[str]) -> None:
             _logger.debug(f'updating workflow {workflow.name}')
             if len(known_workflows) > 1:
                 all_names = ', '.join(w.name for w in known_workflows)
-                raise ArchivistException(ArchivistError.DUPLICATE_MODEL,
+                raise ArcException(ArcException.Code.DUPLICATE_MODEL,
                                          f'{workflow.id}, {all_names}')
             old_workflow = known_workflows[0]
-            if old_workflow.last_scan_id == workflow.last_scan_id:
-                raise ArchivistException(ArchivistError.DUPLICATE_MODEL,
-                                         f'{workflow.name} {workflow.id}, {old_workflow.last_scan_id}')
+            if old_workflow.scan_timestamp == workflow.scan_timestamp:
+                raise ArcException(ArcException.Code.DUPLICATE_MODEL,
+                                         f'{workflow.name} {workflow.id}, {old_workflow.scan_timestamp}')
             # see which components no longer exist and remove them
             known_components = {(c.file_name, c.component_type, c.is_archive): c.id for c in old_workflow.components}
             # update the old workflow
@@ -120,51 +162,109 @@ def save_workflow(workflow: Workflow, tag_names: list[str]) -> None:
                 session.delete(c)
             session.commit()
 
-def cleanup(scan_id: str):
+def scan_cleanup(scan_timestamp: str):
     with Session(_engine) as session:
-        models = session.exec(select(Model).where(Model.last_scan_id != scan_id))
+        models = session.exec(select(Model).where(Model.scan_timestamp != scan_timestamp))
         for model in models:
             _logger.debug(f'deleting model {model.name}')
             session.delete(model)
         session.commit()
 
-def list_models(ordered) -> Iterable:
+#-----------------------------------------------------------------------------------
+#
+# Models
+#
+#-----------------------------------------------------------------------------------
+
+def update_model(changes: dict) -> dict:
+    """
+    Update an existing model. The items that may change are the name, the tags and collection membership.
+    """
+    with Session(_engine) as session:
+        known_models = session.exec(select(Model).where(Model.id == changes['id'])).all()
+        if len(known_models) != 1:
+            msg = f'unknown model {changes["id"]} ({changes["name"]})'
+            _logger.error(msg)
+            raise ArcException(ArcException.Code.UNKNOWN_MODEL, msg)
+        _logger.debug(f'updating model {changes["id"]}')
+        old_model = known_models[0]
+        old_model.name = changes['name']
+        old_model.tags = resolve_tags(session, changes['tags'])
+        return {}
+#        old_model.collections =
+
+def list_models(ordered, search_criteria: dict | None = None) -> list[dict]:
     with Session(_engine) as session:
         if ordered:
             statement = select(Model).order_by(Model.type, Model.name)
         else:
             statement = select(Model).order_by(Model.type)
-        for model in session.exec(statement).all():
-            yield model
+        return [model.summary(_config.model_types) for model in session.exec(statement).all()]
 
-def list_workflows(ordered) -> Iterable:
+def get_model(id: str) -> dict:
+    with Session(_engine) as session:
+        model: Model | None = session.get(Model, id)
+        if model is None:
+            msg = f'model with hash {id} does not exist'
+            _logger.info(msg)
+            raise ArcException(ArcException.Code.UNKNOWN_MODEL, msg)
+        return model.representation(_config.model_types)
+
+#-----------------------------------------------------------------------------------
+#
+# Workflows
+#
+#-----------------------------------------------------------------------------------
+
+def list_workflows(ordered: bool, search_criteria: dict | None = None) -> list[dict]:
     with Session(_engine) as session:
         if ordered:
             statement = select(Workflow).order_by(Workflow.purpose, Workflow.name)
         else:
             statement = select(Workflow).order_by(Workflow.name)
-        for workflow in session.exec(statement).all():
-            yield workflow
+        return [workflow.summary() for workflow in session.exec(statement).all()]
 
-def list_collections(ordered) -> Iterable:
+
+def get_workflow(id: str) -> dict:
+    with Session(_engine) as session:
+        workflow: Workflow | None = session.get(Workflow, id)
+        if workflow is None:
+            msg = f'workflow with id {id} does not exist'
+            _logger.info(msg)
+            raise ArcException(ArcException.Code.UNKNOWN_WORKFLOW, msg)
+        return workflow.representation()
+
+#-----------------------------------------------------------------------------------
+#
+# Collections
+#
+#-----------------------------------------------------------------------------------
+
+def list_collections(ordered) -> list[dict]:
     with Session(_engine) as session:
         if ordered:
             statement = select(Collection).order_by(Collection.type, Collection.name)
         else:
             statement = select(Collection).order_by(Collection.type)
-        for collection in session.exec(statement).all():
-            yield collection
 
-def get_tags(target_types: Set[Taggable] | None, offset: int, limit: int) -> list:
+        return [collection.summary() for collection in session.exec(statement).all()]
+
+#-----------------------------------------------------------------------------------
+#
+# Tags
+#
+#-----------------------------------------------------------------------------------
+
+def list_tags(target_types: Set[PrimaryObjectType] | None, offset: int, limit: int) -> list:
     with Session(_engine) as session:
         if target_types is not None and len(target_types) > 0:
             cond = []
-            if Taggable.MODEL in target_types:
+            if PrimaryObjectType.MODEL in target_types:
                 cond.append(Tag.models.any())
-            if Taggable.WORKFLOW in target_types:
+            if PrimaryObjectType.WORKFLOW in target_types:
                 cond.append(Tag.workflows.any())
-            if Taggable.COLLECTION in target_types:
-                cond.append(Tag.collections.any())
+            if PrimaryObjectType.COLLECTION in target_types:
+                cond.append(Tag.children.any())
             if limit > 0:
                 statement = select(Tag).offset(offset).limit(limit).where(or_(*cond))
             else:
@@ -173,11 +273,6 @@ def get_tags(target_types: Set[Taggable] | None, offset: int, limit: int) -> lis
             statement = select(Tag).offset(offset).limit(limit)
         found = session.exec(statement).all()
         return [t.tag for t in found]
-
-def get_model(id: str) -> Model | None:
-    with Session(_engine) as session:
-        return session.get(Model, id)
-
 
 def resolve_tags(session: Session, tag_names: list[str]) -> list[Tag]:
     cleaned = list({t.strip() for t in tag_names if len(t.strip()) > 0})

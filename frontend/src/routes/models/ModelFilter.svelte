@@ -1,5 +1,6 @@
 <script lang=ts>
-    let { tags, error, loading } = $props();
+    import { type ApiResult } from "$lib/api";
+    let { tags }: { tags: ApiResult<string[]> } = $props();
 
     import { createEventDispatcher } from 'svelte';
 
@@ -15,16 +16,16 @@
 </script>
 
 <aside class="left-sidebar">
-    {#if error}
+    {#if !tags.ok}
     <div class="message-container error-message">
-        <p>{error}</p>
+        <p>Error loading tags{tags.message}</p>
     </div>
     {:else}
 
     <label for="model-filter-include-tags"><span class="actions-label">Include tags</span></label>
     <div class="tag-list" id="model-filter-include-tags">
         <div class="tag-container"><span class="tag-content">+</span></div>
-        {#each tags as t, i}
+        {#each tags.data as t, i}
         <div class="tag-container"><span class="tag-content">
                     {t}<i class="fas fa-close tag-close"></i></span>
         </div>
@@ -34,7 +35,7 @@
     <label class="actions-label" for="model-filter-exclude-tags">Exclude tags</label>
     <div class="tag-list" id="model-filter-exclude-tags">
         <div class="tag-container"><span class="tag-content">+</span></div>
-        {#each tags as t, i}
+        {#each tags.data as t, i}
         <div class="tag-container"><span class="tag-content">
                     {t}<i class="fas fa-close tag-close"></i></span>
         </div>
@@ -54,8 +55,8 @@
         <meter>
         <output>
     -->
-    <button class="action-button" onclick={ submit } disabled={loading}>
-        {loading ? "Loading..." : "Re-scan"}
+    <button class="action-button" onclick={ submit }>
+        Re-scan
     </button>
 </aside>
 

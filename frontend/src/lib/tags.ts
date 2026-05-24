@@ -5,9 +5,14 @@
  * ---------------------------------------------------------------------------*/
 
 import {
-    Tag,
-    get_url
-} from "$lib/helpers";
+    type Tag,
+    PrimaryObjectType,
+    identity } from "$lib/objects";
+
+import {
+    type ApiResult,
+    getUrl,
+    parseResponse } from "$lib/api";
 
 export type TagSearchCriteria = {
     types: string[],
@@ -17,36 +22,19 @@ export type TagSearchCriteria = {
     name: string
 }
 
-export interface GetTagsOptions {
-    targets?: Iterable<PrimaryObjectType>;
-    offset?: number;
-    limit?: number;
+export async function getTag(tag: string): Promise<Tag> {
+    const url = getUrl(`/tags/${tag}`);
+    const res = await fetch(url);
+    return await parseResponse(response, identity, 'getTag');
 }
 
-export async getTag(tag: string): Promise<Tag> {
-    const url = new URL(`/tags/${tag}`, base_url);
-    const res = await fetch(url)
-    if (!res.ok) {
-        throw new Error(`GET /tag failed: ${res.status} ${res.statusText}`);
-    }
-    return await res.json();
-}
+export async function getTags(targets: PrimaryObjectType[], offset?: number, limit?: number): Promise<string[]> {
+    const url = getUrl('/tags');
 
-export async function getTags(target: str, offset?: number, limit?: number): Promise<string[]> {
-    const url = get_url('/tags');
+    if (targets.length > 0) { url.searchParams.set('target', targets.join()); }
+    if (offset) { url.searchParams.set('offset', offset); }
+    if (limit) { url.searchParams.set('limit', limit); }
 
-    if (target) {  url.searchParams.set("target", target); }
-    if (offset) { url.searchParams.set("offset", offset); }
-    if (limit) { url.searchParams.set("limit", limit); }
-
-    const res = await fetch(url.toString(), {
-            method: "GET",
-            headers: { Accept: "application/json" }
-        }
-    );
-
-    if (!res.ok) {
-        throw new Error(`GET /tags failed: ${res.status} ${res.statusText}`);
-    }
-    return await res.json();
+    const response = await fetch(url);
+    return await parseResponse(response, identity, 'getTags');
 }

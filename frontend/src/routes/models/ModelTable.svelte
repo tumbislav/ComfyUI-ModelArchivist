@@ -1,28 +1,19 @@
 <script lang=ts>
-    import { type ModelRecord } from "$lib/api";
-    let {
-            models,
-            selectedId,
-            onSelect,
-            error,
-            loading
-        }: {
-            models: ModelRecord[];
-            selectedId: string | null;
-            onSelect: (model: ModelRecord) => void;
-            error: string | null;
-            loading: string | null;
-        }= $props();
+    import { type ModelSummary } from "$lib/objects";
+    import { type ApiResult } from "$lib/api";
+
+    let { models } : { models: ApiResult<ModelSummary> } = $props();
 </script>
 
 <main class="table-container">
     <h1>Models</h1>
-    <p>{ models.length } models in library.</p>
-    {#if error}
+    {#if !models.ok}
         <div class="message-container error-message">
-            <p>{error}</p>
+            <p>Error loading models: {models.message}</p>
+            <pre>{ JSON.stringify(models, null, 2) }</pre>
         </div>
     {:else}
+        <p>{ models.data.length } models in library.</p>
         <table class="main-table" id="model-table">
             <thead>
             <tr class="table-head table-section">
@@ -34,14 +25,13 @@
             </tr>
             </thead>
             <tbody>
-            {#each models as m, i (m.id)}
-                {#if i === 0 || m.type !== models[i - 1].type}
+            {#each models.data as m, i (m.id)}
+                {#if i === 0 || m.type !== models.data[i - 1].type}
                     <tr class="table-section">
                         <td colspan=5>{m.type}</td>
                     </tr>
                 {/if}
-                <tr class:selected = {object.id === selectedId}
-                    onClick = {() => onSelect(m)} >
+                <tr >
                     <td class="clear"></td>
                     <td class="clear" id="{m.id}"><input type=checkbox></td>
                     <td>{m.name}</td>

@@ -37,6 +37,7 @@ class LoggingConfig(TOMLDataclass):
 class OptionsConfig(TOMLDataclass):
     update_json_metadata: bool
     ignore_unknown_types: bool
+    always_recalc_hashes: bool
 
 @dataclass
 class WebConfig(TOMLDataclass):
@@ -51,7 +52,7 @@ class DatabaseConfig(TOMLDataclass):
 
 @dataclass
 class WorkflowFolders(TOMLDataclass):
-    active: str
+    working: str
     archive: str
 
 @dataclass
@@ -65,7 +66,7 @@ class ExtraModels(TOMLDataclass):
 
 @dataclass
 class ModelsConfig(TOMLDataclass):
-    active: str
+    working: str
     archive: str
     extras: list[ExtraModels]
     types: dict[str, str]
@@ -102,8 +103,8 @@ purpose: Application config
 
     model_folders: dict[str, set[tuple[Path, Path]]] = field(default_factory=dict, metadata={'suppress': True})
     workflow_folders: list[tuple[Path, Path]] = field(default_factory=list, metadata={'suppress': True})
-    all_archives: set[Path] = field(default_factory=set, metadata={'suppress': True})
-    all_actives: set[Path] = field(default_factory=set, metadata={'suppress': True})
+    all_archive: set[Path] = field(default_factory=set, metadata={'suppress': True})
+    all_working: set[Path] = field(default_factory=set, metadata={'suppress': True})
 
     app_root: Path | None = field(default=None, metadata={'suppress': True})
     user_root: Path | None = field(default=None, metadata={'suppress': True})
@@ -148,34 +149,34 @@ purpose: Application config
         self.resolve_model_paths()
         self.resolve_workflow_paths()
 
-    def add_model_locations(self, model_type: str, active: Path, archive: Path, prevent_dupes: bool = True) -> None:
+    def add_model_locations(self, model_type: str, working: Path, archive: Path, prevent_dupes: bool = True) -> None:
         """
-        Store a resolved pair of active and archive dir for later use. Ensure they exist and
+        Store a resolved pair of working and archive dir for later use. Ensure they exist and
         check for duplicates.
         """
         if model_type in self.models.ignore:
             return
-        if active in self.all_actives and prevent_dupes:
-            raise ConfigException(ConfigError.DUPLICATE_FOLDER, str(active))
-        if archive in self.all_archives and prevent_dupes:
+        if working in self.all_working and prevent_dupes:
+            raise ConfigException(ConfigError.DUPLICATE_FOLDER, str(working))
+        if archive in self.all_archive and prevent_dupes:
             raise ConfigException(ConfigError.DUPLICATE_FOLDER, str(archive))
-        self.all_actives.add(active)
-        self.all_archives.add(archive)
-        active.mkdir(exist_ok=True, parents=True)
+        self.all_working.add(working)
+        self.all_archive.add(archive)
+        working.mkdir(exist_ok=True, parents=True)
         archive.mkdir(exist_ok=True, parents=True)
         if model_type not in self.model_folders:
-            self.model_folders[model_type] = {(active, archive)}
+            self.model_folders[model_type] = {(working, archive)}
         else:
-            self.model_folders[model_type].add((active, archive))
+            self.model_folders[model_type].add((working, archive))
 
     def resolve_model_paths(self) -> None:
         """
         Resolve model directories by model type.
         """
-        model_root = self.path_from_string(self.models.active)
+        model_root = self.path_from_string(self.models.working)
         archive_root = self.path_from_string(self.models.archive)
 
-        # Start from the active models folder and update the archive models
+        # Start from the working models folder and update the archive models
         for model_type in (d.stem for d in model_root.iterdir() if d.is_dir()):
             self.add_model_locations(model_type, model_root / model_type, archive_root / model_type)
         # Then do the inverse
@@ -212,48 +213,46 @@ purpose: Application config
                 extra_path = base_path / extra_path
             self.add_model_locations(model_type, extra_path, archive_dir / model_type)
 
-    def add_workflow_locations(self, wf: WorkflowFolders) -> None:
+    def add_workflow_locations(self, working: Path, archive: Path) -> None:
         """
-        Store a resolved pair of active and archive dir for later use. Ensure they exist and
+        Store a resolved pair of working and archive dir for later use. Ensure they exist and
         check for duplicates.
         """
-        active = self.path_from_string(wf.active)
-        archive = self.path_from_string(wf.archive)
-        if active in self.all_actives:
-            raise ConfigException(ConfigError.DUPLICATE_FOLDER, str(active))
-        if archive in self.all_archives:
+        if working in self.all_working:
+            raise ConfigException(ConfigError.DUPLICATE_FOLDER, str(working))
+        if archive in self.all_archive:
             raise ConfigException(ConfigError.DUPLICATE_FOLDER, str(archive))
-        self.all_actives.add(active)
-        self.all_archives.add(archive)
-        active.mkdir(exist_ok=True, parents=True)
+        self.all_working.add(working)
+        self.all_archive.add(archive)
+        working.mkdir(exist_ok=True, parents=True)
         archive.mkdir(exist_ok=True, parents=True)
-        self.workflow_folders.append((active, archive))
+        self.workflow_folders.append((working, archive))
 
     def resolve_workflow_paths(self) -> None:
         """
         Workflow dirs are simple, just add each pair.
         """
         for wf in self.workflows.folders:
-            self.add_workflow_locations(wf)
+            self.add_workflow_locations(self.path_from_string(wf.working), self.path_from_string(wf.archive))
 
-    def add_workflow_folders(self, active_dir: str, archive_dir: str) -> None:
+    def add_workflow_folders(self, working_dir: str, archive_dir: str) -> None:
         """
         Add a folder pair and save the changes.
         """
-        self.add_workflow_locations(active_dir, archive_dir)
-        self.workflows.folders.append(WorkflowFolders(active=active_dir, archive=archive_dir))
+        self.add_workflow_locations(self.path_from_string(working_dir), self.path_from_string(archive_dir))
+        self.workflows.folders.append(WorkflowFolders(working=working_dir, archive=archive_dir))
         self.save_changes()
 
-    def remove_workflow_folders(self, active_dir: str, archive_dir: str) -> None:
+    def remove_workflow_folders(self, working_dir: str, archive_dir: str) -> None:
         """
         Remove a folder pair and save changes. We locate it from the fully resolved paths and use
         the list index to match the strings.
         """
-        active = self.path_from_string(active_dir)
+        working = self.path_from_string(working_dir)
         archive = self.path_from_string(archive_dir)
-        self.workflow_folders.remove((active, archive))
-        self.all_actives.remove(active)
-        self.all_archives.remove(archive)
+        self.workflow_folders.remove((working, archive))
+        self.all_working.remove(working)
+        self.all_archive.remove(archive)
 
     def add_extra_models(self, yaml_filename: str, archive_dirname: str) -> None:
         raise NotImplementedError

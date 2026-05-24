@@ -1,16 +1,40 @@
 <script lang=ts>
-    import ArchivistHeader from './header/ArchivistHeader.svelte'
+    import ArchivistHeader from './top/ArchivistHeader.svelte'
+    import WaitingForStart from './top/WaitingForStart.svelte'
     import ModelContents from './models/ModelContents.svelte'
     import WorkflowContents from './workflows/WorkflowContents.svelte'
     import CollectionContents from './collections/CollectionContents.svelte'
 
-    let currentContents = $state( 'models' );
+    import { onMount } from 'svelte';
+    import { getServerStatus } from "$lib/admin";
+    import { type ApiResult } from "$lib/api";
 
-    function selectMainContents(newContents) {
-        currentContents = newContents;
+    let current_contents = $state( 'models' );
+    let server_ready = $state( false );
+
+    function selectMainContents(new_contents) {
+        current_contents = new_contents;
     }
 
+    onMount(() => {
+        async function checkStatus() {
+            const status = await getServerStatus();
+            server_ready = status.ok && status.data.ready;
+        }
 
+        checkStatus();
+
+        const polling_interval = setInterval(async () => {
+            checkStatus();
+
+            if (server_ready) {
+                clearInterval(polling_interval);
+                return;
+            }
+        }, 1000);
+
+        return () => clearInterval(polling_interval);
+    });
 </script>
 
 <heading class="page-header">
@@ -18,13 +42,14 @@
 </heading>
 
 <div class="page-contents">
-
-    {#if currentContents === 'models'}
+    {#if !server_ready}
+    <WaitingForStart />
+    {:else if current_contents === 'models'}
     <ModelContents/>
-    {:else if currentContents === 'workflows'}
+    {:else if current_contents === 'workflows'}
     <WorkflowContents/>
-    {:else if currentContents === 'collections'}
-    <WorkflowContents/>
+    {:else if current_contents === 'collections'}
+    <CollectionContents/>
     {/if}
 </div>
 

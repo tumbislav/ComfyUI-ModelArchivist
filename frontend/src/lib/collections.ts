@@ -7,60 +7,49 @@
 import {
     CollectionSummary,
     Collection,
-    get_url
-} from "$lib/helpers";
+    identity } from "$lib/objects";
+
+import {
+    type ApiResult,
+    getUrl,
+    parseResponse } from "$lib/api";
 
 export type CollectionSearchCriteria = {
-    types: string[],
-    collections: string[],
-    required_tags: string[],
-    forbiddenTags: string[],
-    name: string
+    types: string[];
+    collections: string[];
+    required_tags: string[];
+    forbiddenTags: string[];
+    name: string;
 }
 
 export async function getCollections(): Promise<CollectionSummary[]> {
-    const url = get_url('/collections');
-    const res = await fetch(url);
-    if (!res.ok) {
-        throw new Error(`GET /collections failed: ${res.status} ${res.statusText}`);
-    }
-    return await res.json();
+    const url = getUrl('/collections');
+    const response = await fetch(url);
+    return await parseResponse(response, identity, 'getCollections');
 }
 
-export async functionSearchCollections(criteria: CollectionSearchCriteria): Promise<CollectionSummary[]> {
-    const url = new URL(`/collections/search`, base_url);
-    const res = await fetch(url, {
+export async function searchCollections(criteria: CollectionSearchCriteria): Promise<CollectionSummary[]> {
+    const url = getUrl('/collections/search');
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(criteria)
     });
-    if (!res.ok) {
-        throw new Error(`POST /collections/search failed: ${res.status} ${res.statusText}`);
-    }
-    return await res.json();
+    return await parseResponse(response, identity, 'searchCollections');
 }
 
-export async getCollection(collectionId: string): Promise<Collection> {
-    const url = new URL(`/collections/${collectionId}`, base_url);
-    const res = await fetch(url)
-    if (!res.ok) {
-        throw new Error(`GET /collection failed: ${res.status} ${res.statusText}`);
-    }
-    return await res.json(); /*TODO convert ISO string to date*/
+export async function getCollection(collectionId: string): Promise<Collection> {
+    const url = new getUrl(`/collections/${collectionId}`);
+    const response = await fetch(url)
+    return await parseResponse(response, identity, 'getCollection');
 }
 
-export async function saveCollection(updatedCollection: CollectionRecord) {
-    const url = new URL(`/collections/${updatedCollection.id}`, base_url);
-    const res = await fetch(url, {
+export async function updateCollection(updatedCollection: Collection): Promise<Collection> {
+    const url = getUrl(`/collections/${updatedCollection.id}`);
+    const response = await fetch(url, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedCollection)
     });
-
-    if (!res.ok) {
-      throw new Error(`Could not save collection ${updatedCollection.name}`);
-    }
-
-    const saved = await res.json();
-    return saved;
+    return await parseResponse(response, identity, 'updateCollection')
 }

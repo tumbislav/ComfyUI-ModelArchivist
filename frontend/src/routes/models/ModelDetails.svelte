@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { type ModelRecord } from "$lib/api";
+/*    import { type ModelRecord } from "$lib/models";
     let {
         model,
         dirty,
@@ -20,11 +20,11 @@
         if (!dirty) {
             onDirtyChange(true);
         }
-    }
+    } */
 </script>
 
 <aside class="right-sidebar" id="model-details">
-
+<!--
     <section class="details">
         <header>
             <h2>Model details</h2>
@@ -39,26 +39,17 @@
             />
         </label>
 
-<!--        <label>
-            Description
-            <textarea
-                    bind:value={object.description}
-                    oninput={markDirty}
-            />
-        </label> -->
 
         <footer>
             <button
                     type="button"
                     disabled={!dirty || saving}
-                    onclick={()
-            => onSave(model)}
-            >
+                    onclick={() => onSave(model)} >
             {saving ? 'Saving…' : 'Save'}
             </button>
         </footer>
     </section>
-
+-->
 </aside>
 
 <style>

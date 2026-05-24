@@ -5,7 +5,9 @@
     import WorkflowDetails from './WorkflowDetails.svelte'
 
     import { onMount } from "svelte";
-    import { getWorkflows, getTags, type PrimaryObjectType, type WorkflowRecord } from "$lib/api";
+    import { getWorkflows } from "$lib/workflows";
+    import { getTags } from "$lib/tags";
+    import { type PrimaryObjectType, type Workflow } from "$lib/common";
 
     let workflows: WorkflowRecord[] = $state([]);
     let tags: str[] = $state([]);

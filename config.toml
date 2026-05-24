@@ -14,7 +14,7 @@ database_file = "{$app}/test/model_archivist.db"
 dbms_prefix = "sqlite:///"
 
 [models]
-active = "{$comfy}/models"
+working = "{$comfy}/models"
 archive = "{$archive}/models"
 extensions = [".safetensors", ".sft", ".ckpt", ".pt", ".pth", ".gguf"]
 ignore = ["examples", "configs"]
@@ -47,7 +47,7 @@ archive = "{$archive}/extra_1"
 [workflows]
 
 [[workflows.folders]]
-active = "{$user}/workflows"
+working = "{$user}/workflows"
 archive = "{$archive}/workflows"
 
 [web]
@@ -56,10 +56,11 @@ port = 5173
 static_html = "{$app}/frontend/build"
 
 [options]
-update_json_metadata = true     # update metadata when values change - has consequences for Lora
+update_json_metadata = true     # update metadata when values change - has consequences for LoraManager
 ignore_unknown_types = false    # ignore models not in the model_types list
+always_recalc_hashes = false
 
 [logging]
-level = "WARNING"
+level = "DEBUG"
 sql_level = "WARNING"
 file = "{$app}archivist.log"

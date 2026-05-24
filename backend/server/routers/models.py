@@ -4,28 +4,32 @@
 # purpose: REST interface for models
 # ---------------------------------------------------------------------------
 
-from backend.model.archivist import get_archivist
-from fastapi import APIRouter
+import backend.repository.repository as repo
+from fastapi import APIRouter, HTTPException
+
+from backend.exception import ArcException
 
 router = APIRouter()
 
 
 @router.get('/models')
 async def get_models() -> list[dict]:
-    models = get_archivist().get_model_list()
-    return models
+    return repo.list_models(True)
 
 @router.get('/models/{id}')
-async def get_model(id: str) -> dict:
-    model = get_archivist().get_model(id)
-    return model
+async def get_model(id: str) -> dict | None:
+    try:
+        return repo.get_model(id)
+    except ArcException as e:
+        if e.code == ArcException.Code.UNKNOWN_MODEL:
+            raise HTTPException(404, e.message)
 
 @router.post('/models/search')
 async def search_models(criteria: dict) -> list[dict]:
-    models = get_archivist().get_model_list(criteria)
+    models = repo.list_models(True, criteria)
     return models
 
 @router.put('/models/{id}')
-async def search_models(id: str, criteria: dict) -> list[dict]:
-    pass
+async def update_mode(changed_model: dict) -> dict:
+    return repo.update_model(changed_model)
 

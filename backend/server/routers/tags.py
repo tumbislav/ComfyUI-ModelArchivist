@@ -4,8 +4,8 @@
 # purpose: REST interface for tags
 # ---------------------------------------------------------------------------
 
-from backend.model.archivist import get_archivist
-from backend.model.object_types import Taggable
+import backend.repository.repository as repo
+from backend.repository.repository import PrimaryObjectType
 
 from fastapi import APIRouter, HTTPException
 
@@ -13,18 +13,17 @@ router = APIRouter()
 
 
 @router.get('/tags')
-async def get_tags(target: str = 'all', offset: int = 0, limit: int = 0) -> list[str]:
+async def get_tags(targets: str = 'all', offset: int = 0, limit: int = 0) -> list[str]:
     target_types = set()
-    match target:
-        case 'models':
-            target_types = {Taggable.MODEL}
-        case 'workflows':
-            target_types = {Taggable.WORKFLOW}
-        case 'collections':
-            target_types = {Taggable.COLLECTION}
-        case 'all':
-            target_types = {Taggable.MODEL, Taggable.WORKFLOW, Taggable.COLLECTION}
-        case _:
-            raise HTTPException(status_code=400, detail=f'{target} is not a taggable object')
-    tags = get_archivist().get_tags(target_types, offset, limit)
-    return tags
+    for tg in [_.strip() for _ in targets.split(',')]:
+        if tg == 'all':
+            target_types |= {PrimaryObjectType.MODEL, PrimaryObjectType.WORKFLOW, PrimaryObjectType.COLLECTION}
+        elif tg == str(PrimaryObjectType.MODEL):
+            target_types. add(PrimaryObjectType.MODEL)
+        elif tg == str(PrimaryObjectType.WORKFLOW):
+            target_types.add(PrimaryObjectType.WORKFLOW)
+        elif tg == str(PrimaryObjectType.COLLECTION):
+            target_types.add(PrimaryObjectType.COLLECTION)
+        else:
+            raise HTTPException(status_code=400, detail=f'{tg} is not a recognized object type')
+    return repo.list_tags(target_types, offset, limit)

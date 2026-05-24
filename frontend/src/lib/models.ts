@@ -5,63 +5,53 @@
  * ---------------------------------------------------------------------------*/
 
 import {
-    ModelSummary,
-    Model,
-    get_url
-} from "$lib/helpers";
+    type ModelSummary,
+    type Model,
+    toModel,
+    identity } from "$lib/objects";
+
+import {
+    type ApiResult,
+    getUrl,
+    parseResponse } from "$lib/api";
 
 export type ModelSearchCriteria = {
-    types: string[],
-    collections: string[],
-    required_tags: string[],
-    forbiddenTags: string[],
-    name: string
+    types: string[];
+    collections: string[];
+    required_tags: string[];
+    forbidden_tags: string[];
+    name_like: string;
 }
 
 export async function getModels(): Promise<ModelSummary[]> {
-    const url = get_url('/models');
-    const res = await fetch(url);
-    if (!res.ok) {
-        throw new Error(`GET /models failed: ${res.status} ${res.statusText}`);
-    }
-    return await res.json();
+    const url = getUrl('/models');
+    const response = await fetch(url);
+    return await parseResponse(response, identity, 'getModels');
 }
 
-export async functionSearchModels(criteria: ModelSearchCriteria): Promise<ModelSummary[]> {
-    const url = new URL(`/models/search`, base_url);
-    const res = await fetch(url, {
+export async function searchModels(criteria: ModelSearchCriteria): Promise<ModelSummary[]> {
+    const url = gerUrl(`/models/search`);
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(criteria)
     });
-    if (!res.ok) {
-        throw new Error(`POST /models/search failed: ${res.status} ${res.statusText}`);
-    }
-    return await res.json();
+    return await parseResponse(response, identity, 'searchModels');
 }
 
-export async getModel(modelId: string): Promise<Model> {
+export async function getModel(modelId: string): Promise<Model> {
     const url = new URL(`/models/${modelId}`, base_url);
-    const res = await fetch(url)
-    if (!res.ok) {
-        throw new Error(`GET /model failed: ${res.status} ${res.statusText}`);
-    }
-    return await res.json(); /*TODO convert ISO string to date*/
+    const response = await fetch(url)
+    return await parseResponse(response, toModel, 'getModel');
 }
 
-export async function saveModel(updatedModel: ModelRecord) {
+export async function updateModel(updatedModel: ModelRecord): Promis<Model> {
     const url = new URL(`/models/${updatedModel.id}`, base_url);
-    const res = await fetch(url, {
+    const response = await fetch(url, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedModel)
     });
-
-    if (!res.ok) {
-      throw new Error(`Could not save model ${updatedModel.name}`);
-    }
-
-    const saved = await res.json();
-    return saved;
+    return await parseResponse(response, toModel, 'updateModel');
 }
 
