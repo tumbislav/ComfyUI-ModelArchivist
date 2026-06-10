@@ -7,20 +7,15 @@
 from typing import Set
 from threading import Lock
 import logging
+import datetime
 
 from sqlmodel import SQLModel, Session, create_engine, select, or_
 from sqlalchemy.engine.base import Engine
-from .tables import Model, Workflow, Collection, Component, Tag
+from backend.repository.tables import Model, Workflow, Collection, Component, Tag, PrimaryObjectType, DeploymentStatus
 from backend.exception import ArcException
 from backend.config import Configuration, get_config
 from backend.files.scanner import get_scanner, create_scanner
-from enum import StrEnum
-
-
-class PrimaryObjectType(StrEnum):
-    MODEL = 'md'
-    WORKFLOW = 'wf'
-    COLLECTION = 'cl'
+import backend.files.model_files as model_files
 
 _logger: logging.Logger | None = None
 _engine: Engine | None = None
@@ -86,21 +81,21 @@ def save_scanned_model(model: Model, tag_names: list[str]) -> None:
     with Session(_engine) as session:
         known_models = session.exec(select(Model).where(Model.id == model.id)).all()
         if len(known_models) == 0:
-            _logger.debug(f'adding model {model.name}')
+            _logger.debug(f'adding model {model.internal_name}')
             model.tags = resolve_tags(session, tag_names)
             session.add(model)
             session.commit()
         else:
-            _logger.debug(f'updating model {model.name}')
+            _logger.debug(f'updating model {model.internal_name}')
             if len(known_models) > 1:
-                all_names = ', '.join(m.name for m in known_models)
+                all_names = ', '.join(m.internal_name for m in known_models)
                 raise ArcException(ArcException.Code.DUPLICATE_MODEL,
                                          f'{model.id}, {all_names}')
             old_model = known_models[0]
-            if old_model.scan_timestamp == model.scan_timestamp:
-                _logger.error(f'model {model.name} / {model.id} already seen in this scan')
+            if old_model.touched == model.touched:
+                _logger.error(f'model {model.internal_name} / {model.id} already seen in this scan')
                 raise ArcException(ArcException.Code.DUPLICATE_MODEL,
-                                         f'{model.name} {model.id}, {old_model.scan_timestamp}')
+                                         f'{model.internal_name} {model.id}, {old_model.touched}')
             # see which components no longer exist and remove them
             known_components = {(c.file_name, c.component_type, c.is_archive): c.id for c in old_model.components}
             # update the old model
@@ -128,20 +123,20 @@ def save_scanned_workflow(workflow: Workflow, tag_names: list[str]) -> None:
     with Session(_engine) as session:
         known_workflows = session.exec(select(Workflow).where(Workflow.id == workflow.id)).all()
         if len(known_workflows) == 0:
-            _logger.debug(f'adding workflow {workflow.name}')
+            _logger.debug(f'adding workflow {workflow.internal_name}')
             workflow.tags = resolve_tags(session, tag_names)
             session.add(workflow)
             session.commit()
         else:
-            _logger.debug(f'updating workflow {workflow.name}')
+            _logger.debug(f'updating workflow {workflow.internal_name}')
             if len(known_workflows) > 1:
-                all_names = ', '.join(w.name for w in known_workflows)
+                all_names = ', '.join(w.internal_name for w in known_workflows)
                 raise ArcException(ArcException.Code.DUPLICATE_MODEL,
                                          f'{workflow.id}, {all_names}')
             old_workflow = known_workflows[0]
-            if old_workflow.scan_timestamp == workflow.scan_timestamp:
+            if old_workflow.touched == workflow.touched:
                 raise ArcException(ArcException.Code.DUPLICATE_MODEL,
-                                         f'{workflow.name} {workflow.id}, {old_workflow.scan_timestamp}')
+                                   f'{workflow.internal_name} {workflow.id}, {old_workflow.touched}')
             # see which components no longer exist and remove them
             known_components = {(c.file_name, c.component_type, c.is_archive): c.id for c in old_workflow.components}
             # update the old workflow
@@ -164,9 +159,9 @@ def save_scanned_workflow(workflow: Workflow, tag_names: list[str]) -> None:
 
 def scan_cleanup(scan_timestamp: str):
     with Session(_engine) as session:
-        models = session.exec(select(Model).where(Model.scan_timestamp != scan_timestamp))
+        models = session.exec(select(Model).where(Model.touched != scan_timestamp))
         for model in models:
-            _logger.debug(f'deleting model {model.name}')
+            _logger.debug(f'deleting model {model.internal_name}')
             session.delete(model)
         session.commit()
 
@@ -176,27 +171,46 @@ def scan_cleanup(scan_timestamp: str):
 #
 #-----------------------------------------------------------------------------------
 
-def update_model(changes: dict) -> dict:
+def update_model(updates: dict) -> dict:
     """
-    Update an existing model. The items that may change are the name, the tags and collection membership.
+    Update an existing model. The items that may change are the name, internal name and tags.
     """
     with Session(_engine) as session:
-        known_models = session.exec(select(Model).where(Model.id == changes['id'])).all()
-        if len(known_models) != 1:
-            msg = f'unknown model {changes["id"]} ({changes["name"]})'
+        model: Model | None = session.get(Model, updates['id'])
+        if model is None:
+            msg = f'unknown model {updates["id"]} ({updates["internal_name"]})'
             _logger.error(msg)
             raise ArcException(ArcException.Code.UNKNOWN_MODEL, msg)
-        _logger.debug(f'updating model {changes["id"]}')
-        old_model = known_models[0]
-        old_model.name = changes['name']
-        old_model.tags = resolve_tags(session, changes['tags'])
-        return {}
-#        old_model.collections =
+        _logger.debug(f'updating model {updates["id"]}')
+
+        model_files.update_model(model, updates['file_name'], updates['internal_name'], updates['tags'])
+
+        model.file_name = updates['file_name']
+        model.internal_name = updates['internal_name']
+        model.tags = resolve_tags(session, updates['tags'])
+        model.touched = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
+
+        session.add(model)
+        session.commit()
+        return model.representation(_config.model_types)
+
+def deploy_model(id: str, deployment: DeploymentStatus) -> Model:
+    """
+    Move the model to either working set or archive, or synchronize them both.
+    """
+    with Session(_engine) as session:
+        model: Model | None = session.get(Model, id)
+        if model is None:
+            msg = f'unknown model {id}'
+            _logger.error(msg)
+            raise ArcException(ArcException.Code.UNKNOWN_MODEL, msg)
+        _logger.debug(f'deploying model {model.internal_name} ({id}) to {deployment}')
+    pass
 
 def list_models(ordered, search_criteria: dict | None = None) -> list[dict]:
     with Session(_engine) as session:
         if ordered:
-            statement = select(Model).order_by(Model.type, Model.name)
+            statement = select(Model).order_by(Model.type, Model.internal_name)
         else:
             statement = select(Model).order_by(Model.type)
         return [model.summary(_config.model_types) for model in session.exec(statement).all()]
@@ -208,6 +222,7 @@ def get_model(id: str) -> dict:
             msg = f'model with hash {id} does not exist'
             _logger.info(msg)
             raise ArcException(ArcException.Code.UNKNOWN_MODEL, msg)
+        rep = model.representation(_config.model_types)
         return model.representation(_config.model_types)
 
 #-----------------------------------------------------------------------------------
@@ -219,9 +234,9 @@ def get_model(id: str) -> dict:
 def list_workflows(ordered: bool, search_criteria: dict | None = None) -> list[dict]:
     with Session(_engine) as session:
         if ordered:
-            statement = select(Workflow).order_by(Workflow.purpose, Workflow.name)
+            statement = select(Workflow).order_by(Workflow.purpose, Workflow.internal_name)
         else:
-            statement = select(Workflow).order_by(Workflow.name)
+            statement = select(Workflow).order_by(Workflow.internal_name)
         return [workflow.summary() for workflow in session.exec(statement).all()]
 
 
@@ -264,7 +279,7 @@ def list_tags(target_types: Set[PrimaryObjectType] | None, offset: int, limit: i
             if PrimaryObjectType.WORKFLOW in target_types:
                 cond.append(Tag.workflows.any())
             if PrimaryObjectType.COLLECTION in target_types:
-                cond.append(Tag.children.any())
+                cond.append(Tag.collections.any())
             if limit > 0:
                 statement = select(Tag).offset(offset).limit(limit).where(or_(*cond))
             else:
@@ -287,5 +302,3 @@ def resolve_tags(session: Session, tag_names: list[str]) -> list[Tag]:
             known[tag] = new_tag
 
     return [t for t in known.values()]
-
-

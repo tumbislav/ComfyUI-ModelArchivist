@@ -5,8 +5,8 @@
  * ---------------------------------------------------------------------------*/
 
 import {
-    CollectionSummary,
-    Collection,
+    type CollectionSummary,
+    type Collection,
     identity } from "$lib/objects";
 
 import {
@@ -39,7 +39,7 @@ export async function searchCollections(criteria: CollectionSearchCriteria): Pro
 }
 
 export async function getCollection(collectionId: string): Promise<Collection> {
-    const url = new getUrl(`/collections/${collectionId}`);
+    const url = getUrl(`/collections/${collectionId}`);
     const response = await fetch(url)
     return await parseResponse(response, identity, 'getCollection');
 }

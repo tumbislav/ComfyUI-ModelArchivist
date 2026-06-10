@@ -1,8 +1,8 @@
 <script lang=ts>
-    import WorkflowFilter from './WorkflowFilter.svelte'
-    import WorkflowActions from './WorkflowActions.svelte'
-    import WorkflowTable from './WorkflowTable.svelte'
-    import WorkflowDetails from './WorkflowDetails.svelte'
+    import WorkflowFilter from '$components/workflows/WorkflowFilter.svelte'
+    import WorkflowActions from '$components/workflows/WorkflowActions.svelte'
+    import WorkflowTable from '$components/workflows/WorkflowTable.svelte'
+    import WorkflowDetails from '$components/workflows/WorkflowDetails.svelte'
 
     import { onMount } from "svelte";
     import { getWorkflows } from "$lib/workflows";

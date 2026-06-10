@@ -1,0 +1,14 @@
+/* ------------------------------------------------
+ * system: ModelArchivist
+ * file: app.css
+ * purpose: Master css file
+ * ----------------------------------------------- */
+
+@import '$styles/settings.css';
+@import '$styles/fonts.css';
+@import '$styles/text.css';
+@import '$styles/fontawesome.min.css';
+@import '$styles/solid.css';
+@import '$styles/panels.css';
+@import '$styles/controls.css';
+@import '$styles/tables.css';

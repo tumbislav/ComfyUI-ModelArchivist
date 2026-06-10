@@ -1,0 +1,52 @@
+/* ------------------------------------------------
+ * system: ModelArchivist
+ * file: tables.css
+ * purpose: Table layout and display
+ * ----------------------------------------------- */
+
+/* Tables -----------------------------------------*/
+
+:root {
+    --table-max-width: 800px;
+}
+
+.table-container {
+    padding: var(--gap-mid);
+}
+
+.main-table {
+    border-collapse: collapse;
+    max-width: var(--table-max-width);
+    font-size: var(--medium-font-size);
+}
+
+th, td {
+    padding: 0 var(--gap-small);
+    text-align: left;
+}
+
+.main-table tr.table-section {
+    background: var(--bg-accent);
+    border-bottom: var(--solid-border);
+}
+
+.table-clickable {
+    cursor: pointer;
+}
+
+.main-table td.clear {
+    background: var(--bg-color);
+}
+
+.main-table tr {
+    border-bottom: var(--light-border);
+}
+
+.main-table tr.table-head {
+    font-weight: 600;
+    font-size: var(--medium-font-size);
+}
+
+.main-table tr.selected {
+    font-style: italic;
+}

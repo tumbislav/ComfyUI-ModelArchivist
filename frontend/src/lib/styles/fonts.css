@@ -1,0 +1,127 @@
+/* ------------------------------------------------
+ * system: ModelArchivist
+ * file: fonts.css
+ * purpose: Fonts used in the app
+ * ----------------------------------------------- */
+
+:root {
+    --title-font-size: 18pt;
+    --icon-font-size: 14pt;
+    --large-font-size: 12pt;
+    --medium-font-size: 10pt;
+    --small-font-size: 9pt;
+    --smaller-font-size: 9pt;
+    --tiny-font-size: 7pt;
+}
+
+/* Font faces --------------------------------------*/
+
+@font-face {
+    font-family: 'OpenSans';
+    src: url('$lib/assets/fonts/open-sans.regular.ttf');
+    font-stretch: normal;
+    font-style: normal;
+    font-weight: normal;
+}
+
+@font-face {
+    font-family: 'OpenSans';
+    src: url('$lib/assets/fonts/open-sans.italic.ttf');
+    font-stretch: normal;
+    font-style: italic;
+    font-weight: normal;
+}
+
+@font-face {
+    font-family: 'OpenSans';
+    src: url('$lib/assets/fonts/open-sans.bold.ttf');
+    font-stretch: normal;
+    font-style: normal;
+    font-weight: bold;
+}
+
+@font-face {
+    font-family: 'OpenSans';
+    src: url('$lib/assets/fonts/open-sans.semibold.ttf');
+    font-stretch: normal;
+    font-style: normal;
+    font-weight: 600;
+}
+
+@font-face {
+    font-family: 'OpenSans';
+    src: url('$lib/assets/fonts/open-sans-condensed.bold.ttf');
+    font-stretch: condensed;
+    font-style: normal;
+    font-weight: bold;
+}
+
+/* Font styles -------------------------------------*/
+
+* {
+    font: inherit;
+    font-family: OpenSans;
+    color: var(--text-color);
+}
+
+.text-compact {
+    font-size: var(--medium-font-size);
+}
+
+
+/* Paragraph styles
+ * ---------------------------------------------------------------------------*/
+
+h1 {
+    font-size: var(--large-font-size);
+    color: var(--text-color);
+    font-weight: 700;
+}
+
+h2 {
+    font-size: var(--medium-font-size);
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+h3 {
+    font-size: var(--small-font-size);
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+h1, h2, h3 :has(+ p.subtitle) {
+    margin-bottom: 0;
+}
+
+/* Subtitle */
+.subtitle {
+    font-size: var(--medium-font-size);
+    color: var(--text-color);
+    font-weight: 400;
+    margin-top: 0;
+}
+
+/* Small note shown at right */
+.annotation-right {
+    font-size: var(--tiny-font-size);
+    color: var(--text-dim);
+    font-style: italic;
+    text-align: right;
+}
+
+.display-string {
+    font-size: var(--medium-font-size);
+    color: var(--text-dim);
+}
+
+.actions-label {
+    font-size: var(--medium-font-size);
+    font-weight: 600;
+}
+
+.actions-label-dim {
+    font-size: var(--medium-font-size);
+    font-weight: 600;
+    color: var(--text-dim);
+}

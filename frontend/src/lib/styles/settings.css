@@ -1,0 +1,126 @@
+/* ------------------------------------------------
+ * system: ModelArchivist
+ * file: settings.css
+ * purpose: Global variables
+ * ----------------------------------------------- */
+
+/* Color modes
+ * ------------------------------------------------*/
+
+/* Light mode -------------------------------------*/
+:root[data-theme='light'] {
+    /* text */
+    --text-color: rgb(50, 50, 50);
+    --text-dim: rgb(85, 85, 85);
+    --text-dimmer: rgb(170, 170, 170);
+    --text-error: rgb(150, 50, 50);
+    --text-title: rgb(120, 50, 50);
+
+    /* background */
+
+    --bg-color: rgb(256, 256, 256);
+    --bg-disabled: rgb(250, 250, 250);
+    --bg-accent: rgb(245, 245, 245);
+    --bg-intense: rgb(200, 200, 200);
+
+    /* borders */
+
+    --border-dim: rgb(240, 240, 240);
+    --border-color: rgb(224, 224, 224);
+    --border-highlight: rgb(208, 208, 208);
+
+    /* shadows */
+    --button-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --highlight-shadow: 0 3px 5px rgba(0, 0, 0, 0.08);
+    --shadow-right: 2px 0px 4px rgba(0, 0, 0, 0.125);
+    --shadow-left: -2px 0px 4px rgba(0, 0, 0, 0.125);
+    --shadow-down: 0px 2px 4px rgba(0, 0, 0, 0.125);
+
+    /* icons */
+    --mode-filter: none;
+}
+
+/* Dark mode --------------------------------------*/
+:root[data-theme='dark'] {
+    /* text */
+    --text-color: rgb(250, 250, 250);
+    --text-dim: rgb(200, 200, 200);
+    --text-dimmer: rgb(140, 140, 140);
+    --text-error: rgb(256, 120, 120);
+    --text-title: rgb(200, 100, 100);
+
+    /* background */
+
+    --bg-color: rgb(30, 30, 30);
+    --bg-disabled: rgb(40, 40, 40);
+    --bg-accent: rgb(50, 50, 50);
+    --bg-intense: rgb(70, 70, 70);
+
+    /* borders */
+
+    --border-dim: rgb(70, 70, 70);
+    --border-color: rgb(90, 90, 90);
+    --border-highlight: rgb(110, 110, 110);
+
+
+    /* shadows */
+    --button-shadow: 0 1px 2px rgba(256, 256, 256, 0.05);
+    --highlight-shadow: 0 3px 5px rgba(256, 256, 256, 0.08);
+    --shadow-right: 2px 0px 4px rgba(256, 256, 256, 0.125);
+    --shadow-left: -2px 0px 4px rgba(256, 256, 256, 0.125);
+    --shadow-down: 0px 2px 4px rgba(256, 256, 256, 0.125);
+
+    /* icons */
+    --mode-filter: invert(100%);
+}
+
+
+.theme-toggle::before {
+    font-family: "Font Awesome 7 Free";
+    font-weight: 900;
+}
+
+:root[data-theme='light'] .theme-toggle::before {
+    content: "\f186"; /* moon */
+}
+
+:root[data-theme='dark'] .theme-toggle::before {
+    content: "\f185"; /* sun */
+}
+
+/* Mode independent and derived -------------------*/
+
+:root {
+    --border-thickness: 1px;
+    --solid-border: var(--border-thickness) solid var(--border-color);
+    --light-border: var(--border-thickness) solid var(--border-dim);
+    --ghost-border: var(--border-thickness) solid var(--bg-color);
+    --transparent: rgba(0, 0, 0, 1.);
+}
+
+/* Dimensions
+ * ------------------------------------------------*/
+
+:root {
+    --gap-tiny: 0.25rem;
+    --gap-small: 0.5rem;
+    --gap-mid: 1rem;
+    --gap-large: 2rem;
+    --radius-tiny: 2px;
+    --radius-small: 4px;
+    --radius-mid: 8px;
+}
+
+/* Z order
+ * ------------------------------------------------*/
+
+:root {
+    --z-main: -1;       /* main panel */
+    --z-nav: 10;        /* nav bar */
+    --z-commands: 15;   /* command buttons, filter panels */
+    --z-overlay: 30;    /* mask overlay */
+    --z-details: 50;    /* detail editor windows */
+    --z-modal: 70;      /* modal dialogs */
+    --z-popup: 100;     /* popups, drop-downs */
+    --z-tooltip: 200;   /* above everything */
+}

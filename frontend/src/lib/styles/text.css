@@ -1,0 +1,126 @@
+/* ------------------------------------------------
+ * system: ModelArchivist
+ * file: text.css
+ * purpose: Text styles, paragraphs, labels
+ * ----------------------------------------------- */
+
+/* Headings
+ * ----------------------------------------------- */
+
+h1 {
+    font-size: var(--large-font-size);
+    color: var(--text-color);
+    font-weight: 700;
+}
+
+h2 {
+    font-size: var(--medium-font-size);
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+h3 {
+    font-size: var(--small-font-size);
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+h1, h2, h3 :has(+ p.subtitle) {
+    margin-bottom: 0;
+}
+
+.subtitle {
+    font-size: var(--medium-font-size);
+    color: var(--text-color);
+    font-weight: 400;
+    margin-top: 0;
+}
+
+/* Small note shown at right */
+.annotation-right {
+    font-size: var(--tiny-font-size);
+    color: var(--text-dim);
+    font-style: italic;
+    text-align: right;
+}
+
+/* Various display styles
+ * ----------------------------------------------- */
+p.section-label {
+    font-size: var(--medium-font-size);
+    color: var(--text-color);
+    font-weight: 600;
+    margin-top: 0;
+}
+
+p.dialog-label {
+    font-size: var(--medium-font-size);
+    color: var(--text-color);
+    font-weight: 600;
+    margin-bottom: 0;
+}
+
+p.labeled {
+    font-size: var(--small-font-size);
+    color: var(--text-dim);
+    font-weight: 400;
+    padding-left: var(--gap-large);
+    text-indent: calc(-1 * var(--gap-large));
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+p.labeled :first-child {
+    color: var(--text-color);
+    font-weight: 600;
+    margin-right: var(--gap-tiny);
+}
+
+.path-preview {
+    font-size: var(--small-font-size);
+    color: var(--text-dim);
+    font-weight: 400;
+    font-style: italic;
+    border-bottom: var(--solid-border);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    direction: rtl;
+    text-align: left;
+}
+
+.warning-message {
+    color: var(--text-error);
+    font-size: var(--medium-font-size);
+    text-align: center;
+    font-weight: 700;
+}
+
+.message-container {
+    height: 40px;
+    border: 2px solid red;
+}
+
+.error-message {
+    color: red;
+    font-weight: bold;
+}
+
+/* To be reviewed
+ * ----------------------------------------------- */
+
+
+.text-compact {
+    font-size: var(--medium-font-size);
+}
+
+.display-string {
+    font-size: var(--medium-font-size);
+    color: var(--text-dim);
+}
+
+.actions-label {
+    font-size: var(--medium-font-size);
+    font-weight: 600;
+}

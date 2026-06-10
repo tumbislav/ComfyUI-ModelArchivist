@@ -3,10 +3,34 @@
 # file: tables.py
 # purpose: Database tables
 # ---------------------------------------------------------------------------
+from enum import StrEnum
 
 from sqlmodel import Field, Relationship, SQLModel, CheckConstraint
 from uuid import uuid4
 
+# ---------------------------------------------------------------------------
+# Helpful enums
+# ---------------------------------------------------------------------------
+
+class PrimaryObjectType(StrEnum):
+    MODEL = 'md'
+    WORKFLOW = 'wf'
+    COLLECTION = 'cl'
+
+
+class ComponentType(StrEnum):
+    MODEL = 'model'
+    METADATA = 'metadata'
+    EXTRA = 'extra'
+    EXAMPLE = 'example'
+    WORKFLOW = 'workflow'
+
+
+class DeploymentStatus(StrEnum):
+    WORKING = 'working'
+    ARCHIVE = 'archive'
+    SYNCED = 'synced'
+    MISMATCH = 'mismatch'
 
 # ---------------------------------------------------------------------------
 # Many-to-many connections
@@ -48,50 +72,44 @@ class CollectionCollectionLink(SQLModel, table=True):
 
 class Model(SQLModel, table=True):
     id: str = Field(primary_key=True)
-    name: str
+    file_name: str
+    internal_name: str
     type: str
     relative_path: str
-    working_dir: str
-    archive_dir: str
-    working: int
-    archived: int
-    scan_timestamp: str
-    components: list['Component'] = Relationship(back_populates="model", cascade_delete=True)
+    deployment: str
+    touched: str
+    component_sets: list['ComponentSet'] = Relationship(back_populates="model", cascade_delete=True)
 
     tags: list['Tag'] = Relationship(back_populates="models", link_model=TagModelLink)
     collections: list['Collection'] = Relationship(back_populates="models", link_model=ModelCollectionLink)
 
     def update_from(self, other) -> None:
-        self.name = other.name
+        self.file_name = other.file_name
+        self.internal_name = other.internal_name
         self.type = other.type
         self.relative_path = other.relative_path
-        self.working_dir = other.working_dir
-        self.archive_dir = other.archive_dir
-        self.working = other.working
-        self.archived = other.archived
-        self.scan_timestamp = other.scan_timestamp
+        self.deployment = other.deployment
+        self.touched = other.touched
 
     def summary(self, type_map: dict) -> dict:
-        return {'id': self.id,
-                'name': self.name,
-                'type': type_map.get(self.type, self.type),
-                'working': self.working,
-                'archived': self.archived}
+        return { 'id': self.id,
+                 'file_name': self.file_name,
+                 'internal_name': self.internal_name,
+                 'type': type_map.get(self.type, self.type),
+                 'deployment': self.deployment }
 
     def representation(self, type_map: dict) -> dict:
-        return {'id': self.id,
-                'name': self.name,
-                'type': type_map.get(self.type, self.type),
-                'raw_type': self.type,
-                'working_dir': self.working_dir,
-                'archive_dir': self.archive_dir,
-                'path': self.relative_path,
-                'working': self.working,
-                'archived': self.archived,
-                'tags': [tag.tag for tag in self.tags],
-                'components': [component.representation() for component in self.components],
-                'collections': [collection.summary() for collection in self.collections]
-                }
+        return { 'id': self.id,
+                 'file_name': self.file_name,
+                 'internal_name': self.internal_name,
+                 'type': type_map.get(self.type, self.type),
+                 'raw_type': self.type,
+                 'relative_path': self.relative_path.replace('\\', '/'),
+                 'deployment': self.deployment,
+                 'touched': self.touched,
+                 'tags': [tag.tag for tag in self.tags],
+                 'component_sets': [cs.representation() for cs in self.component_sets],
+                 'collections': [collection.summary() for collection in self.collections] }
 
 
 # ---------------------------------------------------------------------------
@@ -100,37 +118,35 @@ class Model(SQLModel, table=True):
 
 class Workflow(SQLModel, table=True):
     id: str = Field(primary_key=True)
-    name: str
+    file_name: str
+    internal_name: str
     purpose: str
-    working_dir: str
-    archive_dir: str
     relative_path: str
-    working: int
-    archived: int
-    scan_timestamp: str
-    components: list['Component'] = Relationship(back_populates="workflow")
+    deployment: str
+    touched: str
+    component_sets: list['ComponentSet'] = Relationship(back_populates="workflow", cascade_delete=True)
 
     tags: list['Tag'] = Relationship(back_populates="workflows", link_model=TagWorkflowLink)
     collections: list['Collection'] = Relationship(back_populates="workflows", link_model=WorkflowCollectionLink)
 
     def summary(self) -> dict:
-        return {'id': self.id,
-                'name': self.name,
-                'working': self.working,
-                'archived': self.archived}
+        return { 'id': self.id,
+                 'file_name': self.file_name,
+                 'internal_name': self.file_name,
+                 'working': self.working,
+                 'archived': self.archived,
+                 'deployment': self.deployment }
 
     def representation(self) -> dict:
         return {'id': self.id,
-                'name': self.name,
+                'file_name': self.name,
+                'internal_name': self.name,
                 'purpose': self.purpose,
-                'working_dir': self.working_dir,
-                'archive_dir': self.archive_dir,
-                'working': self.working,
-                'archived': self.archived,
                 'relative_path': self.relative_path,
-                'last_scanned': self.scan_timestamp,
+                'deployment': self.deployment,
+                'touched': self.touched,
                 'tags': [tag.tag for tag in self.tags],
-                'components': [component.representation() for component in self.components],
+                'component_sets': [cs.representation() for cs in self.component_sets],
                 'collections': [collection.summary() for collection in self.collections]}
 
 # ---------------------------------------------------------------------------
@@ -179,34 +195,50 @@ class Collection(SQLModel, table=True):
                 'parents': [collection.summary() for collection in self.parents]}
 
 # ---------------------------------------------------------------------------
-# Component files
+# Component files and component sets
 # ---------------------------------------------------------------------------
 
-class Component(SQLModel, table=True):
+class ComponentSet(SQLModel, table=True):
     """
-    A file, part of a model or of a workflow.
+    All the components in a set
     """
     __table_args__ = (CheckConstraint(
         "(model_id IS NOT NULL AND workflow_id IS NULL) OR (model_id IS NULL AND workflow_id IS NOT NULL)"),)
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     where: str
-    file_name: str
-    file_dir: str
-    component_type: str
-    scan_timestamp: str
+    primary_dir: str
+    examples_dir: str | None
     model_id: str | None = Field(default=None, foreign_key="model.id")
-    workflow_id: str | None = Field(default=None, foreign_key="workflow.id")
+    model: Model | None = Relationship(back_populates='component_sets')
 
-    model: Model | None = Relationship(back_populates="components")
-    workflow: Workflow | None = Relationship(back_populates="components")
+    workflow_id: str | None = Field(default=None, foreign_key="workflow.id")
+    workflow: Workflow | None = Relationship(back_populates='component_sets')
+
+    components: list['Component'] = Relationship(back_populates="component_set", cascade_delete=True)
 
     def representation(self) -> dict:
-        return {'id': self.id,
-                'where': self.where,
-                'file_name': self.file_name,
-                'file_dir': self.file_dir,
-                'component_type': str(self.component_type),
-                'last_scanned': self.scan_timestamp}
+        return { 'id': self.id,
+                 'where': self.where,
+                 'primary_dir': self.primary_dir,
+                 'examples_dir': self.examples_dir,
+                 'components': [c.representation() for c in self.components] }
+
+class Component(SQLModel, table=True):
+    """
+    A file, part of a model or of a workflow.
+    """
+    id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
+    file_name: str
+    component_type: str
+    touched: str
+    component_set_id: str | None = Field(default=None, foreign_key="componentset.id")
+    component_set: ComponentSet = Relationship(back_populates="components")
+
+    def representation(self) -> dict:
+        return { 'id': self.id,
+                 'file_name': self.file_name,
+                 'component_type': str(self.component_type),
+                 'touched': self.touched }
 
 # ---------------------------------------------------------------------------
 # Tags
@@ -217,3 +249,4 @@ class Tag(SQLModel, table=True):
     models: list['Model'] | None = Relationship(back_populates="tags", link_model=TagModelLink)
     workflows: list['Workflow'] | None = Relationship(back_populates="tags", link_model=TagWorkflowLink)
     collections: list['Collection'] | None = Relationship(back_populates="tags", link_model=TagCollectionLink)
+

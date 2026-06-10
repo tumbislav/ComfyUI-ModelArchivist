@@ -10,7 +10,7 @@
 
 const base_url = "http://127.0.0.1:5173";
 
-export function getUrl(resource: string) {
+export function getUrl(resource: string): URL {
     return new URL(resource, base_url);
 }
 
@@ -25,7 +25,7 @@ export type ApiResult<T> =
         message?: string;
         in_function?: string};
 
-export async function parseResponse(response: Response, packager: (x: any) => any, caller: string): ApiResult {
+export async function parseResponse<T>(response: Response, packager: (x: any) => any, caller: string): Promise<ApiResult<T>> {
     if (response.ok) {
         const content_type = response.headers.get('content-type');
         if (content_type?.includes('application/json')) {

@@ -4,7 +4,7 @@
 # purpose: File system scan
 # ---------------------------------------------------------------------------
 
-from backend.repository.tables import Model, Component, Workflow
+from backend.repository.tables import Model, Component, ComponentSet, Workflow, ComponentType, DeploymentStatus
 
 import logging
 from threading import Thread, Lock, Barrier
@@ -14,19 +14,10 @@ import json
 from itertools import chain
 from dataclasses import dataclass, field
 import datetime
-from collections import Counter
 
 from backend.config import get_config, Configuration
 import backend.repository.repository as repo
-from enum import StrEnum
 
-
-class ComponentType(StrEnum):
-    MODEL = 'model'
-    METADATA = 'metadata'
-    EXTRA = 'extra'
-    EXAMPLE = 'example'
-    WORKFLOW = 'workflow'
 
 @dataclass
 class Scanner:
@@ -113,151 +104,249 @@ class Scanner:
 
     def find_models(self, type_name: str, working_root: Path, archive_root: Path, rehash: bool):
         """
-        Scan a directory with subdirectories and return all model and sidecar files found.
+        Scan a directory with subdirectories and records for all models found.
         The active and archive directories are scanned in parallel.
+            - Model files in archive and active folders match by hash, but they must also match by filename.
+            - Extra files are matched by file stem.
+            - Examples are located in a folder named by model hash in the examples branch.
         """
         self.logger.debug(f'starting scan for {type_name} in {working_root} and {archive_root}')
         working_examples = working_root.parent / 'examples'
         archive_examples = archive_root.parent / 'examples'
 
+
+        def get_metadata(model_filename: str, meta_name: str | None, model_dir: Path) -> tuple[str, dict]:
+            """
+            Get a model's metadata, whether or not it exists
+            """
+            model_file = model_dir / model_filename
+            if meta_name is None:
+                md_file = model_file.with_suffix('.metadata.json')
+                data = {'sha256': compute_sha256(model_file),
+                        'model_name': model_file.stem,
+                        'file_name': model_file.stem,
+                        'tags': []}
+            else:
+                md_file = model_dir / meta_name
+                data = json.loads(md_file.read_text(encoding='utf-8'))
+                if 'sha256' not in data:
+                    data['sha256'] = compute_sha256(model_file),
+                data.setdefault('model_name', model_file.stem)
+                data.setdefault('file_name', model_file.stem)
+            self.logger.debug(f'updating metadata for {model_file}')
+            md_file.write_text(json.dumps(data), encoding='utf-8')
+            return md_file.name, data
+
+        def assemble_set(data: dict, primary_dir: Path, ex_root: Path, where: str) \
+                -> tuple[dict | None, ComponentSet]:
+            """
+            Turn a list of files into a component set.
+            """
+            if where in data:
+                flist = data[where]
+            else:
+                return None, ComponentSet(where=where,
+                                          primary_dir=primary_dir.as_posix(),
+                                          components=[])
+            components = []
+            model_name = meta_name = None
+            for component_type, file_name in flist:
+                components.append(Component(file_name=file_name,
+                                            component_type=component_type,
+                                            touched=self.timestamp))
+                if component_type == ComponentType.MODEL:
+                    model_name = file_name
+                if component_type == ComponentType.METADATA:
+                    meta_name = file_name
+            if model_name is None:
+                return None, ComponentSet(where=where,
+                                          primary_dir=primary_dir.as_posix(),
+                                          components=components)
+
+            metadata_filename, metadata = get_metadata(model_name, meta_name, primary_dir)
+
+            if meta_name is None:
+                components.append(Component(file_name=metadata_filename,
+                                            component_type=ComponentType.METADATA,
+                                            touched=self.timestamp))
+            sha = metadata['sha256']
+            ex_dir = ex_root / sha
+            if ex_dir.is_dir():
+                for ex in ex_dir.iterdir():
+                    components.append(Component(file_name=ex.name,
+                                                component_type=ComponentType.EXAMPLE,
+                                                touched=self.timestamp))
+            return metadata, ComponentSet(where=where,
+                                        primary_dir=primary_dir.as_posix(),
+                                        examples_dir=ex_dir.as_posix(),
+                                        components=components)
+
+        def reconcile_metadata(meta_1: dict, meta_2: dict) -> tuple[dict | None, str | None]:
+            """
+            Check it two versions of metadata are consistent.
+            """
+            if meta_2 is None:
+                return meta_1, None
+            if meta_1 is None:
+                return meta_2, None
+            if meta_1['sha256'] != meta_2['sha256']:
+                return None, 'mismatched sha256'
+            if meta_1['model_name'] != meta_2['model_name']:
+                return None, 'mismatched model name'
+            if meta_1['tags'] != meta_2['tags']:
+                return None, 'mismatched tags'
+            return meta_2, None
+
         for working_dir, subdirs, filenames in working_root.walk():
-            relative_path = match_folders(working_root, archive_root, working_dir, subdirs)
+            relative_path = str(match_folders(working_root, archive_root, working_dir, subdirs))
             archive_dir = archive_root / relative_path
 
-            # Make a list of all files.
-            # - Model files in archive and active folders match by hash, but they must also match by filename.
-            # - Extra files are matched by file stem.
-            # - Examples are located in a folder named hash in the examples branch.
-            models = {}
-            sidecars = {}
+            found = {}
 
             # first collect all model and sidecar files
             self.logger.debug(f'current dir {working_dir}')
             for file_path, where in chain(((working_dir / fn, 'w') for fn in filenames),
                                           ((f.resolve(), 'a') for f in archive_dir.iterdir() if f.is_file())):
-                stem = file_path.stem
-                if file_path.suffix in self.config.model_extensions:
-                    metadata_file = file_path.with_suffix('.metadata.json')
-                    metadata = ensure_metadata(file_path, metadata_file, rehash, self.logger)
-                    sha256 = metadata['sha256']
-                    if sha256 not in models:
-                        models[sha256] = {'stem': stem,
-                                              'id': sha256,
-                                              'name': metadata.get('model_name', stem),
-                                              'tags': metadata.get('tags', []),
-                                              'relative_path': str(relative_path),
-                                              'files': []}
-                    elif models[sha256]['stem'] != stem:
-                        self.report(error=f'model {file_path.stem} has the same hash as {models[sha256]["stem"]}')
-                        continue
-                    models[sha256]['files'].append((file_path, ComponentType.MODEL, where))
-                    models[sha256]['files'].append((metadata_file, ComponentType.METADATA, where))
-                elif not file_path.name.endswith('.metadata.json'):
-                    if stem not in sidecars:
-                        sidecars[stem] = [(file_path, ComponentType.EXTRA, where)]
-                    else:
-                        sidecars[stem].append((file_path, ComponentType.EXTRA, where))
+                stem = file_path.stem.replace('.metadata','')
+                c_type = (ComponentType.MODEL if file_path.suffix in self.config.model_extensions else
+                          ComponentType.METADATA if file_path.name.endswith('.metadata.json') else
+                          ComponentType.EXTRA)
+                found.setdefault(stem, {}).setdefault(where, []).append((c_type, file_path.name))
 
-            # Assemble and save all models found
-            for sha256, model_dict in models.items():
-                stem = model_dict['stem']
-                self.logger.debug(f'finalizing model {stem}')
-                files = model_dict['files']
+            # then assemble the models and save them
+            for stem, data in found.items():
+                working_md, working_set = assemble_set(data, working_dir, working_examples, 'w')
+                archive_md, archive_set = assemble_set(data, archive_dir, archive_examples, 'a')
+                metadata, err = reconcile_metadata(archive_md, working_md)
+                if not metadata:
+                    m = f'metadata for model {stem} has {err}, skipping'
+                    self.logger.error(m)
+                    self.report(error=m)
+                    continue
 
-                if stem in sidecars:
-                    for file_path, component_type, where in sidecars[stem]:
-                        files.append((file_path, component_type, where))
-                examples_dir = working_examples / sha256
-                if examples_dir.is_dir():
-                    for example in examples_dir.iterdir():
-                        files.append((example.resolve(), ComponentType.EXAMPLE, 'w'))
-                examples_dir = archive_examples / sha256
-                if examples_dir.is_dir():
-                    for example in examples_dir.iterdir():
-                        files.append((example.resolve(), ComponentType.EXAMPLE, 'a'))
-
-                counts = Counter([_[-1] for _ in files])
-                self.logger.debug(f'found model {model_dict["name"]} in {model_dict["relative_path"]}')
-                model = Model(id=model_dict['id'],
-                              name=model_dict['name'],
+                model = Model(id=metadata['sha256'],
+                              file_name=metadata['file_name'],
+                              internal_name=metadata['model_name'],
                               type=type_name,
-                              relative_path=model_dict['relative_path'],
-                              working_dir=str(working_root),
-                              archive_dir=str(archive_root),
-                              archived=counts['a'],
-                              working=counts['w'],
-                              scan_timestamp=self.timestamp,
-                              components=[Component(file_name=str(file_path.name),
-                                                    file_dir=str(file_path.parent),
-                                                    where=where,
-                                                    component_type=file_type,
-                                                    scan_timestamp=self.timestamp)
-                                          for file_path, file_type, where in files])
+                              relative_path=relative_path,
+                              deployment=str(check_deployment(working_set, archive_set)),
+                              touched=self.timestamp,
+                              component_sets = [working_set, archive_set])
+
                 with repo.lock:
-                    repo.save_scanned_model(model, model_dict['tags'])
+                    repo.save_scanned_model(model, metadata['tags'])
                 self.report(models=1)
         self.logger.debug(f'scan for {type_name} complete in {working_root} and {archive_root}')
         self.barrier.wait()
 
     def find_workflows(self, working_root: Path, archive_root: Path):
+        """
+        Scan archive and working directories and create records for all workflows found.
+        """
+
+        def normalize_workflow(wf_file: Path) -> dict | None:
+            if wf_file is None:
+                return None
+            json_data = json.loads(wf_file.read_text(encoding='utf-8'))
+            if 'id' not in json_data or 'revision' not in json_data or 'version' not in json_data:
+                m = f'{wf_file} does not contain a valid workflow'
+                self.logger.warning(m)
+                self.report(error=m)
+                return None
+            else:
+                conf = json_data.setdefault('config', {})
+                conf.setdefault('name', wf_file.stem)
+                conf.setdefault('purpose', '')
+                conf.setdefault('tags', [])
+            return json_data
+
+        def reconcile_workflows(working_file: Path, archive_file: Path) -> dict | None:
+            working = normalize_workflow(working_file)
+            archive = normalize_workflow(archive_file)
+            if working is None:
+                if archive is None:
+                    return None
+                use = archive
+            else:
+                use = working
+                if archive is not None:
+                    if archive['id'] != working['id']:
+                        m = f'archive and working workflows for {working_file.name} have different ids'
+                        self.logger.warning(m)
+                        self.report(error=m)
+                        return None
+                    archive['config']['name'] = working['config']['name']
+                    if len(working['config']['purpose']) > 0:
+                        archive['config']['purpose'] = working['config']['purpose']
+                    if len(working['config']['tags']) > 0:
+                        archive['config']['tags'] = [t for t in working['config']['tags']]
+            if working is not None:
+                working_file.write_text(json.dumps(working), encoding='utf-8')
+            if archive is not None:
+                archive_file.write_text(json.dumps(archive), encoding='utf-8')
+            return use
+
         self.logger.debug(f'starting workflow scan in {working_root} and {archive_root}')
-        for active_dir, subdirs, filenames in working_root.walk():
-            relative_path = match_folders(working_root, archive_root, active_dir, subdirs)
+        for working_dir, subdirs, filenames in working_root.walk():
+            relative_path = str(match_folders(working_root, archive_root, working_dir, subdirs))
             archive_dir = archive_root / relative_path
             workflows = {}
-            for file_path, where in chain(((active_dir / fn, 'w') for fn in filenames),
+            for file_path, where in chain(((working_dir / fn, 'w') for fn in filenames),
                                             ((f.resolve(), 'a') for f in archive_dir.iterdir() if f.is_file())):
                 if file_path.suffix != '.json':
                     self.logger.debug(f'ignoring {str(file_path)}')
                     continue
                 stem = file_path.stem
-                data = json.loads(file_path.read_text(encoding='utf-8'))
-                # sanity check that this is a workflow file
-                if 'id' not in data or 'revision' not in data or 'version' not in data:
-                    self.logger.warning(f'{file_path} does not contain a valid workflow')
-                    self.report(error=f'{file_path} does not contain a valid workflow')
-                    continue
-                workflow_id = data['id']
-                conf = data.get('config', {})
-                if workflow_id not in workflows:
-                    workflows[workflow_id] = {'stem': stem,
-                                              'id': workflow_id,
-                                              'name': conf.get('name', stem),
-                                              'purpose': conf.get('purpose', ''),
-                                              'tags': conf.get('tags', []),
-                                              'relative_path': str(relative_path),
-                                              'files': []}
-                elif workflows[workflow_id]['stem'] != stem:
-                    self.report(error=f'model {file_path.stem} has the same id as {workflows[workflow_id]["stem"]}')
-                    continue
-                workflows[workflow_id]['files'].append((file_path, ComponentType.WORKFLOW, where))
+                workflows.setdefault(stem, {})[where] = file_path.name
+            for stem, wf_dict in workflows.items():
+                self.logger.debug(f'finalizing workflow {stem}')
 
-            for workflow_id, workflow_dict in workflows.items():
-                counts = Counter([_[-1] for _ in workflow_dict['files']])
-                self.logger.debug(f'finalizing workflow {workflow_dict["name"]}')
-                workflow = Workflow(id=workflow_id,
-                                    name=workflow_dict['name'],
-                                    purpose=workflow_dict['purpose'],
-                                    file_stem=workflow_dict['stem'],
-                                    working_dir=str(working_root),
-                                    archive_dir=str(archive_root),
-                                    relative_path=workflow_dict['relative_path'],
-                                    working=counts['w'],
-                                    archived=counts['a'],
-                                    scan_timestamp=self.timestamp,
-                                    components=[Component(file_name=str(file_path.name),
-                                                          file_dir=str(file_path.parent),
-                                                          component_type=file_type,
-                                                          where=where,
-                                                          scan_timestamp=self.timestamp)
-                                                for file_path, file_type, where in workflow_dict['files']],
-                                    scan_errors='')
+                file_name = wf_dict['w'] if 'w' in wf_dict else wf_dict['a']
+                data = reconcile_workflows(working_dir / file_name if 'w' in wf_dict else None,
+                                           archive_dir / file_name if 'a' in wf_dict else None)
+                if data is None:
+                    continue
+                working_set = ComponentSet(where='w',
+                                           primary_dir=working_dir.as_posix(),
+                                           components=[Component(file_name=wf_dict['w'],
+                                                                 component_type=ComponentType.WORKFLOW,
+                                                                 touched = self.timestamp)] if 'w' in wf_dict else[])
+                archive_set = ComponentSet(where='a',
+                                           primary_dir=archive_dir.as_posix(),
+                                           components=[Component(file_name=wf_dict['a'],
+                                                                 component_type=ComponentType.WORKFLOW,
+                                                                 touched = self.timestamp)] if 'a' in wf_dict else[])
+
+                workflow = Workflow(id=data['id'],
+                                    internal_name=data['config']['name'],
+                                    file_name= stem,
+                                    purpose=data['config']['purpose'],
+                                    relative_path=relative_path,
+                                    deployment=check_deployment(working_set, archive_set),
+                                    touched=self.timestamp,
+                                    component_sets=[working_set, archive_set])
                 with repo.lock:
-                    repo.save_scanned_workflow(workflow, workflow_dict['tags'])
+                    repo.save_scanned_workflow(workflow, data['config']['tags'])
                 self.report(workflows=1)
 
         self.logger.debug(f'workflow scan complete in {working_root} and {archive_root}')
         self.barrier.wait()
+
+def check_deployment(working_set: ComponentSet, archive_set: ComponentSet) -> DeploymentStatus:
+    """
+    check if the deployment sets are matched
+    """
+    if len(working_set.components) == 0:
+        return DeploymentStatus.ARCHIVE
+    elif len(archive_set.components) == 0:
+        return DeploymentStatus.WORKING
+    if len(working_set.components) != len(archive_set.components):
+        return DeploymentStatus.MISMATCH
+    working = {(c.file_name, c.component_type) for c in working_set.components}
+    archive = {(c.file_name, c.component_type) for c in archive_set.components}
+    if len(working ^ archive) != 0:
+        return DeploymentStatus.MISMATCH
+    return DeploymentStatus.SYNCED
 
 def match_folders(root_1: Path, root_2: Path, dir_1: Path, sub_dirs: list[str]) -> Path:
     """
@@ -283,25 +372,6 @@ def compute_sha256(path: Path, chunk_size: int = 1 << 20) -> str:
             h.update(chunk)
     return h.hexdigest()
 
-def ensure_metadata(model_file: Path, metadata_file: Path, rehash: bool, logger: logging.Logger) -> dict:
-    if metadata_file.is_file():
-        data = json.loads(metadata_file.read_text(encoding='utf-8'))
-    else:
-        data = {}
-    is_changed = False
-    if 'sha256' not in data or rehash:
-        data['sha256'] = compute_sha256(model_file)
-        is_changed = True
-    if 'model_name' not in data:
-        data['model_name'] = model_file.stem
-        is_changed = True
-    if 'tags' not in data:
-        data['tags'] = []
-        is_changed = True
-    if is_changed:
-        logger.debug(f'updating metadata for {model_file}')
-        metadata_file.write_text(json.dumps(data), encoding='utf-8')
-    return data
 
 _scanner: Scanner | None = None
 

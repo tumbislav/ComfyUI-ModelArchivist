@@ -13,32 +13,42 @@ export enum PrimaryObjectType {
     COLLECTION = 'cl'
 }
 
-export function clone<T>(value: T): T {
-    return structuredClone(value);
-}
-
 export function identity<T>(x: T): T { return x; }
 
-/* Components / files
+/* Components  and component sets
  * ---------------------------------------------------------------------------*/
 
 export type Component = {
     id: string;
-    where: string;
     file_name: string;
-    file_dir: string;
     component_type: string;
-    last_scanned: Date;
+    touched: Date;
 }
 
 export function toComponent(json: any): Component {
     return {
         id: json.id,
-        where: json.where,
         file_name: json.file_name,
-        file_dir: json.file_dir,
         component_type: json.component_type,
-        last_scanned: new Date(json.last_scanned)
+        touched: new Date(json.touched)
+    }
+}
+
+export type ComponentSet = {
+    id: string;
+    where: string;
+    primary_dir: string;
+    examples_dir?: string;
+    components: Component;
+}
+
+export function toComponentSet(json: any): ComponentSet {
+    return {
+        id: json.id,
+        where: json.where,
+        primary_dir: json.primary_dir,
+        examples_dir: json.examples_dir,
+        components: json.components.map(toComponent)
     }
 }
 
@@ -47,43 +57,49 @@ export function toComponent(json: any): Component {
 
 export type ModelSummary = {
     id: string;
-    name: string;
+    file_name: string;
+    internal_name: string;
     type: string;
-    working: number;
-    archived: number;
+    deployment: string;
 };
 
 export type Model = {
     id: string;
-    name: string;
+    file_name: string;
+    internal_name: string;
     type: string;
     raw_type: string;
     relative_path: string;
-    working_dir: string;
-    archive_dir: string;
-    working: number;
-    archived: number;
-    last_scanned: Date;
-    components: Component[];
+    deployment: string;
+    touched: Date;
     tags: string[];
+    component_sets: ComponentSet[];
     collections: CollectionSummary[];
 }
 
 export function toModel(json: any): Model {
     return {
         id: json.id,
-        name: json.name,
+        file_name: json.file_name,
+        internal_name: json.internal_name,
         type: json.type,
-        raw_type: jason.raw_type,
+        raw_type: json.raw_type,
         relative_path: json.relative_path,
-        working_dir: json.working_dir,
-        archive_dir: json.archive_dir,
-        working: json.working,
-        archived: json.archived,
-        last_scanned: new Date(json.last_scanned),
-        components: json.components.map(toComponent),
+        deployment: json.deployment,
+        touched: new Date(json.touched),
         tags: json.tags,
+        component_sets: json.component_sets.map(toComponentSet),
         collections: json.collections
+    }
+}
+
+export function toModelSummary(model: any): ModelSummary {
+    return {
+        id: model.id,
+        file_name: model.file_name,
+        internal_name: model.internal_name,
+        type: model.type,
+        deployment: model.deployment
     }
 }
 
@@ -92,20 +108,20 @@ export function toModel(json: any): Model {
 
 export type WorkflowSummary = {
     id: string;
-    name: string;
-    working: number;
-    archived: number;
+    internal_name: string;
+    file_name: string;
+    deployment: string;
 }
 
 export type Workflow = {
     id: string;
-    name: string;
+    file_name: string;
+    internal_name: string;
     purpose: string;
     relative_path: str;
-    archived: number;
-    working: number;
-    last_scanned: Date;
-    components: Component[];
+    deployment: string;
+    touched: Date;
+    component_sets: ComponentSet[];
     tags: string[];
     collections: CollectionSummary[];
 }
@@ -113,14 +129,13 @@ export type Workflow = {
 export function toWorkflow(json: any): Workflow {
     return {
         id: json.id,
-        name: json.name,
+        internal_name: json.name,
         purpose: json.purpose,
         relative_path: json.relative_path,
-        archived: json.archived,
-        working: json.working,
-        last_scanned: new Date(json.last_scanned),
-        components: json.components.map(toComponent),
+        deployment: json.deployment,
+        touched: new Date(json.touched),
         tags: json.tags,
+        component_sets: json.component_sets.map(toComponentSet),
         collections: json.collections
     }
 }

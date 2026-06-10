@@ -1,9 +1,16 @@
+<!---------------------------------------------------
+ ! system: ModelArchivist
+ ! file: +page.svelte
+ ! purpose: Svelte entry point
+ ! -------------------------------------------------->
+
 <script lang=ts>
-    import ArchivistHeader from './top/ArchivistHeader.svelte'
-    import WaitingForStart from './top/WaitingForStart.svelte'
-    import ModelContents from './models/ModelContents.svelte'
-    import WorkflowContents from './workflows/WorkflowContents.svelte'
-    import CollectionContents from './collections/CollectionContents.svelte'
+    import ArchivistHeader from '$components/top/ArchivistHeader.svelte'
+    import WaitingForStart from '$components/top/WaitingForStart.svelte'
+    import ConfirmBox from '$components/top/ConfirmBox.svelte'
+    import ModelContents from '$components/models/ModelContents.svelte'
+    import WorkflowContents from '$components/workflows/WorkflowContents.svelte'
+    import CollectionContents from '$components/collections/CollectionContents.svelte'
 
     import { onMount } from 'svelte';
     import { getServerStatus } from "$lib/admin";
@@ -37,6 +44,9 @@
     });
 </script>
 
+
+
+
 <heading class="page-header">
     <ArchivistHeader selectContents={ selectMainContents }/>
 </heading>
@@ -53,24 +63,7 @@
     {/if}
 </div>
 
-<style>
-    .page-header {
-        position: fixed;
-        top: 0;
-        z-index: 100;
-        background: #ffffff;
-        border-bottom: 1px solid #e0e0e0;
-        height: var(--nav-height);
-        width: 100%;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
+<ConfirmBox />
 
-    .page-contents {
-        position:fixed;
-        height: calc(100vh - var(--nav-height));
-        top: var(--nav-height);
-        width: 100%;
-        overflow-x: hidden;
-        overflow-y: hidden;
-    }
+<style>
 </style>

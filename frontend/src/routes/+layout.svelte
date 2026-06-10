@@ -1,15 +1,56 @@
+<!---------------------------------------------------
+ ! system: ModelArchivist
+ ! file: +layout.svelte
+ ! purpose: Svelte entry point
+ ! -------------------------------------------------->
+
 <script lang=ts>
     let { children } = $props();
+    import '$styles/app.css';
+
+/* Tags are a global context
+ * ---------------------------------------------------------------------------*/
+
+    import { setTagsContext, getTags } from '$lib/tags';
+    import { PrimaryObjectType } from '$lib/objects';
+
+    let all_tags = $state<string[]>([]);
+    let loading = $state(false);
+    let error = $state<string | null>(null);
+
+    async function refreshTags() {
+        loading = true;
+        const envelope = await getTags([PrimaryObjectType.MODEL,
+                                        PrimaryObjectType.WORKFLOW,
+                                        PrimaryObjectType.COLLECTION]);
+        if (envelope.ok) {
+            all_tags = envelope.data;
+        }
+        else {
+            error = envelope.message;
+        }
+    }
+
+    setTagsContext({
+        get all_tags() {
+            return all_tags;
+        },
+        get loading() {
+            return loading;
+        },
+        get error() {
+            return error;
+        },
+        refreshTags
+    });
+
+    $effect(() => {
+        refreshTags();
+    });
 </script>
 
 <svelte:head>
-    <link href="/css/archivist.css" rel="stylesheet"/>
-    <link href="/css/controls.css" rel="stylesheet"/>
-    <link href="/css/tags.css" rel="stylesheet"/>
     <link href="archivist-ico-32.png" rel="icon"/>
-    <link href="/css/fontawesome.min.css" rel="stylesheet"/>
-    <link href="/css/solid.min.css" rel="stylesheet"/>
-    <link href="/webfonts/fa-solid-900.woff2" rel="preload" as="font" type="font/woff2">
 </svelte:head>
 
 {@render children()}

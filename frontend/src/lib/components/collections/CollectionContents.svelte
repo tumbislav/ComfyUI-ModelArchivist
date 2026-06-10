@@ -1,8 +1,8 @@
 <script lang=ts>
-    import CollectionFilter from './CollectionFilter.svelte'
-    import CollectionActions from './CollectionActions.svelte'
-    import CollectionTable from './CollectionTable.svelte'
-    import CollectionDetails from './CollectionDetails.svelte'
+    import CollectionFilter from '$components/collections/CollectionFilter.svelte'
+    import CollectionActions from '$components/collections/CollectionActions.svelte'
+    import CollectionTable from '$components/collections/CollectionTable.svelte'
+    import CollectionDetails from '$components/collections/CollectionDetails.svelte'
 
     let { collections } = $state([]);
     let { error } = $state(false);

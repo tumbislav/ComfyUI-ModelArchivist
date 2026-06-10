@@ -1,0 +1,96 @@
+/* ------------------------------------------------
+ * system: ModelArchivist
+ * file: panels.css
+ * purpose: Panels and general layout
+ * ----------------------------------------------- */
+
+/* Overall layout
+ * ------------------------------------------------*/
+
+:root {
+    --nav-bar-height: 56px;
+    --min-width-overall: 600px;
+    --min-width-left: 200px;
+    --max-width-left: 300px;
+    --min-width-right: 300px;
+    --max-width-right: 400px;
+    --min-width-center: 400px;
+
+    --small-button-height: 28px;
+    --large-button-height: 42px;
+}
+
+
+.page-header {
+    position: fixed;
+    top: 0;
+    z-index: var(--z-nav);
+    border-bottom: var(--solid-border);
+    height: var(--nav-bar-height);
+    width: 100%;
+    box-shadow: var(--shadow-down);
+    background: var(--bg-color);
+}
+
+.page-contents {
+    position:fixed;
+    height: calc(100vh - var(--nav-bar-height));
+    top: var(--nav-bar-height);
+    width: 100%;
+    overflow: hidden;
+    background: var(--bg-color);
+}
+
+.three-panel {
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    margin: 0px;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.content-with-actions {
+    flex: 1 1 800px;
+    height: 100%;
+    margin: 0px;
+    padding: 0px;
+    overflow: hidden;
+    min-width: var(--min-width-center);
+    border-right: var(--solid-border);
+}
+
+.right-sidebar {
+    position: absolute;
+    top: var(--gap-mid);
+    bottom: var(--gap-mid);
+    right: var(--gap-mid);
+    padding: var(--gap-mid);
+    min-width: var(--min-width-right);
+    max-width: var(--max-width-right);
+    z-index: var(--z-details);
+    background: var(--bg-color);
+    border-radius: var(--radius-mid);
+    border: var(--solid-border);
+    box-shadow: var(--shadow-right);
+    overflow-y: auto;
+}
+
+.right-sidebar:focus-visible {
+    outline: 0;
+}
+
+.left-sidebar {
+    flex: 1 1 300px;
+    height: 100%;
+    margin: 0px;
+    padding: var(--gap-mid);
+    z-index: var(--z-commands);
+    overflow: hidden;
+    min-width: var(--min-width-left);
+    max-width: var(--max-width-left);
+    border-right: var(--solid-border);
+    box-shadow: var(--shadow-right);
+    background: var(--bg-color);
+}

@@ -7,12 +7,16 @@
 import {
     type Tag,
     PrimaryObjectType,
-    identity } from "$lib/objects";
+    identity
+} from '$lib/objects';
 
 import {
     type ApiResult,
     getUrl,
-    parseResponse } from "$lib/api";
+    parseResponse
+} from '$lib/api';
+
+import { createContext } from 'svelte';
 
 export type TagSearchCriteria = {
     types: string[],
@@ -24,17 +28,26 @@ export type TagSearchCriteria = {
 
 export async function getTag(tag: string): Promise<Tag> {
     const url = getUrl(`/tags/${tag}`);
-    const res = await fetch(url);
+    const response = await fetch(url);
     return await parseResponse(response, identity, 'getTag');
 }
 
 export async function getTags(targets: PrimaryObjectType[], offset?: number, limit?: number): Promise<string[]> {
     const url = getUrl('/tags');
 
-    if (targets.length > 0) { url.searchParams.set('target', targets.join()); }
-    if (offset) { url.searchParams.set('offset', offset); }
-    if (limit) { url.searchParams.set('limit', limit); }
+    if (targets.length > 0) { url.searchParams.append('targets', targets.join(',')); }
+    if (offset) { url.searchParams.append('offset', offset); }
+    if (limit) { url.searchParams.append('limit', limit); }
 
     const response = await fetch(url);
     return await parseResponse(response, identity, 'getTags');
 }
+
+export type TagsContext = {
+    all_tags: string[];
+    loading: boolean;
+    error: string | null;
+    refresh: () => Promise<void>;
+}
+
+export const [getTagsContext, setTagsContext] = createContext<TagsContext>();
