@@ -26,18 +26,18 @@ export type TagSearchCriteria = {
     name: string
 }
 
-export async function getTag(tag: string): Promise<Tag> {
+export async function getTag(tag: string): Promise<ApiResult<Tag>> {
     const url = getUrl(`/tags/${tag}`);
     const response = await fetch(url);
     return await parseResponse(response, identity, 'getTag');
 }
 
-export async function getTags(targets: PrimaryObjectType[], offset?: number, limit?: number): Promise<string[]> {
+export async function getTags(targets: PrimaryObjectType[], offset?: number, limit?: number): Promise<ApiResult<string[]>> {
     const url = getUrl('/tags');
-
+    
     if (targets.length > 0) { url.searchParams.append('targets', targets.join(',')); }
-    if (offset) { url.searchParams.append('offset', offset); }
-    if (limit) { url.searchParams.append('limit', limit); }
+    if (offset) { url.searchParams.append('offset', offset.toString()); }
+    if (limit) { url.searchParams.append('limit', limit.toString()); }
 
     const response = await fetch(url);
     return await parseResponse(response, identity, 'getTags');

@@ -6,9 +6,6 @@
 
 /* Tables -----------------------------------------*/
 
-:root {
-    --table-max-width: 800px;
-}
 
 .table-container {
     padding: var(--gap-mid);
@@ -47,6 +44,6 @@ th, td {
     font-size: var(--medium-font-size);
 }
 
-.main-table tr.selected {
+.main-table tr[aria-selected=true] {
     font-style: italic;
 }

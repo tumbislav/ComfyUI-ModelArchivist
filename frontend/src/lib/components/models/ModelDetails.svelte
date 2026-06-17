@@ -10,123 +10,120 @@
 import FileSet from '$components/controls/FileSet.svelte'
 import TagEditor from '$components/controls/TagEditor.svelte'
 
-import { type Model,
-         type ComponentSet
+import {
+    type Model,
+    type ComponentSet
 } from "$lib/objects";
-import { shortDate, joinPath } from "$lib/common";
-import { syncModel } from "$lib/models";
+import { shortDate } from "$lib/common";
+
 
 let {
-    model,
-    changed,
+    model=$bindable(),
+    changed=$bindable(),
     saving,
-    updateChanged,
     onSave,
+    onClose,
 }: {
     model: Model;
     changed: boolean;
     saving: boolean,
-    updateChanged: (changed: boolean) => void;
-    onSave: (model: Model) => Promise<void>;
+    onSave: () => Promise<void>;
+    onClose: () => Promise<boolean>;
 } = $props();
 
 let tags = $derived<string[]>([...model.tags]);
+let archive_set = $derived<ComponentSet | undefined>(model.component_sets.find(c_set => c_set.where === 'a'));
+let working_set = $derived<ComponentSet | undefined>(model.component_sets.find(c_set => c_set.where === 'w'));
 
-function tagsChanged(updated: string[]): void {
-    markChanged();
-    tags = [...updated];
-    model.tags = [...updated];
-}
-
-function markChanged() {
-    if (!changed) { updateChanged(true); }
-}
 
 async function handleEnter(event: KeyboardEvent) {
     if (event.key === 'Enter') {
         event.preventDefault();
-        await onSave(model);
+        await onSave();
     }
 }
 
-async function saveTags(tags: string[]): Promise<void> {}
 </script>
 
 <div class="dialog-section spaced-horizontally">
     <div></div>
-    <button type="button" class="tag-remove" >×</button>
+    <button type="button"
+            class="round"
+            onclick={() => onClose()}>×</button>
 </div>
 
 <div class="dialog-section spaced-horizontally">
     <div>
         <p class="labeled"><span>Type:</span>{model.type}</p>
     </div>
-
+    
     <div>
         <p class="labeled"><span>Last accessed:</span>{shortDate(model.touched)}</p>
     </div>
 </div>
 
 {#if model.deployment === 'mismatch'}
-    <p class="warning-message">Model mismatched, synchronize before editing.</p>
+    <p class="warning-message">Model is mismatched, synchronize it.</p>
 {/if}
 
 <div class="dialog-section">
     <p class="dialog-label">File name</p>
     <input class="text-input full-width"
-           oninput={markChanged}
            onkeydown={handleEnter}
            disabled={model.deployment === 'mismatch'}
            bind:value={model.file_name} />
-
+    
     <p class="annotation-right">{model.id}</p>
-
+    
     <p class="dialog-label">Internal name</p>
     <input class="text-input full-width"
-           oninput={markChanged}
            onkeydown={handleEnter}
            disabled={model.deployment === 'mismatch'}
            bind:value={model.internal_name} />
 </div>
 
 <div class="dialog-section">
-    <TagEditor {tags} onChanged={tagsChanged} disabled={model.deployment === 'mismatch'} />
+    <TagEditor {tags}
+        onChanged={(updated: string[]) => { tags = [...updated]; model.tags = [...updated]; }}
+        disabled={model.deployment === 'mismatch'}
+        title={'Tags'}
+        editable={true} />
 </div>
 
 <div class="dialog-section spaced-horizontally">
     <div></div>
-    <button class="simple-button action-button"
+    <button class="simple-button"
             disabled={!changed || saving || model.deployment === 'mismatch'}
-            onclick={() => onSave(model)} >
-        <span class="actions-label button-text">Save</span>
+            onclick={() => onSave()} >
+        <span class="button-text">Save</span>
     </button>
 </div>
 
-<FileSet set={model.component_sets.find(c_set => c_set.where === 'w')}
-         relative_path={model.relative_path}
-         name="working set" />
+{#if working_set}
+    <FileSet set={working_set} name="working set" />
+{/if}
 
 <div class="dialog-section spaced-horizontally">
-    <button class="simple-button action-button"
+    <button class="simple-button"
             disabled={model.deployment !== 'archive'} >
         <i class="fa-solid fa-arrow-up"></i>
-        <span class="actions-label button-text">To working set</span>
+        <span class="button-text">To working set</span>
     </button>
-    <button class="simple-button action-button"
+    <button class="simple-button"
             disabled={model.deployment === 'synced'} >
         <i class="fa-solid fa-up-down"></i>
-        <span class="actions-label button-text">Sync</span>
+        <span class="button-text">Sync</span>
     </button>
-    <button class="simple-button action-button"
+    <button class="simple-button"
             disabled={model.deployment !== 'working'} >
         <i class="fa-solid fa-arrow-down"></i>
-        <span class="actions-label button-text">To archive</span>
+        <span class="button-text">To archive</span>
     </button>
 </div>
 
-<FileSet set={model.component_sets.find(c_set => c_set.where === 'a')}
-         relative_path={model.relative_path}
-         name="archive" />
+{#if archive_set}
+    <FileSet set={archive_set} name="archive" />
+{/if}
 
 
 <div class="dialog-section">
@@ -145,24 +142,4 @@ async function saveTags(tags: string[]): Promise<void> {}
 </div>
 
 <style>
-    .tag-remove {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--tag-pill-radius);
-    border: 1px solid var(--border-color);
-    background: var(--bg-intense);
-    color: var(--text-color);
-    height: var(--tag-pill-height);
-    width: var(--tag-pill-height);
-    margin-left: var(--gap-small);
-    font-size: var(--medium-font-size);
-}
-
-button.tag-remove:hover {
-    border: 1px solid var(--border-color);
-    background: var(--bg-highlight);
-    transform: none;
-    box-shadow: none;
-}
 </style>

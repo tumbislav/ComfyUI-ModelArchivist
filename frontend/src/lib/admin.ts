@@ -7,7 +7,11 @@
 import { identity } from "$lib/objects";
 import {
     getUrl,
-    parseResponse } from "$lib/api";
+    parseResponse,
+    type ApiResult
+} from "$lib/api";
+
+export type ActiveTab = 'models' | 'workflows' | 'collections' | null;
 
 export type ServerStatus = {
     started: boolean,

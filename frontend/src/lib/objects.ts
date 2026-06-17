@@ -39,7 +39,7 @@ export type ComponentSet = {
     where: string;
     primary_dir: string;
     examples_dir?: string;
-    components: Component;
+    components: Component[];
 }
 
 export function toComponentSet(json: any): ComponentSet {

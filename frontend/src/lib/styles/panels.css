@@ -7,36 +7,30 @@
 /* Overall layout
  * ------------------------------------------------*/
 
-:root {
-    --nav-bar-height: 56px;
-    --min-width-overall: 600px;
-    --min-width-left: 200px;
-    --max-width-left: 300px;
-    --min-width-right: 300px;
-    --max-width-right: 400px;
-    --min-width-center: 400px;
-
-    --small-button-height: 28px;
-    --large-button-height: 42px;
+body {
+    overflow: hidden;
 }
 
-
 .page-header {
-    position: fixed;
-    top: 0;
+    position: absolute;
+    top: var(--gap-small);
+    left: var(--gap-small);
+    right: var(--gap-small);
     z-index: var(--z-nav);
     border-bottom: var(--solid-border);
     height: var(--nav-bar-height);
-    width: 100%;
     box-shadow: var(--shadow-down);
     background: var(--bg-color);
+    border-radius: var(--radius-tiny);
 }
 
 .page-contents {
-    position:fixed;
+    position: absolute;
+    z-index: var(--z-main);
     height: calc(100vh - var(--nav-bar-height));
-    top: var(--nav-bar-height);
-    width: 100%;
+    top: calc(var(--nav-bar-height) + var(--gap-small));
+    left: var(--gap-small);
+    right: var(--gap-small);
     overflow: hidden;
     background: var(--bg-color);
 }
@@ -58,8 +52,8 @@
     padding: 0px;
     overflow: hidden;
     min-width: var(--min-width-center);
-    border-right: var(--solid-border);
 }
+ 
 
 .right-sidebar {
     position: absolute;
@@ -93,4 +87,30 @@
     border-right: var(--solid-border);
     box-shadow: var(--shadow-right);
     background: var(--bg-color);
+}
+
+/* Modals
+ * ------------------------------------------------*/
+ 
+ .modal-backdrop {
+    backdrop-filter: blur(2px);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.modal-dialog {
+    position: fixed;
+    top: 20vh;
+    left: 50%;
+    transform: translate(-50%);
+    padding: var(--gap-mid);
+    min-width: var(--min-width-right);
+    z-index: var(--z-popup);
+    background: var(--bg-color);
+    border-radius: var(--radius-mid);
+    border: var(--solid-border);
+    box-shadow: var(--shadow-right);
 }

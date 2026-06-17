@@ -109,7 +109,27 @@
     --radius-tiny: 2px;
     --radius-small: 4px;
     --radius-mid: 8px;
+    
+    --pill-height: 1.2rem;
+    --pill-radius: calc(0.5 * var(--pill-height));
+    
+    --button-height: 32px;
+    --button-width: 100px;
+    --button-bar-height: 42px;
+
+    --nav-button-size: 42px;
+    --nav-bar-height: 56px;
+    
+    --min-width-overall: 600px;
+    --min-width-left: 200px;
+    --max-width-left: 300px;
+    --min-width-right: 300px;
+    --max-width-right: 400px;
+    --min-width-center: 400px;
+
+    --table-max-width: 800px;
 }
+
 
 /* Z order
  * ------------------------------------------------*/

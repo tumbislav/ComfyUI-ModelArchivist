@@ -6,10 +6,15 @@
 
 <script lang="ts">
 import { type ComponentSet } from "$lib/objects"
-import { joinPath } from "$lib/common";
-let { set, relative_path, name } = $props();
 
-let primary_dir = $derived(joinPath(set.primary_dir, relative_path));
+let {
+    set,
+    name
+}: {
+    set: ComponentSet,
+    name: string
+} = $props();
+
 let unpacked = $derived(set.components.reduce<Record<string, string[]>>(
     (a, c) => { (a[c.component_type] ??= []).push(c.file_name); return a; }, {}
 ));

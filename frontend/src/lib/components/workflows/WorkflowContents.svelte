@@ -1,6 +1,5 @@
 <script lang=ts>
     import WorkflowFilter from '$components/workflows/WorkflowFilter.svelte'
-    import WorkflowActions from '$components/workflows/WorkflowActions.svelte'
     import WorkflowTable from '$components/workflows/WorkflowTable.svelte'
     import WorkflowDetails from '$components/workflows/WorkflowDetails.svelte'
 
@@ -62,7 +61,6 @@
 <div class="three-panel">
     <WorkflowFilter tags={tags} error={tags_error} loading={tags_loading} on:submit={refreshFilter} />
     <div class="content-with-actions">
-        <WorkflowActions/>
         <WorkflowTable workflows={ workflows } error={ workflows_error } loading={ workflows_loading }/>
     </div>
     <WorkflowDetails/>

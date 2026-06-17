@@ -17,7 +17,7 @@
     let all_tags = $state<string[]>([]);
     let loading = $state(false);
     let error = $state<string | null>(null);
-
+    
     async function refreshTags() {
         loading = true;
         const envelope = await getTags([PrimaryObjectType.MODEL,
@@ -27,10 +27,10 @@
             all_tags = envelope.data;
         }
         else {
-            error = envelope.message;
+            error = envelope.message ?? null;
         }
     }
-
+    
     setTagsContext({
         get all_tags() {
             return all_tags;
@@ -41,9 +41,11 @@
         get error() {
             return error;
         },
-        refreshTags
+        get refresh() {
+            return refreshTags;
+        }
     });
-
+    
     $effect(() => {
         refreshTags();
     });

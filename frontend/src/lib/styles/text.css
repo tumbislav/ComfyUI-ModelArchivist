@@ -57,7 +57,7 @@ p.dialog-label {
     font-size: var(--medium-font-size);
     color: var(--text-color);
     font-weight: 600;
-    margin-bottom: 0;
+    margin-bottom: 1px;
 }
 
 p.labeled {
@@ -85,7 +85,7 @@ p.labeled :first-child {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-
+    
     direction: rtl;
     text-align: left;
 }
@@ -118,9 +118,4 @@ p.labeled :first-child {
 .display-string {
     font-size: var(--medium-font-size);
     color: var(--text-dim);
-}
-
-.actions-label {
-    font-size: var(--medium-font-size);
-    font-weight: 600;
 }

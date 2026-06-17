@@ -10,7 +10,12 @@ const config = {
             fallback: 'index.html',
             precompress: false,
             strict: true
-        })
+        }),
+        alias: {
+			'$lib/*': './src/lib/*',
+			'$components/*': './src/lib/components/*',
+			'$styles/*': './src/lib/styles/*'
+        }
     }
 };
 

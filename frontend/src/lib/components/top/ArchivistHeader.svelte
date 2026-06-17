@@ -5,117 +5,61 @@
  ! -------------------------------------------------->
 
 <script lang=ts>
-    let { selectContents } = $props();
-    import logo_pic from '$lib/assets/icons/archivist.png';
-    import model_ico from '$lib/assets/icons/model-32.png';
-    import workflow_ico from '$lib/assets/icons/workflow-32.png';
-    import collection_ico from '$lib/assets/icons/collection-32.png';
+import { type ActiveTab } from '$lib/admin';
+let {
+    current_tab = $bindable()
+}: {
+    current_tab: ActiveTab;
+} = $props();
+import logo_pic from '$lib/assets/icons/archivist.png';
 
-    let theme = $state<'light' | 'dark'>('light');
+let theme = $state<'light' | 'dark'>('light');
 
-    $effect(() => {
-        document.documentElement.dataset.theme = theme;
-        localStorage.setItem('theme', theme);
-    });
+$effect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('theme', theme);
+});
 </script>
 
-<div class="nav-container">
-    <div class="header-branding">
-        <img src={logo_pic} class="logo-image" alt="logo">
-        <span class="app-title">Model Archivist</span>
+<div class="header">
+    <div class="app-title">
+        <div class="title-image"><img src={logo_pic} alt="archivist"></div>
+        <span class="app-title-text">Model Archivist</span>
     </div>
-
-    <nav class="main-nav">
-        <button class="combined-button nav-button" onclick={() => selectContents("models")}>
-        <img src={model_ico} class="nav-icon" alt="Models">
-        <span>Models</span>
+    
+    <div class="nav-set" role="radiogroup" aria-label="Tab select">
+        <button class="tab-button"
+            role="radio"
+            aria-checked={current_tab === 'models'}
+            onclick={() => current_tab = 'models'} >
+            <i class="fa-solid fa-scroll nav-icon"></i> Models
         </button>
-
-        <button class="combined-button nav-button" onclick={() => selectContents("workflows")} >
-        <img src={workflow_ico} class="nav-icon" alt="Workflows">
-        <span>Workflows</span>
+        
+        <button class="tab-button" 
+            role="radio"
+            aria-checked={current_tab === 'workflows'}
+            onclick={() => current_tab = 'workflows'}>
+            <i class="fa-solid fa-arrows-turn-to-dots nav-icon"></i> Workflows
         </button>
-
-        <button class="combined-button nav-button" onclick={() => selectContents("collections")}>
-        <img src={collection_ico} class="nav-icon" alt="Collections">
-        <span>Collections</span>
+        
+        <button class="tab-button" 
+            role="radio"
+            aria-checked={current_tab === 'collections'}
+            onclick={() => current_tab = 'collections'} >
+            <i class="fa-solid fa-object-group nav-icon"></i> Collections
         </button>
-
-        <button class="combined-button nav-button">
-            <img src={collection_ico} class="nav-icon" alt="Collectons">
-            <span>Repository</span>
+    </div>
+    
+    <div class="nav-set">
+        <button class="option-button" aria-label="options">
+            <i class="fa-solid fa-gear nav-icon"></i>
         </button>
-
-    </nav>
-
-    <div class="nav-options">
-    <button class="option-button theme-toggle"
-            onclick={() => theme = theme === 'light' ? 'dark' : 'light'}
-            aria-label="toggle theme"></button>
+        <button class="option-button theme-toggle"
+                onclick={() => theme = theme === 'light' ? 'dark' : 'light'}
+                aria-label="toggle theme"></button>
     </div>
 </div>
 
 
 <style>
-/* Header and navigation --------------------------*/
-
-.nav-container {
-    width: 100%;
-    height: 100%;
-    margin: 0 auto;
-    padding: 0;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.header-branding {
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-    gap: var(--gap-small);
-    padding: 0 var(--gap-large);
-}
-
-.app-title {
-    font-size: var(--title-font-size);
-    color: var(--text-title);
-    font-weight: 700;
-}
-
-.logo-image {
-    width: 40px;
-    height: var(--large-button-height);
-}
-
-.main-nav {
-    display: flex;
-    gap: var(--gap-large);
-    flex-shrink: 0;
-}
-
-.nav-options {
-    display: flex;
-    gap: var(--gap-large);
-    flex-shrink: 0;
-    flex-direction: row;
-    padding: 0 var(--gap-large);
-}
-
-.nav-button {
-    height: var(--large-button-height);
-    width: 150px;
-    font-size: var(--large-font-size);
-    border-radius: var(--radius-mid);
-}
-
-.option-button {
-    height: var(--large-button-height);
-    width: var(--large-button-height);
-    font-size: var(--icon-font-size);
-    border-radius: var(--radius-mid);
-}
-
-
 </style>

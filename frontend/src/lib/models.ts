@@ -29,12 +29,12 @@ export async function getModels(): Promise<ApiResult<ModelSummary[]>> {
     return await parseResponse(response, identity, 'getModels');
 }
 
-export async function searchModels(criteria: ModelSearchCriteria): Promise<ApiResult<ModelSummary[]>> {
+export async function searchModels(filter: ModelSearchCriteria): Promise<ApiResult<ModelSummary[]>> {
     const url = getUrl(`/models/search`);
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(criteria)
+      body: JSON.stringify(filter)
     });
     return await parseResponse(response, identity, 'searchModels');
 }

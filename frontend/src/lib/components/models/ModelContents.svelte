@@ -4,12 +4,11 @@
  ! purpose: Container for the Model contents
  ! -------------------------------------------------->
 
-<script lang=ts>
+<script lang="ts">
 
 /* Nested components
  * ---------------------------------------------------------------------------*/
 import ModelFilter from '$components/models/ModelFilter.svelte'
-import ModelActions from '$components/models/ModelActions.svelte'
 import ModelTable from '$components/models/ModelTable.svelte'
 import ModelDetails from '$components/models/ModelDetails.svelte'
 
@@ -21,20 +20,17 @@ import { sidebar_in_out } from "$lib/common";
 import { confirmBox } from '$lib/confirm.svelte';
 
 import {
-    PrimaryObjectType,
     type Model,
     type ModelSummary,
-    type Tag,
     toModelSummary
 } from "$lib/objects";
 
 import {
     getModels,
     getModel,
-    updateModel
+    updateModel,
+    type ModelSearchCriteria
 } from "$lib/models";
-
-import { getTags } from "$lib/tags";
 
 import { type ApiResult } from "$lib/api";
 
@@ -43,56 +39,84 @@ import { type ApiResult } from "$lib/api";
 
 let models = $state<ModelSummary[]>([]);
 let models_error = $state<string | null>(null);
-let tags = $state<ApiResult<string[]>>({ ok: false });
 
 onMount(async () => {
-    const model_envelope = await getModels();
-    if (model_envelope.ok) {
-        models = model_envelope.data;
+    const envelope: ApiResult<ModelSummary[]> = await getModels();
+    if (envelope.ok) {
+        models = envelope.data;
         models_error = null;
     }
     else {
         models = [];
-        models.error = model_envelope.message;
+        models_error = envelope.message ?? null;
     }
-    tags = await getTags([PrimaryObjectType.MODEL]);
 });
 
-/* Details panel management
+/* Working with model details panel
  * ---------------------------------------------------------------------------*/
 
-let selected_model_id = $state<string | null>(null);
+let selected_id = $state<string | null>(null);
+let active_id = $state<string | null>(null);
 let active_model = $state<Model | null>(null);
-let changed = $state(false);
-let saving = $state(false);
+let active_changed = $state(false);
+let saving_active = $state(false);
 
-// Focus sidebar when open
+/* Focus sidebar when open ---------------------------------------------------*/
+
 // svelte-ignore non_reactive_update
 let sidebar: HTMLElement;
-$effect(() => { if (active_model && sidebar) { sidebar.focus(); } });
+$effect(() => {
+    if (active_model && sidebar) {
+        sidebar.focus(); 
+}});
 
-// Open the sidebar when the user clicks a model
-async function selectModel(id: string): Promise<void> {
-    if (id === selected_model_id) return;
-    if (!canCloseDetails) return;
+/* Open the sidebar when the user clicks a model -----------------------------*/
 
-    selected_model_id = id;
-    const envelope = await getModel(id);
+$effect(() => {
+    if (selected_id === null || selected_id === active_id)
+        return;
+    openDetails(selected_id);
+});
+
+async function openDetails(model_id: string) {
+    if (!model_id || !(await closeDetails()))
+        return;
+    const envelope = await getModel(model_id);
     if (envelope.ok) { active_model = envelope.data; }
-    changed = false;
+    active_changed = false;
+    active_id = model_id;
 }
 
-// Close the sidebar
-async function closeDetails() {
-    const can_close = await canCloseDetails();
+/* Track changes to the active model -----------------------------------------*/
 
-    if (changed) return;
-    selected_model_id = null;
+$effect(() => {
+    if (active_model && !saving_active) {
+        if (active_model.file_name || 
+            active_model.internal_name || 
+            active_model.tags)
+            active_changed = true;
+    }
+});
+
+/* Close the sidebar if there are no changes, or if user agrees -------------*/
+
+async function closeDetails(): Promise<boolean> {
+    if (active_changed) { 
+        const confirm = await confirmBox({
+            title: 'Unsaved changes',
+            message: 'You have unsaved changes. Discard them?'
+        });
+        if (!confirm) return false; /* not closed */
+    }
+    
+    selected_id = null;
     active_model = null;
-    saving = false;
+    active_changed = false;
+    saving_active = false;
+    return true;
 }
 
-// Close if the user hits Esc
+/* Close if the user hits Esc ------------------------------------------------*/
 async function handleEscape(event: KeyboardEvent) {
     if (event.key === 'Escape') {
         event.preventDefault();
@@ -100,21 +124,10 @@ async function handleEscape(event: KeyboardEvent) {
     }
 }
 
-// Check for unsaved changes
-async function canCloseDetails(): Promise<boolean> {
-    if (!changed) { return true; }
-
-    const confirm = await confirmBox({title: 'Unsaved changes',
-                                      message: 'You have unsaved changes. Discard them?'});
-    console.log(`confirm ${confirm}`);
-    changed = !confirm;
-    return changed;
-}
-
-// Close on click anywhere but on the table or the sidebar
+/* Close on click anywhere but on the table or the sidebar -------------------*/
 async function clickOutside(event: MouseEvent) {
     const target = event.target as HTMLElement;
-
+    
     if (target.closest('[data-model-table]') ||
         target.closest('[data-model-details]')) {
         return;
@@ -122,31 +135,45 @@ async function clickOutside(event: MouseEvent) {
     await closeDetails();
 }
 
-// Save a changed model
-async function saveModel(model: Model) {
-    saving = true;
-
+/* Save a changed model ------------------------------------------------------*/
+async function saveModel() {
+    if (active_model == null) return;
+    saving_active = true;
+    
     const envelope = await updateModel(active_model);
     if (!envelope.ok) {
         throw new Error('Cannot update model');
     }
+    active_model = envelope.data;
     models = models.map((m) => m.id === envelope.data.id ? toModelSummary(envelope.data) : m);
-    changed = false;
-    await closeDetails();
+    
+    active_changed = false;
+    saving_active = false;
 }
+
+
+/* Model filter
+ * ---------------------------------------------------------------------------*/
+ 
+ async function filterModels(filter: ModelSearchCriteria): Promise<void> {
+ }
+
+async function resetFilter(): Promise<void> {}
+
 
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions  -->
 <div class="three-panel" onclick={clickOutside}>
-    <ModelFilter />
+    <ModelFilter onFilter={filterModels} onReset={resetFilter}/>
+    
     <div class="content-with-actions">
-        <ModelActions />
         <main class="table-container" data-model-table>
-            <ModelTable {models} error={models_error} {selected_model_id} onSelect={selectModel} />
+            <ModelTable {models} error={models_error} bind:selected_id />
         </main>
     </div>
 {#if active_model}
+
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <aside class="right-sidebar"
            data-model-details
@@ -154,11 +181,11 @@ async function saveModel(model: Model) {
            onkeydown={handleEscape}
            bind:this={sidebar}
            transition:fly={sidebar_in_out}>
-        <ModelDetails model={active_model}
-                      {changed}
-                      {saving}
-                      updateChanged={(v) => changed=v}
-                      onSave={saveModel} />
+        <ModelDetails bind:model={active_model}
+                      bind:changed={active_changed}
+                      saving={saving_active}
+                      onSave={saveModel}
+                      onClose={closeDetails} />
     </aside>
 {/if}
 </div>

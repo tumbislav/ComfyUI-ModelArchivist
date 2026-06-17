@@ -5,107 +5,99 @@
  * ------------------------------------------------*/
 
 /* Control containers
- * ---------------------------------------------------------------------------*/
+ * ------------------------------------------------*/
 
-    .control-bar {
-        height: var(--action-height);
-        margin: 0px;
-        box-shadow: var(--shadow-down);
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-    }
+/* Buttons
+ * ------------------------------------------------*/
 
-    .actions-bar {
-        display: flex;
-        flex-direction: row;
-        flex-wrap: nowrap;
-        padding: var(--gap-small) var(--gap-mid);
-        gap: var(--gap-large);
-        width: calc(100% - var(--gap-mid)*2);
-        align-items: center;
-    }
+button {
+    cursor: pointer;
+    border: var(--solid-border);
+    background: var(--bg-color);
+    color: var(--text-color);
+}
 
-    .actions-group {
-        gap: var(--gap-mid);
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-    }
+button:hover {
+    border-color: var(--border-highlight);
+    background: var(--bg-highlight);
+    transform: translateY(-1px);
+    box-shadow: var(--highlight-shadow);
+}
 
-/* Buttons ----------------------------------------*/
+button:active {
+    transform: translateY(0);
+    box-shadow: var(--button-shadow);
+}
 
-    button {
-        cursor: pointer;
-        border: var(--solid-border);
-        background: var(--bg-color);
-        color: var(--text-color);
-    }
+button:disabled {
+    border-color: var(--border-dim);
+    cursor: not-allowed;
+    color: var(--text-dimmer);
+    pointer-events: none;
+}
 
-    button:hover {
-        border-color: var(--border-highlight);
-        background: var(--bg-highlight);
-        transform: translateY(-1px);
-        box-shadow: var(--highlight-shadow);
-    }
+.button-text {
+    color: inherit;
+    font-size: var(--medium-font-size);
+    font-weight: 600;
+}
 
-    button:active {
-        transform: translateY(0);
-        box-shadow: var(--button-shadow);
-    }
+.button-with-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--gap-tiny) var(--gap-small);
+    gap: var(--gap-small);
+}
 
-    button:disabled {
-        border-color: var(--border-dim);
-        cursor: not-allowed;
-        color: var(--text-dimmer);
-        pointer-events: none;
-    }
+.simple-button {
+    padding: var(--gap-tiny) var(--gap-small);
+    border: var(--solid-border);
+    background: var(--bg-color);
+    height: var(--button-height);
+    min-width: var(--button-width);
+    font-size: var(--medium-font-size);
+    border-radius: var(--radius-small);
+}
 
-    .button-text {
-        color: inherit;
-    }
+.action-icon {
+    height: 16px;
+    filter: var(--mode-filter);
+}
 
-    .combined-button {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: var(--gap-tiny) var(--gap-small);
-        gap: var(--gap-small);
-    }
+.selector {
+    /* TODO deferred
+     */
+    background-color: var(--bg-color);
+}
 
-    .simple-button {
-        padding: var(--gap-tiny) var(--gap-small);
-        border: var(--solid-border);
-        background: var(--bg-color);
-    }
 
-    .action-button {
-        height: var(--action-button-height);
-        font-size: var(--medium-font-size);
-        min-width: 100px;
-        border-radius: var(--radius-small);
-    }
+/* Round buttons */
 
-    .action-icon {
-        height: 16px;
-        filter: var(--mode-filter);
-    }
+button.round {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--pill-radius);
+    border: 1px solid var(--border-color);
+    background: var(--bg-intense);
+    color: var(--text-color);
+    height: var(--pill-height);
+    width: var(--pill-height);
+    margin-left: var(--gap-small);
+    font-size: var(--medium-font-size);
+}
 
-    .nav-icon {
-        width: 32px;
-        height: 32px;
-        filter: var(--mode-filter);
-    }
-
-    .selector {
-        /* TODO deferred
-         */
-        background-color: var(--bg-color);
-    }
+button.round:hover {
+    border: 1px solid var(--border-color);
+    background: var(--bg-highlight);
+    transform: none;
+    box-shadow: none;
+}
 
 
 /* Dialog layout
- * ---------------------------------------------------------------------------*/
+ * ------------------------------------------------*/
 
 .dialog-section {
     margin-bottom: var(--gap-mid);
@@ -150,4 +142,37 @@
 
 .full-width {
     width: 100%;
+}
+
+/* Pills
+ * ------------------------------------------------*/
+ 
+.pill-container {
+    display: flex;
+    align-items: center;
+    border-radius: var(--pill-radius);
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
+    margin: 0;
+    height: var(--pill-height);
+    font-size: var(--small-font-size);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.pill-content {
+    width: auto;
+    margin-left: var(--gap-small);
+}
+
+.pill-input {
+    border: 0;
+    color: var(--text-color);
+    background: var(--bg-color);
+    margin: 0 var(--gap-small);
+    box-sizing: border-box;
+}
+
+.pill-input:focus-visible {
+    outline: 0;
 }

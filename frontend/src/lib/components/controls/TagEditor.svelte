@@ -6,58 +6,62 @@
 
 <script lang="ts">
     import { getTagsContext } from '$lib/tags';
-
+    
     const global_tags = getTagsContext();
 
     let {
         tags,
         onChanged,
-        disabled
+        disabled,
+        title,
+        editable
     }: {
         tags: string[];
         onChanged: (t: string[]) => void;
         disabled: boolean;
+        title?: string;
+        editable: boolean;
     } = $props();
-
+    
     let draft_tags = $state<string[]>([]);
     let query = $state('');
-
+    
     $effect(() => {
         tags;
         draft_tags = [...tags];
         query = '';
     });
-
+    
     let normalizedDraft = $derived(
         new Set(draft_tags.map(t => t.toLowerCase()))
     );
-
+    
     let suggestions = $derived.by(() => {
         const q = query.trim().toLowerCase();
-
+        
         if (!q) return [];
-
+        
         return global_tags.all_tags
             .filter(tag => tag.toLowerCase().startsWith(q))
             .filter(tag => !normalizedDraft.has(tag.toLowerCase()));
     });
-
+    
     let canAddNew = $derived.by(() => {
         const q = query.trim();
         if (!q) return false;
-
+        
         return !normalizedDraft.has(q.toLowerCase());
     });
-
-
+    
+    
     function addTag(tag: string) {
         const cleaned = tag.trim();
         if (!cleaned) return;
-
+        
         if (!normalizedDraft.has(cleaned.toLowerCase())) {
             draft_tags = [...draft_tags, cleaned];
         }
-
+        
         query = '';
         onChanged(draft_tags);
     }
@@ -73,7 +77,7 @@
 
             if (suggestions.length > 0) {
                 addTag(suggestions[0]);
-            } else if (canAddNew) {
+            } else if (canAddNew && editable) {
                 addTag(query);
             }
         }
@@ -98,27 +102,30 @@
     }
 </script>
 
+{#if title}
+<p class="dialog-label">{title}</p>
+{/if}
 
 <div class="tag-editor">
     <div class="tag-list">
         {#each draft_tags as tag}
-            <div class="tag-container">
-                <span class="tag-content">{tag}</span>
+            <div class="pill-container">
+                <span class="pill-content">{tag}</span>
                 <button type="button"
-                        class="tag-remove"
+                        class="round"
                         onclick={() => removeTag(tag)}
                         disabled={disabled}>×</button>
             </div>
         {/each}
-
-        <div class="tag-container" bind:this={inputWrapper}>
-            <input class="tag-input"
+        
+        <div class="pill-container" bind:this={inputWrapper}>
+            <input class="pill-input"
                    type="text"
                    bind:value={query}
                    onfocus={positionDropdown}
                    oninput={positionDropdown}
                    onkeydown={handleKeydown}
-                   placeholder={disabled ? ". . ." : "Add tag"}
+                   placeholder={disabled ? ". . ." : (editable ? "Add tag" : "Find tag")}
                    disabled={disabled} />
         </div>
     </div>
@@ -130,12 +137,12 @@
          style:--dropdown-width={dropdownWidth}>
     {#if suggestions.length > 0}
         {#each suggestions as tag}
-            <button type="button" class="tag-container" onclick={() => addTag(tag)} >
+            <button type="button" class="pill-container" onclick={() => addTag(tag)} >
                 {tag}
             </button>
         {/each}
     {:else if canAddNew}
-            <button type="button" class="tag-container"  onclick={() => addTag(query)} >
+            <button type="button" class="pill-container"  onclick={() => addTag(query)} >
             + '{query.trim()}'
             </button>
     {/if}
@@ -144,11 +151,6 @@
 </div>
 
 <style>
-
-:root {
-    --tag-pill-height: 1.2rem;
-    --tag-pill-radius: calc(0.5 * var(--tag-pill-height));
-}
 
 /* List of selected tags with editing functions */
 .tag-list {
@@ -165,57 +167,6 @@
     gap: var(--gap-tiny);
 }
 
-/* Container for a single tag */
-.tag-container {
-    display: flex;
-    align-items: center;
-    border-radius: var(--tag-pill-radius);
-    border: 1px solid var(--border-color);
-    background: var(--bg-color);
-    margin: 0;
-    height: var(--tag-pill-height);
-    font-size: var(--small-font-size);
-    white-space: nowrap;
-    overflow: hidden;
-}
-
-.tag-remove {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--tag-pill-radius);
-    border: 1px solid var(--border-color);
-    background: var(--bg-intense);
-    color: var(--text-color);
-    height: var(--tag-pill-height);
-    width: var(--tag-pill-height);
-    margin-left: var(--gap-small);
-    font-size: var(--medium-font-size);
-}
-
-button.tag-remove:hover {
-    border: 1px solid var(--border-color);
-    background: var(--bg-highlight);
-    transform: none;
-    box-shadow: none;
-}
-
-.tag-content {
-    width: auto;
-    margin-left: var(--gap-small);
-}
-
-.tag-input {
-    border: 0;
-    color: var(--text-color);
-    background: var(--bg-color);
-    margin: 0 var(--gap-small);
-    box-sizing: border-box;
-}
-
-.tag-input:focus-visible {
-    outline: 0;
-}
 
 .tag-dropdown {
     position: fixed;
