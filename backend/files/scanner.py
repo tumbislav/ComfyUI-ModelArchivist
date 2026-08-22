@@ -16,6 +16,10 @@ from dataclasses import dataclass, field
 import datetime
 
 from backend.config import get_config, Configuration
+from backend.files.metadata import (ARCHIVIST_METADATA_SUFFIX,
+                                    LEGACY_METADATA_SUFFIX,
+                                    load_model_metadata,
+                                    model_component_stem)
 import backend.repository.repository as repo
 
 
@@ -117,24 +121,14 @@ class Scanner:
 
         def get_metadata(model_filename: str, meta_name: str | None, model_dir: Path) -> tuple[str, dict]:
             """
-            Get a model's metadata, whether or not it exists
+            Read Archivist metadata, importing legacy metadata on first use.
             """
             model_file = model_dir / model_filename
-            if meta_name is None:
-                md_file = model_file.with_suffix('.metadata.json')
-                data = {'sha256': compute_sha256(model_file),
-                        'model_name': model_file.stem,
-                        'file_name': model_file.stem,
-                        'tags': []}
-            else:
+            md_file = model_file.with_suffix(ARCHIVIST_METADATA_SUFFIX)
+            if meta_name is not None:
                 md_file = model_dir / meta_name
-                data = json.loads(md_file.read_text(encoding='utf-8'))
-                if 'sha256' not in data:
-                    data['sha256'] = compute_sha256(model_file),
-                data.setdefault('model_name', model_file.stem)
-                data.setdefault('file_name', model_file.stem)
             self.logger.debug(f'updating metadata for {model_file}')
-            md_file.write_text(json.dumps(data), encoding='utf-8')
+            data = load_model_metadata(model_file, md_file)
             return md_file.name, data
 
         def assemble_set(data: dict, primary_dir: Path, ex_root: Path, where: str) \
@@ -207,9 +201,11 @@ class Scanner:
             self.logger.debug(f'current dir {working_dir}')
             for file_path, where in chain(((working_dir / fn, 'w') for fn in filenames),
                                           ((f.resolve(), 'a') for f in archive_dir.iterdir() if f.is_file())):
-                stem = file_path.stem.replace('.metadata','')
+                if file_path.name.endswith(LEGACY_METADATA_SUFFIX):
+                    continue
+                stem = model_component_stem(file_path)
                 c_type = (ComponentType.MODEL if file_path.suffix in self.config.model_extensions else
-                          ComponentType.METADATA if file_path.name.endswith('.metadata.json') else
+                          ComponentType.METADATA if file_path.name.endswith(ARCHIVIST_METADATA_SUFFIX) else
                           ComponentType.EXTRA)
                 found.setdefault(stem, {}).setdefault(where, []).append((c_type, file_path.name))
 

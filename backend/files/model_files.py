@@ -8,6 +8,7 @@ import logging
 from pathlib import Path
 from backend.repository.tables import Model, ComponentType, DeploymentStatus
 import json
+from backend.files.metadata import ARCHIVIST_METADATA_SUFFIX
 
 logger = logging.getLogger('archivist.files')
 
@@ -23,7 +24,7 @@ def update_model(model: Model, name: str, internal_name: str, tags: list[str]):
         if c.component_type == ComponentType.EXAMPLE:
             continue
         file_path = Path(c.file_dir) / c.file_name
-        if file_path.name.endswith('metadata.json') and change_metadata:
+        if file_path.name.endswith(ARCHIVIST_METADATA_SUFFIX) and change_metadata:
             metadata = json.loads(file_path.read_text(encoding='utf-8'))
             metadata['tags'] = tags
             metadata['model_name'] = internal_name

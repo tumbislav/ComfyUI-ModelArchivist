@@ -70,6 +70,8 @@ class CollectionCollectionLink(SQLModel, table=True):
 # Models
 # ---------------------------------------------------------------------------
 
+#todo: add notes and civitai.name == version, base model, from_civitai, civitai.model_id + civitai.id (version id)
+
 class Model(SQLModel, table=True):
     id: str = Field(primary_key=True)
     file_name: str

@@ -12,6 +12,9 @@ from enum import StrEnum
 
 
 class ConfigError(StrEnum):
+    CONFIG_NOT_FOUND = 'Configuration file not found'
+    CONFIG_UNREADABLE = 'Configuration file not readable'
+    INVALID_CONFIG = 'Invalid configuration file'
     INVALID_APP_ROOT = 'Application root not accessible'
     DUPLICATE_FOLDER = 'Duplicate path'
     FOLDER_NOT_FOUND = 'No such folder'
@@ -428,10 +431,25 @@ def load_config(cfg_file: Path | None = None) -> Configuration:
     else:
         cfg_file = Path(cfg_file).resolve()
 
-    toml_string = cfg_file.read_text(encoding='utf-8')
-    _config = Configuration.from_toml_string(toml_string)
-    _config.resolve_paths(app_root, cfg_file)
-    return _config
+    try:
+        toml_string = cfg_file.read_text(encoding='utf-8')
+    except FileNotFoundError as error:
+        raise ConfigException(ConfigError.CONFIG_NOT_FOUND, str(cfg_file)) from error
+    except OSError as error:
+        raise ConfigException(ConfigError.CONFIG_UNREADABLE, f'{cfg_file}: {error}') from error
+
+    try:
+        config = Configuration.from_toml_string(toml_string)
+        required_sections = ('paths', 'database', 'models', 'workflows', 'web', 'options', 'logging')
+        missing_sections = [name for name in required_sections if getattr(config, name, None) is None]
+        if missing_sections:
+            raise ValueError(f'missing sections: {", ".join(missing_sections)}')
+    except Exception as error:
+        raise ConfigException(ConfigError.INVALID_CONFIG, f'{cfg_file}: {error}') from error
+
+    config.resolve_paths(app_root, cfg_file)
+    _config = config
+    return config
 
 def get_config() -> Configuration:
     if _config is None:
