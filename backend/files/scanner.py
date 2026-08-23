@@ -284,6 +284,13 @@ class Scanner:
                 return None, 'mismatched sha256'
             return meta_2, None
 
+        def file_format(*component_sets: ComponentSet) -> str:
+            for component_set in component_sets:
+                for component in component_set.components:
+                    if component.component_type == ComponentType.MODEL:
+                        return Path(component.file_name).suffix.lower().removeprefix('.')
+            return ''
+
         for working_dir, subdirs, filenames in working_root.walk():
             relative_path = str(match_folders(working_root, archive_root, working_dir, subdirs))
             archive_dir = archive_root / relative_path
@@ -318,6 +325,7 @@ class Scanner:
                             file_name=side_metadata['file_name'],
                             internal_name=side_metadata['model_name'],
                             type=type_name,
+                            file_format=file_format(present_set),
                             relative_path=relative_path,
                             deployment=str(DeploymentStatus.WORKING if present_set.where == 'w'
                                            else DeploymentStatus.ARCHIVE),
@@ -341,6 +349,7 @@ class Scanner:
                               file_name=metadata['file_name'],
                               internal_name=metadata['model_name'],
                               type=type_name,
+                              file_format=file_format(working_set, archive_set),
                               relative_path=relative_path,
                               deployment=str(check_deployment(working_set, archive_set)),
                               touched=self.timestamp,

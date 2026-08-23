@@ -17,7 +17,14 @@ from backend.exception import ArcException
 import backend.repository.tables  # noqa: F401
 
 BASELINE_REVISION = '16da8f3ac79c'
-BASELINE_REMOVED_COLUMNS = {'component': {'size', 'modified_at_ns'}}
+COMPONENT_STATS_REVISION = 'a7c4f02d91e8'
+UNVERSIONED_REMOVED_COLUMNS = {
+    COMPONENT_STATS_REVISION: {'model': {'file_format'}},
+    BASELINE_REVISION: {
+        'component': {'size', 'modified_at_ns'},
+        'model': {'file_format'},
+    },
+}
 
 
 def alembic_config(connection: Connection) -> Config:
@@ -52,12 +59,13 @@ def detect_unversioned_revision(connection: Connection) -> str:
     if actual_columns == head_columns:
         return 'head'
 
-    baseline_columns = {
-        table_name: columns - BASELINE_REMOVED_COLUMNS.get(table_name, set())
-        for table_name, columns in head_columns.items()
-    }
-    if actual_columns == baseline_columns:
-        return BASELINE_REVISION
+    for revision, removed_columns in UNVERSIONED_REMOVED_COLUMNS.items():
+        revision_columns = {
+            table_name: columns - removed_columns.get(table_name, set())
+            for table_name, columns in head_columns.items()
+        }
+        if actual_columns == revision_columns:
+            return revision
 
     mismatches = [
         f'{table_name}: expected {sorted(head_columns[table_name])}, '

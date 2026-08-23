@@ -283,6 +283,24 @@ def list_models(ordered, search_criteria: dict | None = None) -> list[dict]:
             statement = select(Model).order_by(Model.type, Model.internal_name)
         else:
             statement = select(Model).order_by(Model.type)
+        criteria = search_criteria or {}
+        types = criteria.get('types', [])
+        if types:
+            statement = statement.where(Model.type.in_(types))
+        file_formats = [value.lower().removeprefix('.')
+                        for value in criteria.get('file_formats', [])]
+        if file_formats:
+            statement = statement.where(Model.file_format.in_(file_formats))
+        for tag in criteria.get('required_tags', []):
+            statement = statement.where(Model.tags.any(Tag.tag == tag))
+        for tag in criteria.get('forbidden_tags', []):
+            statement = statement.where(~Model.tags.any(Tag.tag == tag))
+        name_prefix = criteria.get('name_prefix', '')
+        if name_prefix:
+            escaped_prefix = (name_prefix.replace('\\', '\\\\')
+                              .replace('%', '\\%').replace('_', '\\_'))
+            statement = statement.where(Model.internal_name.ilike(
+                f'{escaped_prefix}%', escape='\\'))
         return [model.summary(_config.model_types) for model in session.exec(statement).all()]
 
 def get_model(id: str) -> dict:

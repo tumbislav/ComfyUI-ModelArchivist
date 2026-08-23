@@ -17,10 +17,10 @@ import {
 
 export type ModelSearchCriteria = {
     types: string[];
-    collections: string[];
+    file_formats: string[];
     required_tags: string[];
     forbidden_tags: string[];
-    name_like: string;
+    name_prefix: string;
 }
 
 export async function getModels(): Promise<ApiResult<ModelSummary[]>> {

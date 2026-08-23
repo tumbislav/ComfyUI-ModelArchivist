@@ -4,6 +4,23 @@
  * purpose: Text styles, paragraphs, labels
  * ----------------------------------------------- */
 
+:root {
+    --title-font-size: 18pt;
+    --nav-icon-font-size: 16pt;
+    --icon-font-size: 14pt;
+    --large-font-size: 12pt;
+    --medium-font-size: 10pt;
+    --small-font-size: 9pt;
+    --smaller-font-size: 9pt;
+    --tiny-font-size: 7pt;
+}
+
+* {
+    font: inherit;
+    font-family: OpenSans;
+    color: var(--text-color);
+}
+
 /* Headings
  * ----------------------------------------------- */
 
@@ -25,7 +42,9 @@ h3 {
     font-weight: 600;
 }
 
-h1, h2, h3 :has(+ p.subtitle) {
+h1:has(+ p.subtitle),
+h2:has(+ p.subtitle),
+h3:has(+ p.subtitle) {
     margin-bottom: 0;
 }
 
@@ -117,5 +136,16 @@ p.labeled :first-child {
 
 .display-string {
     font-size: var(--medium-font-size);
+    color: var(--text-dim);
+}
+
+.actions-label {
+    font-size: var(--medium-font-size);
+    font-weight: 600;
+}
+
+.actions-label-dim {
+    font-size: var(--medium-font-size);
+    font-weight: 600;
     color: var(--text-dim);
 }

@@ -10,7 +10,6 @@
 body {
     overflow: hidden;
 }
-
 .page-header {
     position: absolute;
     top: var(--gap-small);
@@ -89,28 +88,18 @@ body {
     background: var(--bg-color);
 }
 
-/* Modals
- * ------------------------------------------------*/
- 
- .modal-backdrop {
-    backdrop-filter: blur(2px);
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
+.object-view {
+    display: flex;
+    flex-direction: column;
     height: 100%;
+    width: 100%;
+    overflow: hidden;
 }
 
-.modal-dialog {
-    position: fixed;
-    top: 20vh;
-    left: 50%;
-    transform: translate(-50%);
-    padding: var(--gap-mid);
-    min-width: var(--min-width-right);
-    z-index: var(--z-popup);
-    background: var(--bg-color);
-    border-radius: var(--radius-mid);
-    border: var(--solid-border);
-    box-shadow: var(--shadow-right);
+.object-results {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
 }

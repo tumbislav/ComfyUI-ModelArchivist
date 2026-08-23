@@ -10,8 +10,19 @@ from fastapi import APIRouter, HTTPException, Response
 from backend.dispatcher import OperationBusyError, dispatcher
 from backend.exception import ArcException
 from backend.repository.tables import DeploymentStatus
+from pydantic import BaseModel, ConfigDict, Field
 
 router = APIRouter()
+
+
+class ModelSearchCriteria(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+
+    types: list[str] = Field(default_factory=list)
+    file_formats: list[str] = Field(default_factory=list)
+    required_tags: list[str] = Field(default_factory=list)
+    forbidden_tags: list[str] = Field(default_factory=list)
+    name_prefix: str = ''
 
 
 @router.get('/models')
@@ -27,8 +38,8 @@ async def get_model(id: str) -> dict | None:
             raise HTTPException(404, e.message)
 
 @router.post('/models/search')
-async def search_models(criteria: dict) -> list[dict]:
-    models = repo.list_models(True, criteria)
+async def search_models(criteria: ModelSearchCriteria) -> list[dict]:
+    models = repo.list_models(True, criteria.model_dump())
     return models
 
 @router.put('/models/{id}')

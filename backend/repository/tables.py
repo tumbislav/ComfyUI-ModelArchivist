@@ -97,6 +97,7 @@ class Model(SQLModel, table=True):
     file_name: str
     internal_name: str
     type: str
+    file_format: str = ''
     relative_path: str
     deployment: str
     touched: str
@@ -118,6 +119,7 @@ class Model(SQLModel, table=True):
         self.file_name = other.file_name
         self.internal_name = other.internal_name
         self.type = other.type
+        self.file_format = other.file_format
         self.relative_path = other.relative_path
         self.deployment = other.deployment
         self.touched = other.touched
@@ -127,6 +129,7 @@ class Model(SQLModel, table=True):
                  'file_name': self.file_name,
                  'internal_name': self.internal_name,
                  'type': type_map.get(self.type, self.type),
+                 'file_format': self.file_format,
                  'deployment': self.deployment,
                  'errors': self.errors,
                  'read_only': self.read_only,
@@ -138,6 +141,7 @@ class Model(SQLModel, table=True):
                  'internal_name': self.internal_name,
                  'type': type_map.get(self.type, self.type),
                  'raw_type': self.type,
+                 'file_format': self.file_format,
                  'relative_path': self.relative_path.replace('\\', '/'),
                  'deployment': self.deployment,
                  'touched': self.touched,

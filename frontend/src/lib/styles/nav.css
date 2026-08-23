@@ -93,7 +93,7 @@
 
 .tab-button:hover {
     border-color: var(--border-highlight);
-    background: var(--bg-highlight);
+    background: var(--bg-accent);
     transform: translateY(-1px);
     box-shadow: var(--highlight-shadow);
 }

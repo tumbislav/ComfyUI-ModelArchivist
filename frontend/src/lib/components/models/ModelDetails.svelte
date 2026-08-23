@@ -19,7 +19,7 @@ import { shortDate } from "$lib/common";
 
 let {
     model=$bindable(),
-    changed=$bindable(),
+    changed,
     saving,
     onSave,
     onClose,

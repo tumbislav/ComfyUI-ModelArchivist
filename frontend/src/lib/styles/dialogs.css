@@ -1,0 +1,52 @@
+/* ------------------------------------------------
+ * system: ModelArchivist
+ * file: dialogs.css
+ * purpose: Dialog and modal layout
+ * ----------------------------------------------- */
+
+/* Dialog sections
+ * ------------------------------------------------*/
+
+.dialog-section {
+    margin-bottom: var(--gap-mid);
+}
+
+.raised-section {
+    padding: var(--gap-mid);
+    border-radius: var(--radius-mid);
+    background: var(--bg-color);
+    border: var(--solid-border);
+    box-shadow: var(--shadow-right);
+}
+
+.spaced-horizontally {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+/* Modals
+ * ------------------------------------------------*/
+
+.modal-backdrop {
+    backdrop-filter: blur(2px);
+    position: fixed;
+    z-index: var(--z-modal);
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.modal-dialog {
+    position: fixed;
+    top: 20vh;
+    left: 50%;
+    transform: translate(-50%);
+    padding: var(--gap-mid);
+    min-width: var(--min-width-right);
+    background: var(--bg-color);
+    border-radius: var(--radius-mid);
+    border: var(--solid-border);
+    box-shadow: var(--shadow-right);
+}

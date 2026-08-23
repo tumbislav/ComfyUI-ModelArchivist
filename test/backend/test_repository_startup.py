@@ -120,7 +120,7 @@ def test_start_repo_adopts_compatible_unversioned_database(
     with Session(repository._engine) as session:
         assert session.get(Tag, 'preserved') is not None
     with repository._engine.connect() as connection:
-        assert MigrationContext.configure(connection).get_current_revision() == 'a7c4f02d91e8'
+        assert MigrationContext.configure(connection).get_current_revision() == 'c31e958af610'
     assert repository._first_run is False
 
 
@@ -143,7 +143,7 @@ def test_start_repo_upgrades_unversioned_baseline_database(
     with repository._engine.connect() as connection:
         columns = {column['name'] for column in inspect(connection).get_columns('component')}
         assert {'size', 'modified_at_ns'} <= columns
-        assert MigrationContext.configure(connection).get_current_revision() == 'a7c4f02d91e8'
+        assert MigrationContext.configure(connection).get_current_revision() == 'c31e958af610'
         assert connection.exec_driver_sql(
             "SELECT tag FROM tag WHERE tag = 'preserved'"
         ).scalar_one() == 'preserved'
@@ -162,7 +162,7 @@ def test_start_repo_creates_parent_and_new_database(tmp_path: Path, monkeypatch:
     assert repository._repo_started is True
     assert repository._first_run is True
     with repository._engine.connect() as connection:
-        assert MigrationContext.configure(connection).get_current_revision() == 'a7c4f02d91e8'
+        assert MigrationContext.configure(connection).get_current_revision() == 'c31e958af610'
 
 
 def test_start_repo_does_not_scan_in_read_only_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -190,7 +190,36 @@ def test_schema_update_is_idempotent(tmp_path: Path):
     repository.update_database_schema(engine)
 
     with engine.connect() as connection:
-        assert MigrationContext.configure(connection).get_current_revision() == 'a7c4f02d91e8'
+        assert MigrationContext.configure(connection).get_current_revision() == 'c31e958af610'
+    engine.dispose()
+
+
+def test_file_format_migration_backfills_from_model_component(tmp_path: Path):
+    engine = repository.create_engine(f'sqlite:///{tmp_path / "format.db"}')
+    with engine.begin() as connection:
+        command.upgrade(alembic_config(connection), 'a7c4f02d91e8')
+        connection.exec_driver_sql(
+            """INSERT INTO model
+               (id, file_name, internal_name, type, relative_path, deployment, touched, errors)
+               VALUES ('model-id', 'weights', 'Weights', 'checkpoints', '',
+                       'working', 'timestamp', '[]')""")
+        connection.exec_driver_sql(
+            """INSERT INTO componentset
+               (id, "where", primary_dir, examples_dir, model_id, workflow_id)
+               VALUES ('set-id', 'w', '.', NULL, 'model-id', NULL)""")
+        connection.exec_driver_sql(
+            """INSERT INTO component
+               (id, file_name, relative_path, component_type, touched,
+                component_set_id, size, modified_at_ns)
+               VALUES ('component-id', 'weights.GGUF', '', 'model', 'timestamp',
+                       'set-id', 10, 20)""")
+
+    repository.update_database_schema(engine)
+
+    with engine.connect() as connection:
+        assert connection.exec_driver_sql(
+            "SELECT file_format FROM model WHERE id = 'model-id'"
+        ).scalar_one() == 'gguf'
     engine.dispose()
 
 

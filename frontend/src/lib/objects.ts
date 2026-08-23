@@ -60,6 +60,7 @@ export type ModelSummary = {
     file_name: string;
     internal_name: string;
     type: string;
+    file_format: string;
     deployment: string;
 };
 
@@ -69,6 +70,7 @@ export type Model = {
     internal_name: string;
     type: string;
     raw_type: string;
+    file_format: string;
     relative_path: string;
     deployment: string;
     touched: Date;
@@ -84,6 +86,7 @@ export function toModel(json: any): Model {
         internal_name: json.internal_name,
         type: json.type,
         raw_type: json.raw_type,
+        file_format: json.file_format,
         relative_path: json.relative_path,
         deployment: json.deployment,
         touched: new Date(json.touched),
@@ -99,6 +102,7 @@ export function toModelSummary(model: any): ModelSummary {
         file_name: model.file_name,
         internal_name: model.internal_name,
         type: model.type,
+        file_format: model.file_format,
         deployment: model.deployment
     }
 }

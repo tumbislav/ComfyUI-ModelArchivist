@@ -138,9 +138,7 @@
     --z-main: -1;       /* main panel */
     --z-nav: 10;        /* nav bar */
     --z-commands: 15;   /* command buttons, filter panels */
-    --z-overlay: 30;    /* mask overlay */
     --z-details: 50;    /* detail editor windows */
     --z-modal: 70;      /* modal dialogs */
     --z-popup: 100;     /* popups, drop-downs */
-    --z-tooltip: 200;   /* above everything */
 }

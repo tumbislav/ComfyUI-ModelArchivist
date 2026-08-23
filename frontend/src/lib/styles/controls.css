@@ -19,7 +19,7 @@ button {
 
 button:hover {
     border-color: var(--border-highlight);
-    background: var(--bg-highlight);
+    background: var(--bg-accent);
     transform: translateY(-1px);
     box-shadow: var(--highlight-shadow);
 }
@@ -71,6 +71,66 @@ button:disabled {
     background-color: var(--bg-color);
 }
 
+/* Checkboxes
+ * ------------------------------------------------*/
+
+input[type='checkbox'] {
+    appearance: none;
+    display: inline-grid;
+    place-content: center;
+    box-sizing: border-box;
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    border: var(--solid-border);
+    border-radius: var(--radius-small);
+    background: var(--bg-color);
+    color: var(--text-color);
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+input[type='checkbox']::before {
+    content: '';
+    width: 0.25rem;
+    height: 0.5rem;
+    border: solid currentColor;
+    border-width: 0 2px 2px 0;
+    transform: translateY(-1px) rotate(45deg) scale(0);
+}
+
+input[type='checkbox']:checked::before {
+    transform: translateY(-1px) rotate(45deg) scale(1);
+}
+
+input[type='checkbox']:indeterminate::before {
+    width: 0.5rem;
+    height: 0;
+    border-width: 0 0 2px;
+    transform: none;
+}
+
+input[type='checkbox']:hover:not(:disabled) {
+    border-color: var(--border-highlight);
+    background: var(--bg-accent);
+}
+
+input[type='checkbox']:active:not(:disabled) {
+    box-shadow: var(--button-shadow);
+}
+
+input[type='checkbox']:focus-visible {
+    outline: 2px solid var(--border-highlight);
+    outline-offset: 2px;
+}
+
+input[type='checkbox']:disabled {
+    border-color: var(--border-dim);
+    background: var(--bg-disabled);
+    color: var(--text-dimmer);
+    cursor: not-allowed;
+}
+
 
 /* Round buttons */
 
@@ -90,32 +150,11 @@ button.round {
 
 button.round:hover {
     border: 1px solid var(--border-color);
-    background: var(--bg-highlight);
+    background: var(--bg-accent);
     transform: none;
     box-shadow: none;
 }
 
-
-/* Dialog layout
- * ------------------------------------------------*/
-
-.dialog-section {
-    margin-bottom: var(--gap-mid);
- }
-
-.raised-section {
-    padding: var(--gap-mid);
-    border-radius: var(--radius-mid);
-    background: var(--bg-color);
-    border: var(--solid-border);
-    box-shadow: var(--shadow-right);
-}
-
-.spaced-horizontally {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-}
 
 .text-input {
     border: var(--ghost-border);
