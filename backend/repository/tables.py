@@ -33,6 +33,7 @@ class DeploymentStatus(StrEnum):
     ARCHIVE = 'archive'
     SYNCED = 'synced'
     MISMATCH = 'mismatch'
+    MIXED = 'mixed'
 
 
 class WorkflowError(StrEnum):
@@ -104,6 +105,14 @@ class Model(SQLModel, table=True):
 
     tags: list['Tag'] = Relationship(back_populates="models", link_model=TagModelLink)
     collections: list['Collection'] = Relationship(back_populates="models", link_model=ModelCollectionLink)
+
+    @property
+    def read_only(self) -> bool:
+        return any(error != ModelError.METADATA_RENAME.value for error in self.errors)
+
+    @property
+    def metadata_update_available(self) -> bool:
+        return ModelError.METADATA_RENAME.value in self.errors
 
     def update_from(self, other) -> None:
         self.file_name = other.file_name
@@ -179,6 +188,7 @@ class Workflow(SQLModel, table=True):
         self.touched = other.touched
         self.errors = list(other.errors)
         self.errors = list(other.errors)
+        self.errors = list(other.errors)
 
     def summary(self) -> dict:
         return { 'id': self.id,
@@ -235,12 +245,42 @@ class Collection(SQLModel, table=True):
 
     def summary(self) -> dict:
         return {'id': self.id,
-                'name': self.name}
+                'name': self.name,
+                'parents': [
+                    {'id': collection.id, 'name': collection.name}
+                    for collection in sorted(
+                        self.parents, key=lambda item: (item.name.casefold(), item.id))
+                ]}
+
+    @property
+    def deployment(self) -> DeploymentStatus:
+        """Return the aggregate deployment of all transitive leaf members."""
+        deployments: set[str] = set()
+        visited: set[str] = set()
+
+        def collect(collection: 'Collection') -> None:
+            if collection.id in visited:
+                return
+            visited.add(collection.id)
+            deployments.update(model.deployment for model in collection.models)
+            deployments.update(workflow.deployment for workflow in collection.workflows)
+            for child in collection.children:
+                collect(child)
+
+        collect(self)
+        if deployments == {DeploymentStatus.WORKING.value}:
+            return DeploymentStatus.WORKING
+        if deployments == {DeploymentStatus.ARCHIVE.value}:
+            return DeploymentStatus.ARCHIVE
+        if deployments == {DeploymentStatus.SYNCED.value}:
+            return DeploymentStatus.SYNCED
+        return DeploymentStatus.MIXED
 
     def representation(self, type_map: dict) -> dict:
         return {'id': self.id,
                 'name': self.name,
                 'purpose': self.purpose,
+                'deployment': self.deployment,
                 'tags': [tag.tag for tag in self.tags],
                 'models': [model.summary(type_map) for model in self.models],
                 'workflows': [workflow.summary() for workflow in self.workflows],

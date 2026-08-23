@@ -16,7 +16,7 @@ import socket
 import time
 
 from backend.config import get_config
-from .routers import models, workflows, collections, health, admin, tags
+from .routers import admin, collections, health, models, operations, tags, workflows
 
 app = FastAPI(title='Model Archivist API', version='1.0.0')
 
@@ -36,6 +36,7 @@ app.include_router(collections.router)
 app.include_router(tags.router)
 app.include_router(health.router)
 app.include_router(admin.router)
+app.include_router(operations.router)
 
 
 class AppFiles(StaticFiles):

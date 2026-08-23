@@ -22,6 +22,11 @@ class ArcException(Exception):
         DUPLICATE_MODEL = 'Duplicate model hash'
         UNKNOWN_MODEL = 'Model does not exist'
         UNKNOWN_WORKFLOW = 'Workflow does not exist'
+        INVALID_COLLECTION = 'Invalid collection'
+        EMPTY_COLLECTION = 'Collection cannot be empty'
+        UNKNOWN_COLLECTION = 'Collection does not exist'
+        DUPLICATE_COLLECTION_MEMBER = 'Duplicate collection member'
+        COLLECTION_CYCLE = 'Collection membership cycle'
 
     def __init__(self, error_code: Code, message: str):
         super().__init__()

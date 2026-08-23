@@ -6,7 +6,8 @@
 
 from fastapi import APIRouter, HTTPException
 from backend.config import get_config
-from backend.files.scanner import get_scanner, create_scanner
+from backend.dispatcher import OperationBusyError, submit_scan
+from backend.files.scanner import get_scanner
 from backend.repository.repository import repo_status
 
 router = APIRouter()
@@ -16,17 +17,17 @@ def server_status() -> dict:
     return repo_status()
 
 
-@router.post('/scan')
-def start_scan() -> str:
+@router.post('/scan', status_code=202)
+def start_scan(rehash: bool = False) -> dict:
     if get_config().read_only:
         raise HTTPException(403, 'Application is read-only')
-    sc = create_scanner()
-    if sc is None:
-        raise HTTPException(400, 'Scan already running')
-    return sc.start()
+    try:
+        return submit_scan(rehash)
+    except OperationBusyError as error:
+        raise HTTPException(409, str(error))
 
 
-@router.get('/scan/{timestamps}')
+@router.get('/scan/{timestamp}')
 def scan_status(timestamp: str) -> dict:
     sc = get_scanner(timestamp)
     if sc is None:

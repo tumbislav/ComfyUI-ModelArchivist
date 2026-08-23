@@ -13,7 +13,8 @@ from sqlmodel import Session, create_engine
 
 import backend.repository.repository as repository
 from backend.repository.migrations import update_database_schema
-from backend.repository.tables import Component, ComponentSet, ComponentType, Workflow
+from backend.repository.tables import (Component, ComponentSet, ComponentType,
+                                       DeploymentStatus, Workflow)
 
 
 @pytest.fixture
@@ -141,3 +142,32 @@ def test_synchronize_aborts_if_source_changes_after_planning(
     assert result['allowed'] is False
     assert result['errors'][0]['code'] == 'execution_failed'
     assert not (archive / 'nested' / 'workflow.json').exists()
+
+
+def test_move_workflow_simulation_does_not_change_files(workflow_repository):
+    engine, working, archive = workflow_repository
+    workflow_id = add_workflow(engine, working, 'w', '{"working": true}')
+
+    result = repository.move_workflow(workflow_id, DeploymentStatus.ARCHIVE)
+
+    assert result['allowed'] is True
+    assert result['performed'] is False
+    assert result['actions'][0]['action'] == 'move'
+    assert (working / 'nested' / 'workflow.json').exists()
+    assert not (archive / 'nested' / 'workflow.json').exists()
+
+
+def test_move_workflow_moves_file_and_updates_database(workflow_repository):
+    engine, working, archive = workflow_repository
+    workflow_id = add_workflow(engine, working, 'w', '{"working": true}')
+
+    result = repository.move_workflow(
+        workflow_id, DeploymentStatus.ARCHIVE, simulate=False)
+
+    assert result['performed'] is True
+    assert not (working / 'nested' / 'workflow.json').exists()
+    assert (archive / 'nested' / 'workflow.json').read_text(encoding='utf-8') == '{"working": true}'
+    with Session(engine) as session:
+        workflow = session.get(Workflow, workflow_id)
+        assert workflow.deployment == 'archive'
+        assert [item.where for item in workflow.component_sets] == ['a']

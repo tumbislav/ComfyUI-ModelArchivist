@@ -174,9 +174,9 @@ class Scanner:
         with repo.lock:
             repo.scan_cleanup(self.timestamp)
         with self.lock:
+            self.end_time = datetime.datetime.now(tz=datetime.timezone.utc)
             self.finished = True
         self.logger.debug(f'completed filesystem scan')
-        self.end_time = datetime.datetime.now(tz=datetime.timezone.utc)
 
     def find_models(self, type_name: str, working_root: Path, archive_root: Path, rehash: bool):
         """

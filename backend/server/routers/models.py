@@ -5,9 +5,11 @@
 # ---------------------------------------------------------------------------
 
 import backend.repository.repository as repo
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 
+from backend.dispatcher import OperationBusyError, dispatcher
 from backend.exception import ArcException
+from backend.repository.tables import DeploymentStatus
 
 router = APIRouter()
 
@@ -32,4 +34,33 @@ async def search_models(criteria: dict) -> list[dict]:
 @router.put('/models/{id}')
 async def update_mode(changed_model: dict) -> dict:
     return repo.update_model(changed_model)
+
+
+@router.post('/models/{id}/synchronize')
+async def synchronize_model(id: str, response: Response,
+                            simulate: bool = True) -> dict:
+    if simulate:
+        return repo.synchronize_model(id, True)
+    try:
+        operation = dispatcher.submit(
+            'model_sync', lambda report: repo.synchronize_model(id, False, report))
+    except OperationBusyError as error:
+        raise HTTPException(409, str(error))
+    response.status_code = 202
+    return operation
+
+
+@router.post('/models/{id}/move')
+async def move_model(id: str, destination: DeploymentStatus,
+                     response: Response, simulate: bool = True) -> dict:
+    if simulate:
+        return repo.move_model(id, destination, True)
+    try:
+        operation = dispatcher.submit(
+            'model_move',
+            lambda report: repo.move_model(id, destination, False, report))
+    except OperationBusyError as error:
+        raise HTTPException(409, str(error))
+    response.status_code = 202
+    return operation
 

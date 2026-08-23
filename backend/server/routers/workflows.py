@@ -8,6 +8,7 @@ import backend.repository.repository as repo
 from fastapi import APIRouter, HTTPException
 
 from backend.exception import ArcException
+from backend.repository.tables import DeploymentStatus
 
 router = APIRouter()
 
@@ -32,3 +33,9 @@ async def search_workflows(criteria: dict) -> list[dict]:
 @router.post('/workflows/{id}/synchronize')
 async def synchronize_workflow(id: str, simulate: bool = True) -> dict:
     return repo.synchronize_workflow(id, simulate)
+
+
+@router.post('/workflows/{id}/move')
+async def move_workflow(id: str, destination: DeploymentStatus,
+                        simulate: bool = True) -> dict:
+    return repo.move_workflow(id, destination, simulate)

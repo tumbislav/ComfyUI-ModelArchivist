@@ -16,6 +16,9 @@ from sqlmodel import SQLModel
 from backend.exception import ArcException
 import backend.repository.tables  # noqa: F401
 
+BASELINE_REVISION = '16da8f3ac79c'
+BASELINE_REMOVED_COLUMNS = {'component': {'size', 'modified_at_ns'}}
+
 
 def alembic_config(connection: Connection) -> Config:
     project_root = Path(__file__).resolve().parents[2]
@@ -27,8 +30,8 @@ def alembic_config(connection: Connection) -> Config:
     return config
 
 
-def validate_baseline_schema(connection: Connection) -> None:
-    """Verify an unversioned database matches the current baseline schema."""
+def detect_unversioned_revision(connection: Connection) -> str:
+    """Return the revision matching a supported unversioned database schema."""
     inspector = inspect(connection)
     actual_tables = set(inspector.get_table_names()) - {'alembic_version'}
     expected_tables = set(SQLModel.metadata.tables)
@@ -38,15 +41,34 @@ def validate_baseline_schema(connection: Connection) -> None:
             f'unversioned schema has unexpected tables; expected {sorted(expected_tables)}, '
             f'found {sorted(actual_tables)}',
         )
-    for table_name in expected_tables:
-        actual_columns = {column['name'] for column in inspector.get_columns(table_name)}
-        expected_columns = set(SQLModel.metadata.tables[table_name].columns.keys())
-        if actual_columns != expected_columns:
-            raise ArcException(
-                ArcException.Code.INVALID_DATABASE,
-                f'unversioned table {table_name} has unexpected columns; '
-                f'expected {sorted(expected_columns)}, found {sorted(actual_columns)}',
-            )
+    actual_columns = {
+        table_name: {column['name'] for column in inspector.get_columns(table_name)}
+        for table_name in expected_tables
+    }
+    head_columns = {
+        table_name: set(SQLModel.metadata.tables[table_name].columns.keys())
+        for table_name in expected_tables
+    }
+    if actual_columns == head_columns:
+        return 'head'
+
+    baseline_columns = {
+        table_name: columns - BASELINE_REMOVED_COLUMNS.get(table_name, set())
+        for table_name, columns in head_columns.items()
+    }
+    if actual_columns == baseline_columns:
+        return BASELINE_REVISION
+
+    mismatches = [
+        f'{table_name}: expected {sorted(head_columns[table_name])}, '
+        f'found {sorted(actual_columns[table_name])}'
+        for table_name in sorted(expected_tables)
+        if actual_columns[table_name] != head_columns[table_name]
+    ]
+    raise ArcException(
+        ArcException.Code.INVALID_DATABASE,
+        'unversioned schema does not match a supported revision; ' + '; '.join(mismatches),
+    )
 
 
 def update_database_schema(engine: Engine) -> None:
@@ -58,6 +80,6 @@ def update_database_schema(engine: Engine) -> None:
         actual_tables = set(inspect(connection).get_table_names()) - {'alembic_version'}
 
         if current_revision is None and actual_tables:
-            validate_baseline_schema(connection)
-            command.stamp(config, 'head')
+            matching_revision = detect_unversioned_revision(connection)
+            command.stamp(config, matching_revision)
         command.upgrade(config, 'head')

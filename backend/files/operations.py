@@ -6,6 +6,8 @@
 
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Callable
+import errno
 import hashlib
 import os
 import shutil
@@ -41,9 +43,9 @@ class FileSnapshot:
 @dataclass
 class FileAction:
     action: str
-    source: str
+    source: str | None
     destination: str
-    source_before: FileSnapshot
+    source_before: FileSnapshot | None
     destination_before: FileSnapshot
 
 
@@ -74,7 +76,44 @@ class OperationPlan:
         return asdict(self)
 
 
-def atomic_copy(action: FileAction) -> None:
+def _existing_parent(path: Path) -> Path:
+    candidate = path.parent
+    while not candidate.exists() and candidate != candidate.parent:
+        candidate = candidate.parent
+    return candidate
+
+
+def action_transfer_size(action: FileAction) -> int:
+    """Return the bytes expected to be copied by an action."""
+    if action.source_before is None or action.source_before.size is None:
+        return 0
+    if action.action == 'copy':
+        return action.source_before.size
+    if action.action != 'move' or action.source is None:
+        return 0
+    try:
+        destination_parent = _existing_parent(Path(action.destination))
+        if Path(action.source).stat().st_dev == destination_parent.stat().st_dev:
+            return 0
+    except OSError:
+        pass
+    return action.source_before.size
+
+
+def _copy_contents(source: Path, destination: Path,
+                   report_bytes: Callable[[int], None] | None = None) -> None:
+    with source.open('rb') as source_file, destination.open('wb') as destination_file:
+        while chunk := source_file.read(1 << 20):
+            destination_file.write(chunk)
+            if report_bytes is not None:
+                report_bytes(len(chunk))
+    shutil.copystat(source, destination)
+
+
+def atomic_copy(action: FileAction,
+                report_bytes: Callable[[int], None] | None = None) -> None:
+    if action.source is None or action.source_before is None:
+        raise ValueError('copy action requires a source')
     source = Path(action.source)
     destination = Path(action.destination)
     if not action.source_before.matches(source):
@@ -84,8 +123,52 @@ def atomic_copy(action: FileAction) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = destination.with_name(f'.{destination.name}.{uuid4().hex}.tmp')
     try:
-        shutil.copy2(source, temporary)
+        _copy_contents(source, temporary, report_bytes)
         os.replace(temporary, destination)
     finally:
         if temporary.exists():
             temporary.unlink()
+
+
+def execute_file_action(action: FileAction,
+                        report_bytes: Callable[[int], None] | None = None) -> None:
+    if action.action == 'copy':
+        atomic_copy(action, report_bytes)
+        return
+    if action.action == 'remove':
+        destination = Path(action.destination)
+        if not action.destination_before.matches(destination):
+            raise RuntimeError(f'destination changed after validation: {destination}')
+        destination.unlink()
+        return
+    if action.action == 'move':
+        if action.source is None or action.source_before is None:
+            raise ValueError('move action requires a source')
+        source = Path(action.source)
+        destination = Path(action.destination)
+        if not action.source_before.matches(source):
+            raise RuntimeError(f'source changed after validation: {source}')
+        if not action.destination_before.matches(destination):
+            raise RuntimeError(f'destination changed after validation: {destination}')
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.replace(source, destination)
+        except OSError as error:
+            if error.errno != errno.EXDEV:
+                raise
+            temporary = destination.with_name(f'.{destination.name}.{uuid4().hex}.tmp')
+            try:
+                _copy_contents(source, temporary, report_bytes)
+                copied = FileSnapshot.capture(
+                    temporary, include_hash=action.source_before.sha256 is not None)
+                if (copied.size != action.source_before.size or
+                        (action.source_before.sha256 is not None and
+                         copied.sha256 != action.source_before.sha256)):
+                    raise RuntimeError(f'copied file verification failed: {source}')
+                os.replace(temporary, destination)
+                source.unlink()
+            finally:
+                if temporary.exists():
+                    temporary.unlink()
+        return
+    raise ValueError(f'unknown file action: {action.action}')

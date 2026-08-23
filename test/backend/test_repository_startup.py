@@ -9,11 +9,14 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from alembic import command
 from alembic.migration import MigrationContext
+from sqlalchemy import inspect
 from sqlmodel import Session, SQLModel
 
 from backend.exception import ArcException
 import backend.repository.repository as repository
+from backend.repository.migrations import alembic_config
 from backend.repository.tables import Tag
 
 
@@ -119,6 +122,31 @@ def test_start_repo_adopts_compatible_unversioned_database(
     with repository._engine.connect() as connection:
         assert MigrationContext.configure(connection).get_current_revision() == 'a7c4f02d91e8'
     assert repository._first_run is False
+
+
+def test_start_repo_upgrades_unversioned_baseline_database(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    db_file = tmp_path / 'baseline.db'
+    engine = repository.create_engine(f'sqlite:///{db_file}')
+    with engine.begin() as connection:
+        command.upgrade(alembic_config(connection), '16da8f3ac79c')
+        connection.exec_driver_sql("INSERT INTO tag (tag) VALUES ('preserved')")
+        connection.exec_driver_sql('DROP TABLE alembic_version')
+    engine.dispose()
+    config = repository_config(db_file, tmp_path / 'database.log')
+    monkeypatch.setattr(repository, 'get_config', lambda: config)
+
+    repository.start_repo()
+
+    with repository._engine.connect() as connection:
+        columns = {column['name'] for column in inspect(connection).get_columns('component')}
+        assert {'size', 'modified_at_ns'} <= columns
+        assert MigrationContext.configure(connection).get_current_revision() == 'a7c4f02d91e8'
+        assert connection.exec_driver_sql(
+            "SELECT tag FROM tag WHERE tag = 'preserved'"
+        ).scalar_one() == 'preserved'
 
 
 def test_start_repo_creates_parent_and_new_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

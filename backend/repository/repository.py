@@ -4,7 +4,7 @@
 # purpose: Database operations
 # ---------------------------------------------------------------------------
 
-from typing import Set
+from typing import Callable, Set
 from threading import Lock
 import logging
 import datetime
@@ -14,15 +14,18 @@ from pathlib import Path
 from sqlmodel import Session, create_engine, select, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.engine.base import Engine
+from sqlalchemy.orm import selectinload
 from backend.repository.tables import (Model, Workflow, Collection, Component, ComponentSet,
                                        ComponentType, Tag, PrimaryObjectType, DeploymentStatus,
-                                       ModelError)
+                                       ModelError, CollectionCollectionLink, ModelCollectionLink,
+                                       WorkflowCollectionLink)
 from backend.exception import ArcException
 from backend.config import Configuration, get_config
 from backend.files.scanner import get_scanner, create_scanner
 from backend.repository.migrations import update_database_schema
 import backend.files.model_files as model_files
-from backend.files.operations import FileAction, FileSnapshot, OperationPlan, atomic_copy
+from backend.files.operations import (FileAction, FileSnapshot, OperationIssue, OperationPlan,
+                                      action_transfer_size, atomic_copy, execute_file_action)
 
 _logger: logging.Logger | None = None
 _engine: Engine | None = None
@@ -292,6 +295,329 @@ def get_model(id: str) -> dict:
         rep = model.representation(_config.model_types)
         return model.representation(_config.model_types)
 
+
+def _execute_model_actions(actions: list[FileAction],
+                           progress: Callable[[dict], None] | None) -> dict:
+    bytes_total = sum(action_transfer_size(action) for action in actions)
+    files_completed = 0
+    bytes_completed = 0
+
+    def report_bytes(count: int) -> None:
+        nonlocal bytes_completed
+        bytes_completed += count
+        if progress is not None:
+            progress({'phase': 'executing', 'files_total': len(actions),
+                      'files_completed': files_completed,
+                      'bytes_total': max(bytes_total, bytes_completed),
+                      'bytes_completed': bytes_completed})
+
+    if progress is not None:
+        progress({'phase': 'executing', 'files_total': len(actions),
+                  'files_completed': 0, 'bytes_total': bytes_total,
+                  'bytes_completed': 0})
+    for action in actions:
+        execute_file_action(action, report_bytes)
+        files_completed += 1
+        if progress is not None:
+            progress({'phase': 'executing', 'files_total': len(actions),
+                      'files_completed': files_completed,
+                      'bytes_total': max(bytes_total, bytes_completed),
+                      'bytes_completed': bytes_completed})
+    return {'phase': 'finalizing', 'files_total': len(actions),
+            'files_completed': files_completed,
+            'bytes_total': max(bytes_total, bytes_completed),
+            'bytes_completed': bytes_completed}
+
+
+def synchronize_model(id: str, simulate: bool = True,
+                      progress: Callable[[dict], None] | None = None) -> dict:
+    plan = OperationPlan(operation='synchronize', object_type='model',
+                         object_id=id, simulate=simulate)
+    with Session(_engine) as session:
+        model: Model | None = session.get(Model, id)
+        if model is None:
+            plan.reject('unknown_model', f'model {id} does not exist')
+            return plan.to_dict()
+        if _config.read_only:
+            plan.reject('application_read_only', 'application is running read-only')
+            return plan.to_dict()
+        if model.read_only:
+            plan.reject('model_read_only', f'model has errors: {", ".join(model.errors)}')
+            return plan.to_dict()
+
+        sets = {side: [item for item in model.component_sets if item.where == side]
+                for side in ('w', 'a')}
+        if len(sets['w']) > 1 or len(sets['a']) > 1:
+            plan.reject('ambiguous_components', 'model has multiple component sets on one side')
+            return plan.to_dict()
+        source_side = 'w' if sets['w'] and sets['w'][0].components else (
+            'a' if sets['a'] and sets['a'][0].components else None)
+        if source_side is None:
+            plan.reject('missing_source', 'model has no source files')
+            return plan.to_dict()
+        destination_side = 'a' if source_side == 'w' else 'w'
+        plan.source_side = 'working' if source_side == 'w' else 'archive'
+        source_set = sets[source_side][0]
+        destination_set = sets[destination_side][0] if sets[destination_side] else None
+
+        destination_primary = None
+        destination_examples = None
+        if destination_set is not None:
+            destination_primary = Path(destination_set.primary_dir)
+            destination_examples = (Path(destination_set.examples_dir)
+                                    if destination_set.examples_dir else None)
+        else:
+            source_primary = Path(source_set.primary_dir).resolve()
+            for working_root, archive_root in _config.model_folders.get(model.type, set()):
+                candidate_root = Path(working_root if source_side == 'w' else archive_root).resolve()
+                try:
+                    relative_root = source_primary.relative_to(candidate_root)
+                except ValueError:
+                    continue
+                other_root = Path(archive_root if source_side == 'w' else working_root)
+                destination_primary = other_root / relative_root
+                destination_examples = other_root.parent / 'examples' / model.id
+                break
+        if destination_primary is None:
+            plan.reject('unmapped_destination',
+                        f'no configured destination for {source_set.primary_dir}')
+            return plan.to_dict()
+
+        def component_key(component: Component) -> tuple[str, str, str]:
+            return (str(component.component_type), component.relative_path, component.file_name)
+
+        destination_components = ({component_key(component): component
+                                   for component in destination_set.components}
+                                  if destination_set else {})
+        source_keys = set()
+        try:
+            for component in source_set.components:
+                key = component_key(component)
+                source_keys.add(key)
+                source_path = Path(component.file_dir) / component.file_name
+                destination_root = (destination_examples
+                                    if component.component_type == ComponentType.EXAMPLE
+                                    else destination_primary)
+                if destination_root is None:
+                    plan.reject('unmapped_destination', 'examples destination is not configured')
+                    return plan.to_dict()
+                destination_path = destination_root / component.relative_path / component.file_name
+                include_hash = component.component_type != ComponentType.MODEL
+                source_snapshot = FileSnapshot.capture(source_path, include_hash=include_hash)
+                destination_snapshot = FileSnapshot.capture(destination_path, include_hash=include_hash)
+                if not source_snapshot.exists:
+                    plan.reject('missing_source', str(source_path))
+                    return plan.to_dict()
+                needs_copy = not destination_snapshot.exists
+                if include_hash and destination_snapshot.exists:
+                    needs_copy = source_snapshot.sha256 != destination_snapshot.sha256
+                if needs_copy:
+                    plan.actions.append(FileAction('copy', str(source_path),
+                                                   str(destination_path), source_snapshot,
+                                                   destination_snapshot))
+            for key, component in destination_components.items():
+                if key in source_keys:
+                    continue
+                destination_path = Path(component.file_dir) / component.file_name
+                snapshot = FileSnapshot.capture(destination_path, include_hash=False)
+                if snapshot.exists:
+                    plan.actions.append(FileAction('remove', None, str(destination_path),
+                                                   None, snapshot))
+        except OSError as error:
+            plan.reject('unreadable_file', str(error))
+            return plan.to_dict()
+
+        if simulate:
+            return plan.to_dict()
+        try:
+            final_progress = _execute_model_actions(plan.actions, progress)
+            if progress is not None:
+                progress(final_progress)
+        except (OSError, RuntimeError, ValueError) as error:
+            plan.reject('execution_failed', str(error))
+            return plan.to_dict()
+
+        if destination_set is not None:
+            model.component_sets.remove(destination_set)
+            session.delete(destination_set)
+            session.flush()
+        copied_components = []
+        for component in source_set.components:
+            root = (destination_examples if component.component_type == ComponentType.EXAMPLE
+                    else destination_primary)
+            path = root / component.relative_path / component.file_name
+            stat = path.stat()
+            copied_components.append(Component(file_name=component.file_name,
+                                               relative_path=component.relative_path,
+                                               size=stat.st_size,
+                                               modified_at_ns=stat.st_mtime_ns,
+                                               component_type=component.component_type,
+                                               touched=model.touched))
+        new_destination_set = ComponentSet(where=destination_side,
+                                           primary_dir=str(destination_primary),
+                                           examples_dir=(str(destination_examples)
+                                                         if destination_examples else None),
+                                           model=model,
+                                           components=copied_components)
+        model.component_sets.append(new_destination_set)
+        model.deployment = str(DeploymentStatus.SYNCED)
+        session.add(model)
+        session.commit()
+        plan.performed = True
+        return plan.to_dict()
+
+
+def move_model(id: str, destination: DeploymentStatus,
+               simulate: bool = True,
+               progress: Callable[[dict], None] | None = None) -> dict:
+    plan = OperationPlan(operation='move', object_type='model',
+                         object_id=id, simulate=simulate)
+    try:
+        destination = DeploymentStatus(destination)
+    except ValueError:
+        plan.reject('invalid_destination', str(destination))
+        return plan.to_dict()
+    if destination not in (DeploymentStatus.WORKING, DeploymentStatus.ARCHIVE):
+        plan.reject('invalid_destination', str(destination))
+        return plan.to_dict()
+    destination_side = 'w' if destination == DeploymentStatus.WORKING else 'a'
+    source_side = 'a' if destination_side == 'w' else 'w'
+    plan.source_side = 'archive' if source_side == 'a' else 'working'
+
+    with Session(_engine) as session:
+        model: Model | None = session.get(Model, id)
+        if model is None:
+            plan.reject('unknown_model', f'model {id} does not exist')
+            return plan.to_dict()
+        if _config.read_only or model.read_only:
+            plan.reject('read_only', 'model cannot be moved while read-only')
+            return plan.to_dict()
+        sets = {side: [item for item in model.component_sets if item.where == side]
+                for side in ('w', 'a')}
+        if len(sets['w']) > 1 or len(sets['a']) > 1:
+            plan.reject('ambiguous_components', 'model has multiple component sets on one side')
+            return plan.to_dict()
+        source_set = sets[source_side][0] if sets[source_side] else None
+        destination_set = sets[destination_side][0] if sets[destination_side] else None
+        if source_set is None or not source_set.components:
+            if destination_set and destination_set.components:
+                if not simulate:
+                    model.deployment = str(destination)
+                    session.add(model)
+                    session.commit()
+                    plan.performed = True
+                return plan.to_dict()
+            plan.reject('missing_source', 'model has no files to move')
+            return plan.to_dict()
+
+        if destination_set is not None:
+            destination_primary = Path(destination_set.primary_dir)
+            destination_examples = (Path(destination_set.examples_dir)
+                                    if destination_set.examples_dir else None)
+        else:
+            destination_primary = None
+            destination_examples = None
+            source_primary = Path(source_set.primary_dir).resolve()
+            for working_root, archive_root in _config.model_folders.get(model.type, set()):
+                candidate = Path(working_root if source_side == 'w' else archive_root).resolve()
+                try:
+                    relative_root = source_primary.relative_to(candidate)
+                except ValueError:
+                    continue
+                other_root = Path(archive_root if destination_side == 'a' else working_root)
+                destination_primary = other_root / relative_root
+                destination_examples = other_root.parent / 'examples' / model.id
+                break
+        if destination_primary is None:
+            plan.reject('unmapped_destination', str(source_set.primary_dir))
+            return plan.to_dict()
+
+        def component_key(component: Component) -> tuple[str, str, str]:
+            return (str(component.component_type), component.relative_path, component.file_name)
+
+        destination_components = ({component_key(component): component
+                                   for component in destination_set.components}
+                                  if destination_set else {})
+        source_keys = set()
+        transfers = []
+        source_removals = []
+        destination_removals = []
+        try:
+            for component in source_set.components:
+                key = component_key(component)
+                source_keys.add(key)
+                source_path = Path(component.file_dir) / component.file_name
+                root = (destination_examples if component.component_type == ComponentType.EXAMPLE
+                        else destination_primary)
+                if root is None:
+                    plan.reject('unmapped_destination', 'examples destination is not configured')
+                    return plan.to_dict()
+                destination_path = root / component.relative_path / component.file_name
+                include_hash = component.component_type != ComponentType.MODEL
+                source_snapshot = FileSnapshot.capture(source_path, include_hash=include_hash)
+                destination_snapshot = FileSnapshot.capture(destination_path, include_hash=include_hash)
+                if not source_snapshot.exists:
+                    plan.reject('missing_source', str(source_path))
+                    return plan.to_dict()
+                already_present = destination_snapshot.exists and (
+                    not include_hash or source_snapshot.sha256 == destination_snapshot.sha256)
+                if already_present:
+                    source_removals.append(FileAction('remove', None, str(source_path),
+                                                      None, source_snapshot))
+                else:
+                    transfers.append(FileAction('move', str(source_path), str(destination_path),
+                                                source_snapshot, destination_snapshot))
+            for key, component in destination_components.items():
+                if key in source_keys:
+                    continue
+                path = Path(component.file_dir) / component.file_name
+                snapshot = FileSnapshot.capture(path)
+                if snapshot.exists:
+                    destination_removals.append(FileAction('remove', None, str(path), None, snapshot))
+        except OSError as error:
+            plan.reject('unreadable_file', str(error))
+            return plan.to_dict()
+        plan.actions.extend(transfers + destination_removals + source_removals)
+        if simulate:
+            return plan.to_dict()
+        try:
+            final_progress = _execute_model_actions(plan.actions, progress)
+            if progress is not None:
+                progress(final_progress)
+        except (OSError, RuntimeError, ValueError) as error:
+            plan.reject('execution_failed', str(error))
+            return plan.to_dict()
+
+        new_components = []
+        for component in source_set.components:
+            root = (destination_examples if component.component_type == ComponentType.EXAMPLE
+                    else destination_primary)
+            path = root / component.relative_path / component.file_name
+            stat = path.stat()
+            new_components.append(Component(file_name=component.file_name,
+                                            relative_path=component.relative_path,
+                                            size=stat.st_size,
+                                            modified_at_ns=stat.st_mtime_ns,
+                                            component_type=component.component_type,
+                                            touched=model.touched))
+        for item in (source_set, destination_set):
+            if item is not None:
+                model.component_sets.remove(item)
+                session.delete(item)
+        session.flush()
+        model.component_sets.append(ComponentSet(
+            where=destination_side,
+            primary_dir=str(destination_primary),
+            examples_dir=str(destination_examples) if destination_examples else None,
+            model=model,
+            components=new_components,
+        ))
+        model.deployment = str(destination)
+        session.add(model)
+        session.commit()
+        plan.performed = True
+        return plan.to_dict()
+
 #-----------------------------------------------------------------------------------
 #
 # Workflows
@@ -426,6 +752,120 @@ def synchronize_workflow(id: str, simulate: bool = True) -> dict:
         plan.performed = True
         return plan.to_dict()
 
+
+def move_workflow(id: str, destination: DeploymentStatus,
+                  simulate: bool = True) -> dict:
+    plan = OperationPlan(operation='move', object_type='workflow',
+                         object_id=id, simulate=simulate)
+    try:
+        destination = DeploymentStatus(destination)
+    except ValueError:
+        plan.reject('invalid_destination', str(destination))
+        return plan.to_dict()
+    if destination not in (DeploymentStatus.WORKING, DeploymentStatus.ARCHIVE):
+        plan.reject('invalid_destination', str(destination))
+        return plan.to_dict()
+    destination_side = 'w' if destination == DeploymentStatus.WORKING else 'a'
+    source_side = 'a' if destination_side == 'w' else 'w'
+    plan.source_side = 'archive' if source_side == 'a' else 'working'
+
+    with Session(_engine) as session:
+        workflow: Workflow | None = session.get(Workflow, id)
+        if workflow is None:
+            plan.reject('unknown_workflow', f'workflow {id} does not exist')
+            return plan.to_dict()
+        if _config.read_only or workflow.read_only:
+            plan.reject('read_only', 'workflow cannot be moved while read-only')
+            return plan.to_dict()
+        sets = {side: [item for item in workflow.component_sets if item.where == side]
+                for side in ('w', 'a')}
+        if len(sets['w']) > 1 or len(sets['a']) > 1:
+            plan.reject('ambiguous_components', 'workflow has multiple component sets on one side')
+            return plan.to_dict()
+        source_set = sets[source_side][0] if sets[source_side] else None
+        destination_set = sets[destination_side][0] if sets[destination_side] else None
+        if source_set is None or not source_set.components:
+            if destination_set and destination_set.components:
+                if not simulate:
+                    workflow.deployment = str(destination)
+                    session.add(workflow)
+                    session.commit()
+                    plan.performed = True
+                return plan.to_dict()
+            plan.reject('missing_source', 'workflow has no files to move')
+            return plan.to_dict()
+        if len(source_set.components) != 1:
+            plan.reject('ambiguous_components', 'workflow source does not contain one file')
+            return plan.to_dict()
+        source_component = source_set.components[0]
+        source_path = Path(source_component.file_dir) / source_component.file_name
+
+        destination_component = (destination_set.components[0]
+                                 if destination_set and destination_set.components else None)
+        if destination_component is not None:
+            destination_path = Path(destination_component.file_dir) / destination_component.file_name
+            destination_root = Path(destination_set.primary_dir)
+        else:
+            destination_root = None
+            source_root = Path(source_set.primary_dir).resolve()
+            for working_root, archive_root in _config.workflow_folders:
+                candidate = Path(archive_root if source_side == 'a' else working_root).resolve()
+                if candidate == source_root:
+                    destination_root = Path(working_root if destination_side == 'w' else archive_root)
+                    break
+            if destination_root is None:
+                plan.reject('unmapped_destination', str(source_set.primary_dir))
+                return plan.to_dict()
+            destination_path = destination_root / source_component.relative_path / source_component.file_name
+        try:
+            source_snapshot = FileSnapshot.capture(source_path, include_hash=True)
+            destination_snapshot = FileSnapshot.capture(destination_path, include_hash=True)
+        except OSError as error:
+            plan.reject('unreadable_file', str(error))
+            return plan.to_dict()
+        if not source_snapshot.exists:
+            plan.reject('missing_source', str(source_path))
+            return plan.to_dict()
+        if (destination_snapshot.exists and
+                destination_snapshot.sha256 == source_snapshot.sha256):
+            plan.actions.append(FileAction('remove', None, str(source_path),
+                                           None, source_snapshot))
+        else:
+            plan.actions.append(FileAction('move', str(source_path), str(destination_path),
+                                           source_snapshot, destination_snapshot))
+        if simulate:
+            return plan.to_dict()
+        try:
+            for action in plan.actions:
+                execute_file_action(action)
+        except (OSError, RuntimeError, ValueError) as error:
+            plan.reject('execution_failed', str(error))
+            return plan.to_dict()
+
+        modelled_path = destination_path
+        stat = modelled_path.stat()
+        for item in (source_set, destination_set):
+            if item is not None:
+                workflow.component_sets.remove(item)
+                session.delete(item)
+        session.flush()
+        workflow.component_sets.append(ComponentSet(
+            where=destination_side,
+            primary_dir=str(destination_root),
+            workflow=workflow,
+            components=[Component(file_name=modelled_path.name,
+                                  relative_path=source_component.relative_path,
+                                  size=stat.st_size,
+                                  modified_at_ns=stat.st_mtime_ns,
+                                  component_type=ComponentType.WORKFLOW,
+                                  touched=workflow.touched)],
+        ))
+        workflow.deployment = str(destination)
+        session.add(workflow)
+        session.commit()
+        plan.performed = True
+        return plan.to_dict()
+
 #-----------------------------------------------------------------------------------
 #
 # Collections
@@ -434,12 +874,435 @@ def synchronize_workflow(id: str, simulate: bool = True) -> dict:
 
 def list_collections(ordered) -> list[dict]:
     with Session(_engine) as session:
+        statement = select(Collection).options(selectinload(Collection.parents))
         if ordered:
-            statement = select(Collection).order_by(Collection.type, Collection.name)
-        else:
-            statement = select(Collection).order_by(Collection.type)
+            statement = statement.order_by(Collection.name)
 
         return [collection.summary() for collection in session.exec(statement).all()]
+
+
+def get_collection(id: str) -> dict:
+    with Session(_engine) as session:
+        collection = session.get(Collection, id)
+        if collection is None:
+            raise ArcException(ArcException.Code.UNKNOWN_COLLECTION,
+                               f'collection {id} does not exist')
+        type_map = _config.model_types if _config is not None else {}
+        return collection.representation(type_map)
+
+
+def create_collection(data: dict) -> dict:
+    """Create a validated collection.
+
+    For the selected child subgraphs, validation costs O(C + E + M + W) time and
+    O(C + M + W) memory. Link queries are batched by graph depth, so query count
+    is O(D), where D is the maximum selected collection depth.
+    """
+    allowed_fields = {'name', 'purpose', 'tags', 'models', 'workflows', 'children'}
+    if not isinstance(data, dict) or set(data) - allowed_fields:
+        raise ArcException(ArcException.Code.INVALID_COLLECTION,
+                           'payload contains unsupported fields')
+    name = data.get('name')
+    purpose = data.get('purpose', '')
+    if not isinstance(name, str) or not name.strip():
+        raise ArcException(ArcException.Code.INVALID_COLLECTION,
+                           'name must be a non-empty string')
+    if not isinstance(purpose, str):
+        raise ArcException(ArcException.Code.INVALID_COLLECTION,
+                           'purpose must be a string')
+
+    def member_ids(field: str) -> list[str]:
+        values = data.get(field, [])
+        if not isinstance(values, list):
+            raise ArcException(ArcException.Code.INVALID_COLLECTION,
+                               f'{field} must be a list')
+        result = []
+        for value in values:
+            member_id = value.get('id') if isinstance(value, dict) else value
+            if not isinstance(member_id, str) or not member_id:
+                raise ArcException(ArcException.Code.INVALID_COLLECTION,
+                                   f'{field} contains an invalid id')
+            result.append(member_id)
+        if len(result) != len(set(result)):
+            raise ArcException(ArcException.Code.DUPLICATE_COLLECTION_MEMBER,
+                               f'{field} contains duplicate ids')
+        return result
+
+    model_ids = member_ids('models')
+    workflow_ids = member_ids('workflows')
+    child_ids = member_ids('children')
+    tags = data.get('tags', [])
+    if (not isinstance(tags, list) or
+            any(not isinstance(tag, str) for tag in tags)):
+        raise ArcException(ArcException.Code.INVALID_COLLECTION,
+                           'tags must be a list of strings')
+    if not model_ids and not workflow_ids and not child_ids:
+        raise ArcException(ArcException.Code.EMPTY_COLLECTION, name)
+
+    with Session(_engine) as session:
+        models = session.exec(select(Model).where(Model.id.in_(model_ids))).all() if model_ids else []
+        workflows = (session.exec(select(Workflow).where(Workflow.id.in_(workflow_ids))).all()
+                     if workflow_ids else [])
+        children = (session.exec(select(Collection).where(Collection.id.in_(child_ids))).all()
+                    if child_ids else [])
+        if {model.id for model in models} != set(model_ids):
+            missing = set(model_ids) - {model.id for model in models}
+            raise ArcException(ArcException.Code.UNKNOWN_MODEL, ', '.join(sorted(missing)))
+        if {workflow.id for workflow in workflows} != set(workflow_ids):
+            missing = set(workflow_ids) - {workflow.id for workflow in workflows}
+            raise ArcException(ArcException.Code.UNKNOWN_WORKFLOW, ', '.join(sorted(missing)))
+        if {child.id for child in children} != set(child_ids):
+            missing = set(child_ids) - {child.id for child in children}
+            raise ArcException(ArcException.Code.UNKNOWN_COLLECTION, ', '.join(sorted(missing)))
+
+        child_edges: dict[str, list[str]] = {}
+        nested_models: dict[str, list[str]] = {}
+        nested_workflows: dict[str, list[str]] = {}
+        discovered = set(child_ids)
+        frontier = set(child_ids)
+        while frontier:
+            collection_links = session.exec(select(CollectionCollectionLink).where(
+                CollectionCollectionLink.parent_id.in_(frontier))).all()
+            model_links = session.exec(select(ModelCollectionLink).where(
+                ModelCollectionLink.collection_id.in_(frontier))).all()
+            workflow_links = session.exec(select(WorkflowCollectionLink).where(
+                WorkflowCollectionLink.collection_id.in_(frontier))).all()
+            for collection_id in frontier:
+                child_edges.setdefault(collection_id, [])
+                nested_models.setdefault(collection_id, [])
+                nested_workflows.setdefault(collection_id, [])
+            next_frontier = set()
+            for link in collection_links:
+                child_edges[link.parent_id].append(link.child_id)
+                if link.child_id not in discovered:
+                    discovered.add(link.child_id)
+                    next_frontier.add(link.child_id)
+            for link in model_links:
+                nested_models[link.collection_id].append(link.model_id)
+            for link in workflow_links:
+                nested_workflows[link.collection_id].append(link.workflow_id)
+            frontier = next_frontier
+
+        visited_collections = set()
+        leaf_members = {('model', model_id) for model_id in model_ids}
+        leaf_members.update(('workflow', workflow_id) for workflow_id in workflow_ids)
+
+        def visit(collection_id: str, active_path: set[str]) -> None:
+            if collection_id in active_path:
+                raise ArcException(ArcException.Code.COLLECTION_CYCLE, collection_id)
+            if collection_id in visited_collections:
+                raise ArcException(ArcException.Code.DUPLICATE_COLLECTION_MEMBER,
+                                   f'collection {collection_id} is reachable more than once')
+            visited_collections.add(collection_id)
+            path = active_path | {collection_id}
+            direct_leaves = ([('model', value) for value in nested_models[collection_id]] +
+                             [('workflow', value) for value in nested_workflows[collection_id]])
+            if not direct_leaves and not child_edges[collection_id]:
+                raise ArcException(ArcException.Code.EMPTY_COLLECTION, collection_id)
+            for member in direct_leaves:
+                if member in leaf_members:
+                    raise ArcException(ArcException.Code.DUPLICATE_COLLECTION_MEMBER,
+                                       f'{member[0]} {member[1]} is reachable more than once')
+                leaf_members.add(member)
+            for child_id in child_edges[collection_id]:
+                visit(child_id, path)
+
+        for child_id in child_ids:
+            visit(child_id, set())
+
+        resolved_tags = resolve_tags(session, tags)
+        collection = Collection(name=name.strip(), purpose=purpose,
+                                models=models, workflows=workflows, children=children,
+                                tags=resolved_tags)
+        session.add(collection)
+        session.commit()
+        session.refresh(collection)
+        return collection.summary()
+
+
+def validate_collection_roots(session: Session, root_ids: set[str]) -> dict[str, dict[str, set[str]]]:
+    """Validate uniqueness, non-emptiness, and acyclicity below each root."""
+    child_edges: dict[str, list[str]] = {}
+    model_members: dict[str, list[str]] = {}
+    workflow_members: dict[str, list[str]] = {}
+    discovered = set(root_ids)
+    frontier = set(root_ids)
+    while frontier:
+        collection_links = session.exec(select(CollectionCollectionLink).where(
+            CollectionCollectionLink.parent_id.in_(frontier))).all()
+        model_links = session.exec(select(ModelCollectionLink).where(
+            ModelCollectionLink.collection_id.in_(frontier))).all()
+        workflow_links = session.exec(select(WorkflowCollectionLink).where(
+            WorkflowCollectionLink.collection_id.in_(frontier))).all()
+        for collection_id in frontier:
+            child_edges.setdefault(collection_id, [])
+            model_members.setdefault(collection_id, [])
+            workflow_members.setdefault(collection_id, [])
+        next_frontier = set()
+        for link in collection_links:
+            child_edges[link.parent_id].append(link.child_id)
+            if link.child_id not in discovered:
+                discovered.add(link.child_id)
+                next_frontier.add(link.child_id)
+        for link in model_links:
+            model_members[link.collection_id].append(link.model_id)
+        for link in workflow_links:
+            workflow_members[link.collection_id].append(link.workflow_id)
+        frontier = next_frontier
+
+    result = {}
+    for root_id in root_ids:
+        visited = set()
+        leaves = set()
+
+        def visit(collection_id: str, active_path: set[str]) -> None:
+            if collection_id in active_path:
+                raise ArcException(ArcException.Code.COLLECTION_CYCLE, collection_id)
+            if collection_id in visited:
+                raise ArcException(ArcException.Code.DUPLICATE_COLLECTION_MEMBER,
+                                   f'collection {collection_id} is reachable more than once')
+            visited.add(collection_id)
+            direct_leaves = ([('model', value) for value in model_members[collection_id]] +
+                             [('workflow', value) for value in workflow_members[collection_id]])
+            if not direct_leaves and not child_edges[collection_id]:
+                raise ArcException(ArcException.Code.EMPTY_COLLECTION, collection_id)
+            for member in direct_leaves:
+                if member in leaves:
+                    raise ArcException(ArcException.Code.DUPLICATE_COLLECTION_MEMBER,
+                                       f'{member[0]} {member[1]} is reachable more than once')
+                leaves.add(member)
+            path = active_path | {collection_id}
+            for child_id in child_edges[collection_id]:
+                visit(child_id, path)
+
+        visit(root_id, set())
+        result[root_id] = {
+            'models': {value for member_type, value in leaves if member_type == 'model'},
+            'workflows': {value for member_type, value in leaves if member_type == 'workflow'},
+        }
+    return result
+
+
+def update_collection(id: str, data: dict) -> dict:
+    """Replace a collection while preserving its ID.
+
+    Validation is O(A + E + sum(T_r)) time, where A is the ancestor graph,
+    E its edges, and T_r is the reachable tree size for each affected root.
+    Memory use is linear in the union of those reachable subgraphs.
+    """
+    allowed_fields = {'id', 'name', 'purpose', 'tags', 'models', 'workflows', 'children'}
+    if not isinstance(data, dict) or set(data) - allowed_fields:
+        raise ArcException(ArcException.Code.INVALID_COLLECTION,
+                           'payload contains unsupported fields')
+    if 'id' in data and data['id'] != id:
+        raise ArcException(ArcException.Code.INVALID_COLLECTION,
+                           'collection id cannot change')
+    name = data.get('name')
+    purpose = data.get('purpose', '')
+    if not isinstance(name, str) or not name.strip() or not isinstance(purpose, str):
+        raise ArcException(ArcException.Code.INVALID_COLLECTION,
+                           'name and purpose are invalid')
+
+    def ids_for(field: str) -> list[str]:
+        values = data.get(field, [])
+        if not isinstance(values, list):
+            raise ArcException(ArcException.Code.INVALID_COLLECTION, f'{field} must be a list')
+        result = [value.get('id') if isinstance(value, dict) else value for value in values]
+        if any(not isinstance(value, str) or not value for value in result):
+            raise ArcException(ArcException.Code.INVALID_COLLECTION,
+                               f'{field} contains an invalid id')
+        if len(result) != len(set(result)):
+            raise ArcException(ArcException.Code.DUPLICATE_COLLECTION_MEMBER,
+                               f'{field} contains duplicate ids')
+        return result
+
+    model_ids = ids_for('models')
+    workflow_ids = ids_for('workflows')
+    child_ids = ids_for('children')
+    tags = data.get('tags', [])
+    if not isinstance(tags, list) or any(not isinstance(tag, str) for tag in tags):
+        raise ArcException(ArcException.Code.INVALID_COLLECTION,
+                           'tags must be a list of strings')
+    if not model_ids and not workflow_ids and not child_ids:
+        raise ArcException(ArcException.Code.EMPTY_COLLECTION, id)
+
+    with Session(_engine) as session:
+        collection = session.get(Collection, id)
+        if collection is None:
+            raise ArcException(ArcException.Code.UNKNOWN_COLLECTION, id)
+        models = session.exec(select(Model).where(Model.id.in_(model_ids))).all() if model_ids else []
+        workflows = (session.exec(select(Workflow).where(Workflow.id.in_(workflow_ids))).all()
+                     if workflow_ids else [])
+        children = (session.exec(select(Collection).where(Collection.id.in_(child_ids))).all()
+                    if child_ids else [])
+        if {item.id for item in models} != set(model_ids):
+            raise ArcException(ArcException.Code.UNKNOWN_MODEL,
+                               ', '.join(sorted(set(model_ids) - {item.id for item in models})))
+        if {item.id for item in workflows} != set(workflow_ids):
+            raise ArcException(ArcException.Code.UNKNOWN_WORKFLOW,
+                               ', '.join(sorted(set(workflow_ids) - {item.id for item in workflows})))
+        if {item.id for item in children} != set(child_ids):
+            raise ArcException(ArcException.Code.UNKNOWN_COLLECTION,
+                               ', '.join(sorted(set(child_ids) - {item.id for item in children})))
+
+        collection.name = name.strip()
+        collection.purpose = purpose
+        collection.models = models
+        collection.workflows = workflows
+        collection.children = children
+        collection.tags = resolve_tags(session, tags)
+        session.add(collection)
+        session.flush()
+
+        ancestors = {id}
+        frontier = {id}
+        parent_edges = []
+        while frontier:
+            links = session.exec(select(CollectionCollectionLink).where(
+                CollectionCollectionLink.child_id.in_(frontier))).all()
+            parent_edges.extend(links)
+            next_frontier = {link.parent_id for link in links} - ancestors
+            ancestors.update(next_frontier)
+            frontier = next_frontier
+        parent_ids = {link.child_id for link in parent_edges}
+        roots = ancestors - parent_ids
+        if not roots:
+            roots = {id}
+        validate_collection_roots(session, roots)
+        session.commit()
+        session.refresh(collection)
+        return collection.summary()
+
+
+def delete_collection(id: str) -> dict:
+    """Delete one collection without deleting any of its members.
+
+    Validation is O(P + L) time and O(P) memory, where P is the number of
+    direct parents and L is the number of their direct membership links.
+    """
+    with Session(_engine) as session:
+        collection = session.get(Collection, id)
+        if collection is None:
+            raise ArcException(ArcException.Code.UNKNOWN_COLLECTION, id)
+        parent_links = session.exec(select(CollectionCollectionLink).where(
+            CollectionCollectionLink.child_id == id)).all()
+        parent_ids = {link.parent_id for link in parent_links}
+        if parent_ids:
+            parent_collection_links = session.exec(select(CollectionCollectionLink).where(
+                CollectionCollectionLink.parent_id.in_(parent_ids))).all()
+            parent_model_links = session.exec(select(ModelCollectionLink).where(
+                ModelCollectionLink.collection_id.in_(parent_ids))).all()
+            parent_workflow_links = session.exec(select(WorkflowCollectionLink).where(
+                WorkflowCollectionLink.collection_id.in_(parent_ids))).all()
+            nonempty_parents = {
+                link.parent_id for link in parent_collection_links if link.child_id != id
+            }
+            nonempty_parents.update(link.collection_id for link in parent_model_links)
+            nonempty_parents.update(link.collection_id for link in parent_workflow_links)
+            emptied_parents = parent_ids - nonempty_parents
+            if emptied_parents:
+                raise ArcException(
+                    ArcException.Code.EMPTY_COLLECTION,
+                    f'deleting {id} would empty parent collections: '
+                    f'{", ".join(sorted(emptied_parents))}',
+                )
+        summary = collection.summary()
+        session.delete(collection)
+        session.commit()
+        return summary
+
+
+def collection_operation(id: str, operation: str, simulate: bool = True,
+                         destination: DeploymentStatus | None = None) -> dict:
+    plan = OperationPlan(operation=operation, object_type='collection',
+                         object_id=id, simulate=simulate)
+    with Session(_engine) as session:
+        if session.get(Collection, id) is None:
+            plan.reject('unknown_collection', f'collection {id} does not exist')
+            return plan.to_dict()
+        try:
+            leaves = validate_collection_roots(session, {id})[id]
+        except ArcException as error:
+            plan.reject(str(error.code), error.message)
+            return plan.to_dict()
+
+    members = ([('model', member_id) for member_id in sorted(leaves['models'])] +
+               [('workflow', member_id) for member_id in sorted(leaves['workflows'])])
+
+    def run_member(member_type: str, member_id: str, member_simulate: bool) -> dict:
+        if operation == 'synchronize':
+            function = synchronize_model if member_type == 'model' else synchronize_workflow
+            return function(member_id, member_simulate)
+        function = move_model if member_type == 'model' else move_workflow
+        return function(member_id, destination, member_simulate)
+
+    validation_results = [run_member(member_type, member_id, True)
+                          for member_type, member_id in members]
+    rejected = [result for result in validation_results if not result['allowed']]
+    if rejected:
+        plan.allowed = False
+        for result in rejected:
+            plan.errors.append(OperationIssue(
+                'member_validation_failed',
+                f'{result["object_type"]} {result["object_id"]}: '
+                f'{result["errors"]}',
+            ))
+        output = plan.to_dict()
+        output['members'] = validation_results
+        output['actions'] = [action for result in validation_results
+                             for action in result['actions']]
+        return output
+    if simulate:
+        output = plan.to_dict()
+        output['members'] = validation_results
+        output['actions'] = [action for result in validation_results
+                             for action in result['actions']]
+        return output
+
+    execution_results = []
+    for member_type, member_id in members:
+        result = run_member(member_type, member_id, False)
+        execution_results.append(result)
+        if not result['allowed'] or not result['performed']:
+            plan.allowed = False
+            plan.errors.append(OperationIssue(
+                'member_execution_failed',
+                f'{member_type} {member_id}: {result["errors"]}',
+            ))
+            break
+    plan.performed = (len(execution_results) == len(members) and
+                      all(result['performed'] for result in execution_results))
+    if not plan.performed and execution_results:
+        plan.warnings.append(OperationIssue(
+            'partial_execution',
+            f'{len(execution_results)} of {len(members)} members were attempted',
+        ))
+    output = plan.to_dict()
+    output['members'] = execution_results
+    output['actions'] = [action for result in execution_results
+                         for action in result['actions']]
+    return output
+
+
+def synchronize_collection(id: str, simulate: bool = True) -> dict:
+    """Synchronize every transitive leaf in O(C + E + M + W + F) time."""
+    return collection_operation(id, 'synchronize', simulate)
+
+
+def move_collection(id: str, destination: DeploymentStatus,
+                    simulate: bool = True) -> dict:
+    """Move every transitive leaf in O(C + E + M + W + F) time."""
+    try:
+        destination = DeploymentStatus(destination)
+    except ValueError:
+        plan = OperationPlan('move', 'collection', id, simulate)
+        plan.reject('invalid_destination', str(destination))
+        return plan.to_dict()
+    if destination not in (DeploymentStatus.WORKING, DeploymentStatus.ARCHIVE):
+        plan = OperationPlan('move', 'collection', id, simulate)
+        plan.reject('invalid_destination', str(destination))
+        return plan.to_dict()
+    return collection_operation(id, 'move', simulate, destination)
 
 #-----------------------------------------------------------------------------------
 #
