@@ -27,3 +27,8 @@ async def get_workflow(id: str) -> dict | None:
 @router.post('/workflows/search')
 async def search_workflows(criteria: dict) -> list[dict]:
     return repo.list_workflows(True, criteria)
+
+
+@router.post('/workflows/{id}/synchronize')
+async def synchronize_workflow(id: str, simulate: bool = True) -> dict:
+    return repo.synchronize_workflow(id, simulate)

@@ -4,7 +4,9 @@
 # purpose: Database tables
 # ---------------------------------------------------------------------------
 from enum import StrEnum
+from pathlib import Path
 
+from sqlalchemy import Column, JSON
 from sqlmodel import Field, Relationship, SQLModel, CheckConstraint
 from uuid import uuid4
 
@@ -31,6 +33,23 @@ class DeploymentStatus(StrEnum):
     ARCHIVE = 'archive'
     SYNCED = 'synced'
     MISMATCH = 'mismatch'
+
+
+class WorkflowError(StrEnum):
+    INVALID_CONFIG = 'invalid_config'
+    DUPLICATE_WORKING = 'duplicate_working'
+    DUPLICATE_ARCHIVE = 'duplicate_archive'
+    LOCATION_MISMATCH = 'location_mismatch'
+
+
+class ModelError(StrEnum):
+    UNREADABLE = 'unreadable'
+    DUPLICATE_WORKING = 'duplicate_working'
+    DUPLICATE_ARCHIVE = 'duplicate_archive'
+    LOCATION_MISMATCH = 'location_mismatch'
+    PATH_IDENTITY_CONFLICT = 'path_identity_conflict'
+    AMBIGUOUS_STEM = 'ambiguous_stem'
+    METADATA_RENAME = 'metadata_rename'
 
 # ---------------------------------------------------------------------------
 # Many-to-many connections
@@ -80,6 +99,7 @@ class Model(SQLModel, table=True):
     relative_path: str
     deployment: str
     touched: str
+    errors: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     component_sets: list['ComponentSet'] = Relationship(back_populates="model", cascade_delete=True)
 
     tags: list['Tag'] = Relationship(back_populates="models", link_model=TagModelLink)
@@ -98,7 +118,10 @@ class Model(SQLModel, table=True):
                  'file_name': self.file_name,
                  'internal_name': self.internal_name,
                  'type': type_map.get(self.type, self.type),
-                 'deployment': self.deployment }
+                 'deployment': self.deployment,
+                 'errors': self.errors,
+                 'read_only': self.read_only,
+                 'metadata_update_available': self.metadata_update_available }
 
     def representation(self, type_map: dict) -> dict:
         return { 'id': self.id,
@@ -109,6 +132,9 @@ class Model(SQLModel, table=True):
                  'relative_path': self.relative_path.replace('\\', '/'),
                  'deployment': self.deployment,
                  'touched': self.touched,
+                 'errors': self.errors,
+                 'read_only': self.read_only,
+                 'metadata_update_available': self.metadata_update_available,
                  'tags': [tag.tag for tag in self.tags],
                  'component_sets': [cs.representation() for cs in self.component_sets],
                  'collections': [collection.summary() for collection in self.collections] }
@@ -126,27 +152,52 @@ class Workflow(SQLModel, table=True):
     relative_path: str
     deployment: str
     touched: str
+    errors: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     component_sets: list['ComponentSet'] = Relationship(back_populates="workflow", cascade_delete=True)
 
     tags: list['Tag'] = Relationship(back_populates="workflows", link_model=TagWorkflowLink)
     collections: list['Collection'] = Relationship(back_populates="workflows", link_model=WorkflowCollectionLink)
 
+    @property
+    def read_only(self) -> bool:
+        return len(self.errors) > 0
+
+    @property
+    def read_only(self) -> bool:
+        return any(error != ModelError.METADATA_RENAME.value for error in self.errors)
+
+    @property
+    def metadata_update_available(self) -> bool:
+        return ModelError.METADATA_RENAME.value in self.errors
+
+    def update_from(self, other) -> None:
+        self.file_name = other.file_name
+        self.internal_name = other.internal_name
+        self.purpose = other.purpose
+        self.relative_path = other.relative_path
+        self.deployment = other.deployment
+        self.touched = other.touched
+        self.errors = list(other.errors)
+        self.errors = list(other.errors)
+
     def summary(self) -> dict:
         return { 'id': self.id,
                  'file_name': self.file_name,
-                 'internal_name': self.file_name,
-                 'working': self.working,
-                 'archived': self.archived,
-                 'deployment': self.deployment }
+                 'internal_name': self.internal_name,
+                 'deployment': self.deployment,
+                 'errors': self.errors,
+                 'read_only': self.read_only }
 
     def representation(self) -> dict:
         return {'id': self.id,
-                'file_name': self.name,
-                'internal_name': self.name,
+                'file_name': self.file_name,
+                'internal_name': self.internal_name,
                 'purpose': self.purpose,
                 'relative_path': self.relative_path,
                 'deployment': self.deployment,
                 'touched': self.touched,
+                'errors': self.errors,
+                'read_only': self.read_only,
                 'tags': [tag.tag for tag in self.tags],
                 'component_sets': [cs.representation() for cs in self.component_sets],
                 'collections': [collection.summary() for collection in self.collections]}
@@ -231,14 +282,27 @@ class Component(SQLModel, table=True):
     """
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     file_name: str
+    relative_path: str = ''
+    size: int = 0
+    modified_at_ns: int = 0
     component_type: str
     touched: str
     component_set_id: str | None = Field(default=None, foreign_key="componentset.id")
     component_set: ComponentSet = Relationship(back_populates="components")
 
+    @property
+    def file_dir(self) -> str:
+        root = (self.component_set.examples_dir
+                if self.component_type == ComponentType.EXAMPLE
+                else self.component_set.primary_dir)
+        return str(Path(root) / self.relative_path)
+
     def representation(self) -> dict:
         return { 'id': self.id,
                  'file_name': self.file_name,
+                 'relative_path': self.relative_path,
+                 'size': self.size,
+                 'modified_at_ns': self.modified_at_ns,
                  'component_type': str(self.component_type),
                  'touched': self.touched }
 

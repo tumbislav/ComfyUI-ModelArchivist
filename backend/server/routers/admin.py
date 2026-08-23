@@ -5,6 +5,7 @@
 # ---------------------------------------------------------------------------
 
 from fastapi import APIRouter, HTTPException
+from backend.config import get_config
 from backend.files.scanner import get_scanner, create_scanner
 from backend.repository.repository import repo_status
 
@@ -17,6 +18,8 @@ def server_status() -> dict:
 
 @router.post('/scan')
 def start_scan() -> str:
+    if get_config().read_only:
+        raise HTTPException(403, 'Application is read-only')
     sc = create_scanner()
     if sc is None:
         raise HTTPException(400, 'Scan already running')

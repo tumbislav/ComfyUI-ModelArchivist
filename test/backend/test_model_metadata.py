@@ -7,7 +7,10 @@
 import json
 from pathlib import Path
 
-from backend.files.metadata import load_model_metadata, model_component_stem
+import pytest
+
+import backend.files.metadata as metadata_module
+from backend.files.metadata import load_model_metadata, model_component_stem, scan_model_metadata
 
 
 def test_imports_legacy_metadata_without_modifying_it(tmp_path):
@@ -54,3 +57,43 @@ def test_existing_archivist_metadata_takes_precedence_over_legacy(tmp_path):
 def test_sidecars_share_the_model_stem():
     assert model_component_stem(Path('example.metadata.json')) == 'example'
     assert model_component_stem(Path('example.archivist.json')) == 'example'
+    assert model_component_stem(Path('example.rgthree.json')) == 'example'
+
+
+def test_scan_trusts_usable_cached_hash(tmp_path, monkeypatch):
+    model_file = tmp_path / 'example.safetensors'
+    model_file.write_bytes(b'model contents')
+    cached_hash = 'a' * 64
+    model_file.with_suffix('.metadata.json').write_text(
+        json.dumps({'sha256': cached_hash}), encoding='utf-8')
+    monkeypatch.setattr(metadata_module, 'compute_sha256',
+                        lambda _path: pytest.fail('weights should not be hashed'))
+
+    scanned = scan_model_metadata(model_file)
+
+    assert scanned.data['sha256'] == cached_hash
+    assert scanned.hash_calculated is False
+
+
+def test_scan_rehashes_when_requested(tmp_path, monkeypatch):
+    model_file = tmp_path / 'example.safetensors'
+    model_file.write_bytes(b'model contents')
+    model_file.with_suffix('.metadata.json').write_text(
+        json.dumps({'sha256': 'a' * 64}), encoding='utf-8')
+    monkeypatch.setattr(metadata_module, 'compute_sha256', lambda _path: 'b' * 64)
+
+    scanned = scan_model_metadata(model_file, rehash=True)
+
+    assert scanned.data['sha256'] == 'b' * 64
+    assert scanned.hash_calculated is True
+
+
+def test_invalid_legacy_metadata_is_unreadable_and_falls_back_to_hash(tmp_path):
+    model_file = tmp_path / 'example.safetensors'
+    model_file.write_bytes(b'model contents')
+    model_file.with_suffix('.metadata.json').write_text('{', encoding='utf-8')
+
+    scanned = scan_model_metadata(model_file)
+
+    assert scanned.unreadable is True
+    assert scanned.hash_calculated is True

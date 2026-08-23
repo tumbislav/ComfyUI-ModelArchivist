@@ -4,11 +4,13 @@
 # purpose: File system scan
 # ---------------------------------------------------------------------------
 
-from backend.repository.tables import Model, Component, ComponentSet, Workflow, ComponentType, DeploymentStatus
+from backend.repository.tables import (Model, Component, ComponentSet, Workflow, ComponentType,
+                                       DeploymentStatus, WorkflowError, ModelError)
 
 import logging
 from threading import Thread, Lock, Barrier
 from pathlib import Path
+from uuid import UUID
 import hashlib
 import json
 from itertools import chain
@@ -18,9 +20,79 @@ import datetime
 from backend.config import get_config, Configuration
 from backend.files.metadata import (ARCHIVIST_METADATA_SUFFIX,
                                     LEGACY_METADATA_SUFFIX,
-                                    load_model_metadata,
+                                    scan_model_metadata,
                                     model_component_stem)
 import backend.repository.repository as repo
+
+
+def scanned_component(path: Path, component_type: ComponentType, touched: str,
+                      relative_path: str = '') -> Component:
+    try:
+        stat = path.stat()
+        size = stat.st_size
+        modified_at_ns = stat.st_mtime_ns
+    except OSError:
+        size = 0
+        modified_at_ns = 0
+    return Component(file_name=path.name,
+                     relative_path=relative_path,
+                     size=size,
+                     modified_at_ns=modified_at_ns,
+                     component_type=component_type,
+                     touched=touched)
+
+
+@dataclass
+class WorkflowCandidate:
+    path: Path
+    root: Path
+    relative_file: Path
+    where: str
+    workflow_id: str
+    name: str
+    purpose: str
+    tags: list[str]
+    errors: set[WorkflowError] = field(default_factory=set)
+
+
+def read_workflow_candidate(path: Path, root: Path, where: str) -> WorkflowCandidate | None:
+    """Return UUID-bearing workflow metadata, or None when the file is not a workflow."""
+    try:
+        data = json.loads(path.read_text(encoding='utf-8'))
+        if not isinstance(data, dict) or not isinstance(data.get('id'), str):
+            return None
+        workflow_id = str(UUID(data['id']))
+    except (OSError, UnicodeError, ValueError, TypeError, json.JSONDecodeError):
+        return None
+
+    errors = set()
+    config = data.get('config', {})
+    if not isinstance(config, dict):
+        config = {}
+        errors.add(WorkflowError.INVALID_CONFIG)
+
+    name = config.get('name', path.stem)
+    purpose = config.get('purpose', '')
+    tags = config.get('tags', [])
+    if not isinstance(name, str):
+        name = path.stem
+        errors.add(WorkflowError.INVALID_CONFIG)
+    if not isinstance(purpose, str):
+        purpose = ''
+        errors.add(WorkflowError.INVALID_CONFIG)
+    if not isinstance(tags, list) or any(not isinstance(tag, str) for tag in tags):
+        tags = []
+        errors.add(WorkflowError.INVALID_CONFIG)
+
+    return WorkflowCandidate(path=path,
+                             root=root,
+                             relative_file=path.relative_to(root),
+                             where=where,
+                             workflow_id=workflow_id,
+                             name=name,
+                             purpose=purpose,
+                             tags=tags,
+                             errors=errors)
 
 
 @dataclass
@@ -53,8 +125,8 @@ class Scanner:
             for active, archive in locations:
                 threads.append(Thread(target=self.find_models, args=(name, active, archive, rehash)))
 
-        for active, archive in self.config.workflow_folders:
-            threads.append(Thread(target=self.find_workflows, args=(active, archive)))
+        if self.config.workflow_folders:
+            threads.append(Thread(target=self.find_workflows, args=(self.config.workflow_folders,)))
 
         threads.append(Thread(target=self.cleanup, args=tuple()))
         self.barrier = Barrier(len(threads))
@@ -119,58 +191,83 @@ class Scanner:
         archive_examples = archive_root.parent / 'examples'
 
 
-        def get_metadata(model_filename: str, meta_name: str | None, model_dir: Path) -> tuple[str, dict]:
+        def get_metadata(model_filename: str, model_dir: Path) -> tuple[str, dict, bool, bool]:
             """
             Read Archivist metadata, importing legacy metadata on first use.
             """
             model_file = model_dir / model_filename
             md_file = model_file.with_suffix(ARCHIVIST_METADATA_SUFFIX)
-            if meta_name is not None:
-                md_file = model_dir / meta_name
             self.logger.debug(f'updating metadata for {model_file}')
-            data = load_model_metadata(model_file, md_file)
-            return md_file.name, data
+            scanned = scan_model_metadata(model_file, rehash)
+            return md_file.name, scanned.data, scanned.unreadable, scanned.hash_calculated
 
         def assemble_set(data: dict, primary_dir: Path, ex_root: Path, where: str) \
-                -> tuple[dict | None, ComponentSet]:
+                -> tuple[dict | None, set[ModelError], ComponentSet]:
             """
             Turn a list of files into a component set.
             """
             if where in data:
                 flist = data[where]
             else:
-                return None, ComponentSet(where=where,
+                return None, set(), ComponentSet(where=where,
                                           primary_dir=primary_dir.as_posix(),
                                           components=[])
             components = []
-            model_name = meta_name = None
+            model_names = []
+            errors = set()
             for component_type, file_name in flist:
-                components.append(Component(file_name=file_name,
-                                            component_type=component_type,
-                                            touched=self.timestamp))
+                components.append(scanned_component(primary_dir / file_name,
+                                                    component_type,
+                                                    self.timestamp))
+                try:
+                    with (primary_dir / file_name).open('rb') as component_file:
+                        component_file.read(1)
+                except OSError:
+                    errors.add(ModelError.UNREADABLE)
                 if component_type == ComponentType.MODEL:
-                    model_name = file_name
-                if component_type == ComponentType.METADATA:
-                    meta_name = file_name
-            if model_name is None:
-                return None, ComponentSet(where=where,
+                    model_names.append(file_name)
+            if not model_names:
+                return None, set(), ComponentSet(where=where,
                                           primary_dir=primary_dir.as_posix(),
                                           components=components)
 
-            metadata_filename, metadata = get_metadata(model_name, meta_name, primary_dir)
+            if len(model_names) > 1:
+                errors.add(ModelError.AMBIGUOUS_STEM)
+            model_name = model_names[0]
+            try:
+                metadata_filename, metadata, unreadable, hash_calculated = get_metadata(model_name, primary_dir)
+            except OSError as error:
+                self.report(error=f'unreadable model file {primary_dir / model_name}: {error}')
+                return None, {ModelError.UNREADABLE}, ComponentSet(
+                    where=where, primary_dir=primary_dir.as_posix(), components=components)
+            if unreadable:
+                errors.add(ModelError.UNREADABLE)
+            if hash_calculated:
+                self.report(hashes=1)
+            if where == 'w' and metadata.get('file_name') != Path(model_name).stem:
+                errors.add(ModelError.METADATA_RENAME)
 
-            if meta_name is None:
-                components.append(Component(file_name=metadata_filename,
-                                            component_type=ComponentType.METADATA,
-                                            touched=self.timestamp))
+            if not any(c.file_name == metadata_filename for c in components):
+                components.append(scanned_component(primary_dir / metadata_filename,
+                                                    ComponentType.METADATA,
+                                                    self.timestamp))
             sha = metadata['sha256']
             ex_dir = ex_root / sha
             if ex_dir.is_dir():
-                for ex in ex_dir.iterdir():
-                    components.append(Component(file_name=ex.name,
-                                                component_type=ComponentType.EXAMPLE,
-                                                touched=self.timestamp))
-            return metadata, ComponentSet(where=where,
+                try:
+                    example_files = [path for path in ex_dir.iterdir() if path.is_file()]
+                except OSError:
+                    errors.add(ModelError.UNREADABLE)
+                    example_files = []
+                for ex in example_files:
+                    components.append(scanned_component(ex, ComponentType.EXAMPLE,
+                                                        self.timestamp))
+                    try:
+                        with ex.open('rb') as example_file:
+                            example_file.read(1)
+                    except OSError:
+                        errors.add(ModelError.UNREADABLE)
+            return metadata, errors, ComponentSet(where=where,
                                         primary_dir=primary_dir.as_posix(),
                                         examples_dir=ex_dir.as_posix(),
                                         components=components)
@@ -185,10 +282,6 @@ class Scanner:
                 return meta_2, None
             if meta_1['sha256'] != meta_2['sha256']:
                 return None, 'mismatched sha256'
-            if meta_1['model_name'] != meta_2['model_name']:
-                return None, 'mismatched model name'
-            if meta_1['tags'] != meta_2['tags']:
-                return None, 'mismatched tags'
             return meta_2, None
 
         for working_dir, subdirs, filenames in working_root.walk():
@@ -201,8 +294,6 @@ class Scanner:
             self.logger.debug(f'current dir {working_dir}')
             for file_path, where in chain(((working_dir / fn, 'w') for fn in filenames),
                                           ((f.resolve(), 'a') for f in archive_dir.iterdir() if f.is_file())):
-                if file_path.name.endswith(LEGACY_METADATA_SUFFIX):
-                    continue
                 stem = model_component_stem(file_path)
                 c_type = (ComponentType.MODEL if file_path.suffix in self.config.model_extensions else
                           ComponentType.METADATA if file_path.name.endswith(ARCHIVIST_METADATA_SUFFIX) else
@@ -211,9 +302,35 @@ class Scanner:
 
             # then assemble the models and save them
             for stem, data in found.items():
-                working_md, working_set = assemble_set(data, working_dir, working_examples, 'w')
-                archive_md, archive_set = assemble_set(data, archive_dir, archive_examples, 'a')
+                working_md, working_errors, working_set = assemble_set(data, working_dir, working_examples, 'w')
+                archive_md, archive_errors, archive_set = assemble_set(data, archive_dir, archive_examples, 'a')
                 metadata, err = reconcile_metadata(archive_md, working_md)
+                if err == 'mismatched sha256':
+                    for side_metadata, side_errors, present_set, absent_set in (
+                        (working_md, working_errors, working_set, archive_set),
+                        (archive_md, archive_errors, archive_set, working_set),
+                    ):
+                        if side_metadata is None:
+                            continue
+                        conflict_errors = side_errors | {ModelError.PATH_IDENTITY_CONFLICT}
+                        conflict_model = Model(
+                            id=side_metadata['sha256'],
+                            file_name=side_metadata['file_name'],
+                            internal_name=side_metadata['model_name'],
+                            type=type_name,
+                            relative_path=relative_path,
+                            deployment=str(DeploymentStatus.WORKING if present_set.where == 'w'
+                                           else DeploymentStatus.ARCHIVE),
+                            touched=self.timestamp,
+                            errors=[error.value for error in ModelError if error in conflict_errors],
+                            component_sets=[present_set, ComponentSet(
+                                where=absent_set.where,
+                                primary_dir=absent_set.primary_dir,
+                                components=[])])
+                        with repo.lock:
+                            repo.save_scanned_model(conflict_model, side_metadata['tags'])
+                        self.report(models=1)
+                    continue
                 if not metadata:
                     m = f'metadata for model {stem} has {err}, skipping'
                     self.logger.error(m)
@@ -227,6 +344,8 @@ class Scanner:
                               relative_path=relative_path,
                               deployment=str(check_deployment(working_set, archive_set)),
                               touched=self.timestamp,
+                              errors=[error.value for error in ModelError
+                                      if error in working_errors | archive_errors],
                               component_sets = [working_set, archive_set])
 
                 with repo.lock:
@@ -235,97 +354,72 @@ class Scanner:
         self.logger.debug(f'scan for {type_name} complete in {working_root} and {archive_root}')
         self.barrier.wait()
 
-    def find_workflows(self, working_root: Path, archive_root: Path):
-        """
-        Scan archive and working directories and create records for all workflows found.
-        """
+    def find_workflows(self, folder_pairs: list[tuple[Path, Path]]):
+        """Scan and reconcile workflows by UUID across every configured folder pair."""
+        grouped: dict[str, list[WorkflowCandidate]] = {}
+        for working_root, archive_root in folder_pairs:
+            for root, where in ((working_root, 'w'), (archive_root, 'a')):
+                self.logger.debug(f'scanning workflows in {root}')
+                for path in sorted(root.rglob('*'), key=str):
+                    if not path.is_file() or path.suffix.lower() != '.json':
+                        continue
+                    candidate = read_workflow_candidate(path, root, where)
+                    if candidate is None:
+                        self.logger.debug(f'ignoring non-workflow JSON file {path}')
+                        continue
+                    grouped.setdefault(candidate.workflow_id, []).append(candidate)
 
-        def normalize_workflow(wf_file: Path) -> dict | None:
-            if wf_file is None:
-                return None
-            json_data = json.loads(wf_file.read_text(encoding='utf-8'))
-            if 'id' not in json_data or 'revision' not in json_data or 'version' not in json_data:
-                m = f'{wf_file} does not contain a valid workflow'
-                self.logger.warning(m)
-                self.report(error=m)
-                return None
-            else:
-                conf = json_data.setdefault('config', {})
-                conf.setdefault('name', wf_file.stem)
-                conf.setdefault('purpose', '')
-                conf.setdefault('tags', [])
-            return json_data
+        error_order = list(WorkflowError)
+        for workflow_id, candidates in grouped.items():
+            working = [candidate for candidate in candidates if candidate.where == 'w']
+            archive = [candidate for candidate in candidates if candidate.where == 'a']
+            errors = set().union(*(candidate.errors for candidate in candidates))
+            if len(working) > 1:
+                errors.add(WorkflowError.DUPLICATE_WORKING)
+            if len(archive) > 1:
+                errors.add(WorkflowError.DUPLICATE_ARCHIVE)
+            if working and archive:
+                working_locations = {candidate.relative_file.as_posix() for candidate in working}
+                archive_locations = {candidate.relative_file.as_posix() for candidate in archive}
+                if working_locations != archive_locations:
+                    errors.add(WorkflowError.LOCATION_MISMATCH)
 
-        def reconcile_workflows(working_file: Path, archive_file: Path) -> dict | None:
-            working = normalize_workflow(working_file)
-            archive = normalize_workflow(archive_file)
-            if working is None:
-                if archive is None:
-                    return None
-                use = archive
-            else:
-                use = working
-                if archive is not None:
-                    if archive['id'] != working['id']:
-                        m = f'archive and working workflows for {working_file.name} have different ids'
-                        self.logger.warning(m)
-                        self.report(error=m)
-                        return None
-                    archive['config']['name'] = working['config']['name']
-                    if len(working['config']['purpose']) > 0:
-                        archive['config']['purpose'] = working['config']['purpose']
-                    if len(working['config']['tags']) > 0:
-                        archive['config']['tags'] = [t for t in working['config']['tags']]
-            if working is not None:
-                working_file.write_text(json.dumps(working), encoding='utf-8')
-            if archive is not None:
-                archive_file.write_text(json.dumps(archive), encoding='utf-8')
-            return use
+            selected = working[0] if working else archive[0]
+            grouped_components: dict[tuple[str, Path], list[Component]] = {}
+            for candidate in candidates:
+                relative_parent = candidate.relative_file.parent.as_posix()
+                if relative_parent == '.':
+                    relative_parent = ''
+                component = scanned_component(candidate.path,
+                                              ComponentType.WORKFLOW,
+                                              self.timestamp,
+                                              relative_parent)
+                grouped_components.setdefault((candidate.where, candidate.root), []).append(component)
+            component_sets = [
+                ComponentSet(where=where,
+                             primary_dir=root.as_posix(),
+                             components=components)
+                for (where, root), components in grouped_components.items()
+            ]
+            deployment = (DeploymentStatus.SYNCED if working and archive else
+                          DeploymentStatus.WORKING if working else DeploymentStatus.ARCHIVE)
+            relative_parent = selected.relative_file.parent.as_posix()
+            if relative_parent == '.':
+                relative_parent = ''
+            workflow = Workflow(id=workflow_id,
+                                internal_name=selected.name,
+                                file_name=selected.path.stem,
+                                purpose=selected.purpose,
+                                relative_path=relative_parent,
+                                deployment=str(deployment),
+                                touched=self.timestamp,
+                                errors=[error.value for error in error_order if error in errors],
+                                component_sets=component_sets)
+            with repo.lock:
+                repo.save_scanned_workflow(workflow, selected.tags)
+            self.report(workflows=1)
 
-        self.logger.debug(f'starting workflow scan in {working_root} and {archive_root}')
-        for working_dir, subdirs, filenames in working_root.walk():
-            relative_path = str(match_folders(working_root, archive_root, working_dir, subdirs))
-            archive_dir = archive_root / relative_path
-            workflows = {}
-            for file_path, where in chain(((working_dir / fn, 'w') for fn in filenames),
-                                            ((f.resolve(), 'a') for f in archive_dir.iterdir() if f.is_file())):
-                if file_path.suffix != '.json':
-                    self.logger.debug(f'ignoring {str(file_path)}')
-                    continue
-                stem = file_path.stem
-                workflows.setdefault(stem, {})[where] = file_path.name
-            for stem, wf_dict in workflows.items():
-                self.logger.debug(f'finalizing workflow {stem}')
-
-                file_name = wf_dict['w'] if 'w' in wf_dict else wf_dict['a']
-                data = reconcile_workflows(working_dir / file_name if 'w' in wf_dict else None,
-                                           archive_dir / file_name if 'a' in wf_dict else None)
-                if data is None:
-                    continue
-                working_set = ComponentSet(where='w',
-                                           primary_dir=working_dir.as_posix(),
-                                           components=[Component(file_name=wf_dict['w'],
-                                                                 component_type=ComponentType.WORKFLOW,
-                                                                 touched = self.timestamp)] if 'w' in wf_dict else[])
-                archive_set = ComponentSet(where='a',
-                                           primary_dir=archive_dir.as_posix(),
-                                           components=[Component(file_name=wf_dict['a'],
-                                                                 component_type=ComponentType.WORKFLOW,
-                                                                 touched = self.timestamp)] if 'a' in wf_dict else[])
-
-                workflow = Workflow(id=data['id'],
-                                    internal_name=data['config']['name'],
-                                    file_name= stem,
-                                    purpose=data['config']['purpose'],
-                                    relative_path=relative_path,
-                                    deployment=check_deployment(working_set, archive_set),
-                                    touched=self.timestamp,
-                                    component_sets=[working_set, archive_set])
-                with repo.lock:
-                    repo.save_scanned_workflow(workflow, data['config']['tags'])
-                self.report(workflows=1)
-
-        self.logger.debug(f'workflow scan complete in {working_root} and {archive_root}')
+        self.logger.debug('workflow scan complete')
         self.barrier.wait()
 
 def check_deployment(working_set: ComponentSet, archive_set: ComponentSet) -> DeploymentStatus:
@@ -387,6 +481,9 @@ def create_scanner() -> Scanner | None:
     Create and return a scanner, unless there is one already and it's active.
     """
     global _scanner
+    config = get_config()
+    if config.read_only:
+        return None
     if _scanner is None or _scanner.finished:
         _scanner = Scanner()
         return _scanner

@@ -8,14 +8,21 @@ from typing import Set
 from threading import Lock
 import logging
 import datetime
+import os
+from pathlib import Path
 
-from sqlmodel import SQLModel, Session, create_engine, select, or_
+from sqlmodel import Session, create_engine, select, or_
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.engine.base import Engine
-from backend.repository.tables import Model, Workflow, Collection, Component, Tag, PrimaryObjectType, DeploymentStatus
+from backend.repository.tables import (Model, Workflow, Collection, Component, ComponentSet,
+                                       ComponentType, Tag, PrimaryObjectType, DeploymentStatus,
+                                       ModelError)
 from backend.exception import ArcException
 from backend.config import Configuration, get_config
 from backend.files.scanner import get_scanner, create_scanner
+from backend.repository.migrations import update_database_schema
 import backend.files.model_files as model_files
+from backend.files.operations import FileAction, FileSnapshot, OperationPlan, atomic_copy
 
 _logger: logging.Logger | None = None
 _engine: Engine | None = None
@@ -26,21 +33,71 @@ lock = Lock()
 _first_run: bool = False
 _repo_started: bool = False
 
+def prepare_database_file(db_file: Path) -> bool:
+    """Validate the SQLite location and return whether a new database is needed."""
+    parent = db_file.parent
+    try:
+        parent.mkdir(exist_ok=True, parents=True)
+    except OSError as error:
+        raise ArcException(ArcException.Code.INACCESSIBLE_FOLDER, f'{parent}: {error}') from error
+
+    if not parent.is_dir() or not os.access(parent, os.R_OK | os.W_OK):
+        raise ArcException(ArcException.Code.INACCESSIBLE_FOLDER, str(parent))
+
+    try:
+        if db_file.exists():
+            if not db_file.is_file():
+                raise ArcException(ArcException.Code.INVALID_DATABASE, f'{db_file} is not a file')
+            if not os.access(db_file, os.R_OK | os.W_OK):
+                raise ArcException(ArcException.Code.DATABASE_UNAVAILABLE, str(db_file))
+            return db_file.stat().st_size == 0
+    except ArcException:
+        raise
+    except OSError as error:
+        raise ArcException(ArcException.Code.DATABASE_UNAVAILABLE, f'{db_file}: {error}') from error
+    return True
+
+
+def validate_database(engine: Engine, db_file: Path, first_run: bool) -> None:
+    """Open SQLite and verify its structural integrity."""
+    try:
+        with engine.begin() as connection:
+            result = connection.exec_driver_sql('PRAGMA quick_check').scalars().all()
+            if result != ['ok']:
+                raise ArcException(ArcException.Code.INVALID_DATABASE,
+                                   f'{db_file}: {"; ".join(result)}')
+    except ArcException:
+        raise
+    except (OSError, SQLAlchemyError) as error:
+        code = (ArcException.Code.DATABASE_UNAVAILABLE if first_run
+                else ArcException.Code.INVALID_DATABASE)
+        raise ArcException(code, f'{db_file}: {error}') from error
+
+
 def start_repo():
     global _engine, _logger, _config, _first_run, _repo_started
     if _repo_started:
         return
-    _config = get_config()
+    config = get_config()
     _logger = logging.getLogger('archivist.database')
-    _first_run = not _config.db_file.is_file()
-    db_name = f'{_config.dbms_prefix}{_config.db_file}'
-    _engine = create_engine(db_name, echo=False)
+    first_run = prepare_database_file(config.db_file)
+    db_name = f'{config.dbms_prefix}{config.db_file}'
+    engine = create_engine(db_name, echo=False)
+    try:
+        validate_database(engine, config.db_file, first_run)
+        update_database_schema(engine)
+    except Exception:
+        engine.dispose()
+        raise
+
+    _config = config
+    _first_run = first_run
+    _engine = engine
     sql_logger = logging.getLogger('sqlalchemy.engine')
     sql_logger.addHandler(logging.FileHandler(_config.log_file))
     sql_logger.setLevel(_config.sql_log_level)
-    if _first_run:
+    if _first_run and not _config.read_only:
         _logger.info(f'First run, creating the database in {db_name}')
-        SQLModel.metadata.create_all(_engine)
         sc = create_scanner()
         if sc is None:
             msg = 'Cannot create a scanner, aborting'
@@ -53,9 +110,11 @@ def start_repo():
 def repo_status():
     if not _repo_started:
         return {'started': False,
-                'ready': False}
+                'ready': False,
+                'read_only': True if _config is None else _config.read_only}
     status_dict = {'started': True,
-                   'first_run': _first_run}
+                   'first_run': _first_run,
+                   'read_only': _config.read_only}
     sc = get_scanner()
     if sc is None:
         status_dict['ready'] = True
@@ -79,6 +138,20 @@ def save_scanned_model(model: Model, tag_names: list[str]) -> None:
     - the model is known and has already been seen in this scan: raise an exception.
     """
     with Session(_engine) as session:
+        path_conflicts = session.exec(select(Model).where(
+            Model.touched == model.touched,
+            Model.type == model.type,
+            Model.relative_path == model.relative_path,
+            Model.file_name == model.file_name,
+            Model.id != model.id,
+        )).all()
+        if path_conflicts:
+            if ModelError.PATH_IDENTITY_CONFLICT.value not in model.errors:
+                model.errors.append(ModelError.PATH_IDENTITY_CONFLICT.value)
+            for conflict in path_conflicts:
+                if ModelError.PATH_IDENTITY_CONFLICT.value not in conflict.errors:
+                    conflict.errors = [*conflict.errors, ModelError.PATH_IDENTITY_CONFLICT.value]
+                    session.add(conflict)
         known_models = session.exec(select(Model).where(Model.id == model.id)).all()
         if len(known_models) == 0:
             _logger.debug(f'adding model {model.internal_name}')
@@ -93,27 +166,28 @@ def save_scanned_model(model: Model, tag_names: list[str]) -> None:
                                          f'{model.id}, {all_names}')
             old_model = known_models[0]
             if old_model.touched == model.touched:
-                _logger.error(f'model {model.internal_name} / {model.id} already seen in this scan')
-                raise ArcException(ArcException.Code.DUPLICATE_MODEL,
-                                         f'{model.internal_name} {model.id}, {old_model.touched}')
-            # see which components no longer exist and remove them
-            known_components = {(c.file_name, c.component_type, c.is_archive): c.id for c in old_model.components}
-            # update the old model
+                old_sides = {item.where for item in old_model.component_sets if item.components}
+                new_sides = {item.where for item in model.component_sets if item.components}
+                merged_errors = set(old_model.errors) | set(model.errors)
+                if 'w' in old_sides & new_sides:
+                    merged_errors.add(ModelError.DUPLICATE_WORKING.value)
+                if 'a' in old_sides & new_sides:
+                    merged_errors.add(ModelError.DUPLICATE_ARCHIVE.value)
+                if (old_model.file_name, old_model.relative_path, old_model.type) != (
+                        model.file_name, model.relative_path, model.type):
+                    merged_errors.add(ModelError.LOCATION_MISMATCH.value)
+                old_model.errors = [error.value for error in ModelError if error.value in merged_errors]
+                old_model.component_sets.extend(model.component_sets)
+                session.add(old_model)
+                session.commit()
+                return
+            for component_set in list(old_model.component_sets):
+                session.delete(component_set)
+            session.flush()
             old_model.update_from(model)
             old_model.tags = resolve_tags(session, tag_names)
+            old_model.component_sets = model.component_sets
             session.add(old_model)
-            session.commit()
-            # add new components
-            for c in model.components:
-                if (c.file_name, c.component_type, c.is_archive) in known_components:
-                    del known_components[(c.file_name, c.component_type, c.is_archive)]
-                else:
-                    c.model = old_model
-                    session.add(c)
-            # remove components that no longer exist
-            for c_id in known_components.values():
-                c = session.exec(select(Component).where(Component.id == c_id)).one()
-                session.delete(c)
             session.commit()
 
 def save_scanned_workflow(workflow: Workflow, tag_names: list[str]) -> None:
@@ -137,24 +211,13 @@ def save_scanned_workflow(workflow: Workflow, tag_names: list[str]) -> None:
             if old_workflow.touched == workflow.touched:
                 raise ArcException(ArcException.Code.DUPLICATE_MODEL,
                                    f'{workflow.internal_name} {workflow.id}, {old_workflow.touched}')
-            # see which components no longer exist and remove them
-            known_components = {(c.file_name, c.component_type, c.is_archive): c.id for c in old_workflow.components}
-            # update the old workflow
+            for component_set in list(old_workflow.component_sets):
+                session.delete(component_set)
+            session.flush()
             old_workflow.update_from(workflow)
             old_workflow.tags = resolve_tags(session, tag_names)
+            old_workflow.component_sets = workflow.component_sets
             session.add(old_workflow)
-            session.commit()
-            # add new components
-            for c in workflow.components:
-                if (c.file_name, c.component_type, c.is_archive) in known_components:
-                    del known_components[(c.file_name, c.component_type, c.is_archive)]
-                else:
-                    c.workflow = old_workflow
-                    session.add(c)
-            # remove components that no longer exist
-            for c_id in known_components.values():
-                c = session.exec(select(Component).where(Component.id == c_id)).one()
-                session.delete(c)
             session.commit()
 
 def scan_cleanup(scan_timestamp: str):
@@ -175,6 +238,8 @@ def update_model(updates: dict) -> dict:
     """
     Update an existing model. The items that may change are the name, internal name and tags.
     """
+    if _config.read_only:
+        raise ArcException(ArcException.Code.READ_ONLY, 'Model updates are disabled')
     with Session(_engine) as session:
         model: Model | None = session.get(Model, updates['id'])
         if model is None:
@@ -198,6 +263,8 @@ def deploy_model(id: str, deployment: DeploymentStatus) -> Model:
     """
     Move the model to either working set or archive, or synchronize them both.
     """
+    if _config.read_only:
+        raise ArcException(ArcException.Code.READ_ONLY, 'Model deployment is disabled')
     with Session(_engine) as session:
         model: Model | None = session.get(Model, id)
         if model is None:
@@ -248,6 +315,116 @@ def get_workflow(id: str) -> dict:
             _logger.info(msg)
             raise ArcException(ArcException.Code.UNKNOWN_WORKFLOW, msg)
         return workflow.representation()
+
+
+def synchronize_workflow(id: str, simulate: bool = True) -> dict:
+    plan = OperationPlan(operation='synchronize', object_type='workflow',
+                         object_id=id, simulate=simulate)
+    with Session(_engine) as session:
+        workflow: Workflow | None = session.get(Workflow, id)
+        if workflow is None:
+            plan.reject('unknown_workflow', f'workflow {id} does not exist')
+            return plan.to_dict()
+        if _config.read_only:
+            plan.reject('application_read_only', 'application is running read-only')
+            return plan.to_dict()
+        if workflow.read_only:
+            plan.reject('workflow_read_only',
+                        f'workflow has errors: {", ".join(workflow.errors)}')
+            return plan.to_dict()
+
+        components = {
+            side: [(component_set, component)
+                   for component_set in workflow.component_sets if component_set.where == side
+                   for component in component_set.components
+                   if component.component_type == ComponentType.WORKFLOW]
+            for side in ('w', 'a')
+        }
+        if len(components['w']) > 1 or len(components['a']) > 1:
+            plan.reject('ambiguous_components', 'workflow has multiple files on one side')
+            return plan.to_dict()
+        source_side = 'w' if components['w'] else 'a' if components['a'] else None
+        if source_side is None:
+            plan.reject('missing_source', 'workflow has no source file')
+            return plan.to_dict()
+        destination_side = 'a' if source_side == 'w' else 'w'
+        plan.source_side = 'working' if source_side == 'w' else 'archive'
+        source_set, source_component = components[source_side][0]
+        source_path = Path(source_component.file_dir) / source_component.file_name
+
+        destination_component = None
+        destination_set = None
+        if components[destination_side]:
+            destination_set, destination_component = components[destination_side][0]
+            destination_path = Path(destination_component.file_dir) / destination_component.file_name
+        else:
+            source_root = Path(source_set.primary_dir).resolve()
+            destination_root = None
+            for working_root, archive_root in _config.workflow_folders:
+                if source_side == 'w' and Path(working_root).resolve() == source_root:
+                    destination_root = Path(archive_root)
+                    break
+                if source_side == 'a' and Path(archive_root).resolve() == source_root:
+                    destination_root = Path(working_root)
+                    break
+            if destination_root is None:
+                plan.reject('unmapped_destination',
+                            f'no configured destination for {source_set.primary_dir}')
+                return plan.to_dict()
+            destination_path = (destination_root / source_component.relative_path /
+                                source_component.file_name)
+
+        try:
+            source_snapshot = FileSnapshot.capture(source_path, include_hash=True)
+            destination_snapshot = FileSnapshot.capture(destination_path, include_hash=True)
+        except OSError as error:
+            plan.reject('unreadable_file', str(error))
+            return plan.to_dict()
+        if not source_snapshot.exists:
+            plan.reject('missing_source', str(source_path))
+            return plan.to_dict()
+        if (not destination_snapshot.exists or
+                source_snapshot.sha256 != destination_snapshot.sha256):
+            plan.actions.append(FileAction(action='copy',
+                                           source=str(source_path),
+                                           destination=str(destination_path),
+                                           source_before=source_snapshot,
+                                           destination_before=destination_snapshot))
+        if simulate:
+            return plan.to_dict()
+
+        try:
+            for action in plan.actions:
+                atomic_copy(action)
+        except (OSError, RuntimeError) as error:
+            plan.reject('execution_failed', str(error))
+            return plan.to_dict()
+
+        destination_stat = destination_path.stat()
+        source_stat = source_path.stat()
+        source_component.size = source_stat.st_size
+        source_component.modified_at_ns = source_stat.st_mtime_ns
+        if destination_set is None:
+            destination_set = ComponentSet(where=destination_side,
+                                           primary_dir=str(destination_root),
+                                           workflow=workflow,
+                                           components=[])
+            workflow.component_sets.append(destination_set)
+        if destination_component is None:
+            destination_component = Component(
+                file_name=source_component.file_name,
+                relative_path=source_component.relative_path,
+                component_type=ComponentType.WORKFLOW,
+                touched=workflow.touched,
+            )
+            destination_set.components.append(destination_component)
+        destination_component.size = destination_stat.st_size
+        destination_component.modified_at_ns = destination_stat.st_mtime_ns
+        workflow.deployment = str(DeploymentStatus.SYNCED)
+        session.add(workflow)
+        session.commit()
+        plan.performed = True
+        return plan.to_dict()
 
 #-----------------------------------------------------------------------------------
 #

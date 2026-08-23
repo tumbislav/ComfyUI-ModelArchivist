@@ -16,6 +16,7 @@ export type ActiveTab = 'models' | 'workflows' | 'collections' | null;
 export type ServerStatus = {
     started: boolean,
     ready: boolean,
+    read_only: boolean,
     first_run?: boolean,
     scanning?: boolean
 }
@@ -24,6 +25,7 @@ function toServerStatus(json: any): ServerStatus {
     return {
         started: json.started,
         ready: json.ready,
+        read_only: json.read_only,
         ...('first_run' in json ? {first_run: json.first_run} : {}),
         ...('scanning' in json ? {scanning: json.scanning} : {})
     }

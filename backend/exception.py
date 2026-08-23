@@ -12,7 +12,10 @@ class ArcException(Exception):
     Error codes
     """
     class Code(StrEnum):
+        DATABASE_UNAVAILABLE = 'Database unavailable'
+        INVALID_DATABASE = 'Invalid database'
         INACCESSIBLE_FOLDER = 'Inaccessible folder'
+        READ_ONLY = 'Application is read-only'
         MISSING_MODEL_FILE = 'Missing model file'
         INCONSISTENT_FILENAME = 'Model files have different names'
         INCOMPLETE_MODEL = 'Incomplete model'

@@ -4,6 +4,7 @@
 # purpose: Application config
 # ---------------------------------------------------------------------------
 
+import os
 from pathlib import Path
 import yaml
 from fancy_dataclass import TOMLDataclass
@@ -109,6 +110,11 @@ purpose: Application config
     all_archive: set[Path] = field(default_factory=set, metadata={'suppress': True})
     all_working: set[Path] = field(default_factory=set, metadata={'suppress': True})
 
+    model_working_accessible: bool = field(default=True, metadata={'suppress': True})
+    model_archive_accessible: bool = field(default=True, metadata={'suppress': True})
+    workflow_working_accessible: bool = field(default=True, metadata={'suppress': True})
+    workflow_archive_accessible: bool = field(default=True, metadata={'suppress': True})
+
     app_root: Path | None = field(default=None, metadata={'suppress': True})
     user_root: Path | None = field(default=None, metadata={'suppress': True})
     comfy_root: Path | None = field(default=None, metadata={'suppress': True})
@@ -144,6 +150,10 @@ purpose: Application config
         if not app_root.is_dir():
             raise ConfigException(ConfigError.INVALID_APP_ROOT, str(self.app_root))
         self.cfg_file = cfg_file
+        self.model_working_accessible = True
+        self.model_archive_accessible = True
+        self.workflow_working_accessible = True
+        self.workflow_archive_accessible = True
         # user_root, comfy_root and archive_root can be relative to app_root
         self.user_root = self.path_from_string(self.paths.user)
         self.comfy_root = self.path_from_string(self.paths.comfy)
@@ -151,6 +161,16 @@ purpose: Application config
 
         self.resolve_model_paths()
         self.resolve_workflow_paths()
+
+    def ensure_folder_accessible(self, folder: Path, flag: str) -> None:
+        """Create a folder when needed and clear its accessibility flag on failure."""
+        try:
+            folder.mkdir(exist_ok=True, parents=True)
+            next(folder.iterdir(), None)
+            if not os.access(folder, os.R_OK | os.W_OK):
+                setattr(self, flag, False)
+        except OSError:
+            setattr(self, flag, False)
 
     def add_model_locations(self, model_type: str, working: Path, archive: Path, prevent_dupes: bool = True) -> None:
         """
@@ -165,8 +185,8 @@ purpose: Application config
             raise ConfigException(ConfigError.DUPLICATE_FOLDER, str(archive))
         self.all_working.add(working)
         self.all_archive.add(archive)
-        working.mkdir(exist_ok=True, parents=True)
-        archive.mkdir(exist_ok=True, parents=True)
+        self.ensure_folder_accessible(working, 'model_working_accessible')
+        self.ensure_folder_accessible(archive, 'model_archive_accessible')
         if model_type not in self.model_folders:
             self.model_folders[model_type] = {(working, archive)}
         else:
@@ -180,10 +200,20 @@ purpose: Application config
         archive_root = self.path_from_string(self.models.archive)
 
         # Start from the working models folder and update the archive models
-        for model_type in (d.stem for d in model_root.iterdir() if d.is_dir()):
+        try:
+            model_dirs = list(model_root.iterdir())
+        except OSError:
+            self.model_working_accessible = False
+            model_dirs = []
+        for model_type in (d.stem for d in model_dirs if d.is_dir()):
             self.add_model_locations(model_type, model_root / model_type, archive_root / model_type)
         # Then do the inverse
-        for model_type in (d.stem for d in archive_root.iterdir() if d.is_dir()):
+        try:
+            archive_dirs = list(archive_root.iterdir())
+        except OSError:
+            self.model_archive_accessible = False
+            archive_dirs = []
+        for model_type in (d.stem for d in archive_dirs if d.is_dir()):
             self.add_model_locations(model_type, model_root / model_type, archive_root / model_type, False)
         # Then take care of the paths defined in extra_model.yaml files
         for extra in self.models.extras:
@@ -227,8 +257,8 @@ purpose: Application config
             raise ConfigException(ConfigError.DUPLICATE_FOLDER, str(archive))
         self.all_working.add(working)
         self.all_archive.add(archive)
-        working.mkdir(exist_ok=True, parents=True)
-        archive.mkdir(exist_ok=True, parents=True)
+        self.ensure_folder_accessible(working, 'workflow_working_accessible')
+        self.ensure_folder_accessible(archive, 'workflow_archive_accessible')
         self.workflow_folders.append((working, archive))
 
     def resolve_workflow_paths(self) -> None:
@@ -237,6 +267,15 @@ purpose: Application config
         """
         for wf in self.workflows.folders:
             self.add_workflow_locations(self.path_from_string(wf.working), self.path_from_string(wf.archive))
+
+    @property
+    def read_only(self) -> bool:
+        return not all((
+            self.model_working_accessible,
+            self.model_archive_accessible,
+            self.workflow_working_accessible,
+            self.workflow_archive_accessible,
+        ))
 
     def add_workflow_folders(self, working_dir: str, archive_dir: str) -> None:
         """
