@@ -172,16 +172,19 @@ purpose: Application config
         except OSError:
             setattr(self, flag, False)
 
-    def add_model_locations(self, model_type: str, working: Path, archive: Path, prevent_dupes: bool = True) -> None:
+    def add_model_locations(self, model_type: str, working: Path, archive: Path) -> None:
         """
         Store a resolved pair of working and archive dir for later use. Ensure they exist and
         check for duplicates.
         """
         if model_type in self.models.ignore:
             return
-        if working in self.all_working and prevent_dupes:
+        pair = (working, archive)
+        if pair in self.model_folders.get(model_type, set()):
+            return
+        if working in self.all_working:
             raise ConfigException(ConfigError.DUPLICATE_FOLDER, str(working))
-        if archive in self.all_archive and prevent_dupes:
+        if archive in self.all_archive:
             raise ConfigException(ConfigError.DUPLICATE_FOLDER, str(archive))
         self.all_working.add(working)
         self.all_archive.add(archive)
@@ -214,7 +217,7 @@ purpose: Application config
             self.model_archive_accessible = False
             archive_dirs = []
         for model_type in (d.stem for d in archive_dirs if d.is_dir()):
-            self.add_model_locations(model_type, model_root / model_type, archive_root / model_type, False)
+            self.add_model_locations(model_type, model_root / model_type, archive_root / model_type)
         # Then take care of the paths defined in extra_model.yaml files
         for extra in self.models.extras:
             self.locate_extra_paths(extra)

@@ -72,10 +72,13 @@ export type Model = {
     raw_type: string;
     file_format: string;
     relative_path: string;
+    working_path: string | null;
+    archive_path: string | null;
     deployment: string;
     touched: Date;
     tags: string[];
-    component_sets: ComponentSet[];
+    working_set?: ComponentSet;
+    archive_set?: ComponentSet;
     collections: CollectionSummary[];
 }
 
@@ -88,10 +91,13 @@ export function toModel(json: any): Model {
         raw_type: json.raw_type,
         file_format: json.file_format,
         relative_path: json.relative_path,
+        working_path: json.working_path,
+        archive_path: json.archive_path,
         deployment: json.deployment,
         touched: new Date(json.touched),
         tags: json.tags,
-        component_sets: json.component_sets.map(toComponentSet),
+        working_set: json.working_set ? toComponentSet(json.working_set) : undefined,
+        archive_set: json.archive_set ? toComponentSet(json.archive_set) : undefined,
         collections: json.collections
     }
 }
@@ -123,9 +129,12 @@ export type Workflow = {
     internal_name: string;
     purpose: string;
     relative_path: str;
+    working_path: string | null;
+    archive_path: string | null;
     deployment: string;
     touched: Date;
-    component_sets: ComponentSet[];
+    working_set?: ComponentSet;
+    archive_set?: ComponentSet;
     tags: string[];
     collections: CollectionSummary[];
 }
@@ -136,10 +145,13 @@ export function toWorkflow(json: any): Workflow {
         internal_name: json.name,
         purpose: json.purpose,
         relative_path: json.relative_path,
+        working_path: json.working_path,
+        archive_path: json.archive_path,
         deployment: json.deployment,
         touched: new Date(json.touched),
         tags: json.tags,
-        component_sets: json.component_sets.map(toComponentSet),
+        working_set: json.working_set ? toComponentSet(json.working_set) : undefined,
+        archive_set: json.archive_set ? toComponentSet(json.archive_set) : undefined,
         collections: json.collections
     }
 }
@@ -150,19 +162,19 @@ export function toWorkflow(json: any): Workflow {
 export type CollectionSummary = {
     id: string;
     name: string;
+    parents?: CollectionSummary[];
 }
 
 export type Collection = {
     id: string;
     name: string
     purpose: string;
-    working: boolean;
-    archived: boolean;
+    deployment: string;
     tags: string[];
     models: ModelSummary[];
     workflows: WorkflowSummary[];
-    contained_in: CollectionSummary[];
-    contains: CollectionSummary[];
+    parents: CollectionSummary[];
+    children: CollectionSummary[];
 }
 
 /* Tags

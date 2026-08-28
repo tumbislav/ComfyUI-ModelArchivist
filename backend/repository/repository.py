@@ -180,7 +180,15 @@ def save_scanned_model(model: Model, tag_names: list[str]) -> None:
                         model.file_name, model.relative_path, model.type):
                     merged_errors.add(ModelError.LOCATION_MISMATCH.value)
                 old_model.errors = [error.value for error in ModelError if error.value in merged_errors]
-                old_model.component_sets.extend(model.component_sets)
+                existing_by_side = {item.where: item for item in old_model.component_sets}
+                for scanned_set in model.component_sets:
+                    existing_set = existing_by_side.get(scanned_set.where)
+                    if existing_set is None:
+                        old_model.component_sets.append(scanned_set)
+                        existing_by_side[scanned_set.where] = scanned_set
+                    elif Path(existing_set.primary_dir).resolve() == Path(
+                            scanned_set.primary_dir).resolve():
+                        existing_set.components.extend(scanned_set.components)
                 session.add(old_model)
                 session.commit()
                 return
@@ -260,7 +268,8 @@ def update_model(updates: dict) -> dict:
 
         session.add(model)
         session.commit()
-        return model.representation(_config.model_types)
+        working_path, archive_path = _model_paths(model)
+        return model.representation(_config.model_types, working_path, archive_path)
 
 def deploy_model(id: str, deployment: DeploymentStatus) -> Model:
     """
@@ -310,8 +319,41 @@ def get_model(id: str) -> dict:
             msg = f'model with hash {id} does not exist'
             _logger.info(msg)
             raise ArcException(ArcException.Code.UNKNOWN_MODEL, msg)
-        rep = model.representation(_config.model_types)
-        return model.representation(_config.model_types)
+        working_path, archive_path = _model_paths(model)
+        return model.representation(_config.model_types, working_path, archive_path)
+
+
+def _paired_object_paths(component_sets: list[ComponentSet], relative_path: str,
+                         folder_pairs: list[tuple[Path, Path]]) -> tuple[str | None, str | None]:
+    """Resolve actual or prospective directories on both configured sides."""
+    roots = {component_set.where: Path(component_set.primary_dir).resolve()
+             for component_set in component_sets}
+    relative = Path(relative_path)
+    for working_root, archive_root in folder_pairs:
+        working = Path(working_root).resolve()
+        archive = Path(archive_root).resolve()
+        if roots.get('w') == working or roots.get('a') == archive:
+            return str(working / relative), str(archive / relative)
+    return (
+        str(roots['w'] / relative) if 'w' in roots else None,
+        str(roots['a'] / relative) if 'a' in roots else None,
+    )
+
+
+def _model_paths(model: Model) -> tuple[str | None, str | None]:
+    return _paired_object_paths(
+        model.component_sets,
+        model.relative_path,
+        list(_config.model_folders.get(model.type, set())),
+    )
+
+
+def _workflow_paths(workflow: Workflow) -> tuple[str | None, str | None]:
+    return _paired_object_paths(
+        workflow.component_sets,
+        workflow.relative_path,
+        _config.workflow_folders,
+    )
 
 
 def _execute_model_actions(actions: list[FileAction],
@@ -658,7 +700,8 @@ def get_workflow(id: str) -> dict:
             msg = f'workflow with id {id} does not exist'
             _logger.info(msg)
             raise ArcException(ArcException.Code.UNKNOWN_WORKFLOW, msg)
-        return workflow.representation()
+        working_path, archive_path = _workflow_paths(workflow)
+        return workflow.representation(working_path, archive_path)
 
 
 def synchronize_workflow(id: str, simulate: bool = True) -> dict:

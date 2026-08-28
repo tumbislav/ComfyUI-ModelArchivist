@@ -6,11 +6,10 @@
 
 @import '$styles/settings.css';
 @import '$styles/fonts.css';
-@import '$styles/fontawesome.min.css';
-@import '$styles/solid.css';
 @import '$styles/text.css';
 @import '$styles/nav.css';
 @import '$styles/panels.css';
 @import '$styles/controls.css';
 @import '$styles/dialogs.css';
+@import '$styles/filters.css';
 @import '$styles/tables.css';

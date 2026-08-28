@@ -157,6 +157,7 @@
     background: var(--bg-accent);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-mid);
+    min-height: 32px;
     max-height: 6rem;
     display: flex;
     flex-direction: row;

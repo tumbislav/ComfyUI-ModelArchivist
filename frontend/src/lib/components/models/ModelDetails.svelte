@@ -9,6 +9,11 @@
  * ---------------------------------------------------------------------------*/
 import FileSet from '$components/controls/FileSet.svelte'
 import TagEditor from '$components/controls/TagEditor.svelte'
+import ModelCollectionEditor from '$components/models/ModelCollectionEditor.svelte'
+import moveDownIcon from '$icons/move-down16.png';
+import moveUpIcon from '$icons/move-up16.png';
+import moveUpDownIcon from '$icons/move-up-down16.png';
+import saveIcon from '$icons/save16.png';
 
 import {
     type Model,
@@ -21,19 +26,29 @@ let {
     model=$bindable(),
     changed,
     saving,
+    operating,
+    operationError,
     onSave,
     onClose,
+    onSync,
+    onMove,
+    onCollectionsChanged,
 }: {
     model: Model;
     changed: boolean;
     saving: boolean,
+    operating: boolean;
+    operationError: string | null;
     onSave: () => Promise<void>;
     onClose: () => Promise<boolean>;
+    onSync: () => Promise<void>;
+    onMove: (destination: 'working' | 'archive') => Promise<void>;
+    onCollectionsChanged: () => Promise<void>;
 } = $props();
 
 let tags = $derived<string[]>([...model.tags]);
-let archive_set = $derived<ComponentSet | undefined>(model.component_sets.find(c_set => c_set.where === 'a'));
-let working_set = $derived<ComponentSet | undefined>(model.component_sets.find(c_set => c_set.where === 'w'));
+let archive_set = $derived<ComponentSet | undefined>(model.archive_set);
+let working_set = $derived<ComponentSet | undefined>(model.working_set);
 
 
 async function handleEnter(event: KeyboardEvent) {
@@ -66,6 +81,10 @@ async function handleEnter(event: KeyboardEvent) {
     <p class="warning-message">Model is mismatched, synchronize it.</p>
 {/if}
 
+{#if operationError}
+    <p class="error-message">{operationError}</p>
+{/if}
+
 <div class="dialog-section">
     <p class="dialog-label">File name</p>
     <input class="text-input full-width"
@@ -92,54 +111,41 @@ async function handleEnter(event: KeyboardEvent) {
 
 <div class="dialog-section spaced-horizontally">
     <div></div>
-    <button class="simple-button"
+    <button class="button-with-text"
             disabled={!changed || saving || model.deployment === 'mismatch'}
             onclick={() => onSave()} >
-        <span class="button-text">Save</span>
+        <img class="action-icon" alt="save" src={saveIcon} />
+        <span>Save</span>
     </button>
 </div>
 
-{#if working_set}
-    <FileSet set={working_set} name="working set" />
-{/if}
+<FileSet set={working_set} path={model.working_path} name="working set" />
 
 <div class="dialog-section spaced-horizontally">
-    <button class="simple-button"
-            disabled={model.deployment !== 'archive'} >
-        <i class="fa-solid fa-arrow-up"></i>
-        <span class="button-text">To working set</span>
+    <button class="button-with-text"
+            disabled={operating || !['archive', 'synced'].includes(model.deployment)}
+            onclick={() => onMove('working')}>
+        <img class="action-icon" alt="move up" src={moveUpIcon} />
+        <span>To working set</span>
     </button>
-    <button class="simple-button"
-            disabled={model.deployment === 'synced'} >
-        <i class="fa-solid fa-up-down"></i>
-        <span class="button-text">Sync</span>
+    <button class="button-with-text"
+            disabled={operating || model.deployment === 'synced'}
+            onclick={() => onSync()}>
+        <img class="action-icon" alt="move up down" src={moveUpDownIcon} />
+        <span>Sync</span>
     </button>
-    <button class="simple-button"
-            disabled={model.deployment !== 'working'} >
-        <i class="fa-solid fa-arrow-down"></i>
-        <span class="button-text">To archive</span>
+    <button class="button-with-text"
+            disabled={operating || !['working', 'synced'].includes(model.deployment)}
+            onclick={() => onMove('archive')}>
+        <img class="action-icon" alt="move down" src={moveDownIcon} />
+        <span>To archive</span>
     </button>
 </div>
 
-{#if archive_set}
-    <FileSet set={archive_set} name="archive" />
-{/if}
+<FileSet set={archive_set} path={model.archive_path} name="archive" />
 
 
-<div class="dialog-section">
-    <p class="dialog-label">Collections</p>
-    <div>
-        <table class="main-table">
-            <tbody>
-                {#each model.collections as g, i (g.id)}
-                    <tr>
-                        <td>{g.name}</td>
-                    </tr>
-                {/each}
-            </tbody>
-        </table>
-    </div>
-</div>
+<ModelCollectionEditor {model} onChanged={onCollectionsChanged} />
 
 <style>
 </style>

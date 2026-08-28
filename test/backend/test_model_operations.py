@@ -8,6 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, create_engine
 
 import backend.repository.repository as repository
@@ -30,17 +31,20 @@ def model_repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(repository, '_engine', engine)
     monkeypatch.setattr(repository, '_config', SimpleNamespace(
         read_only=False,
+        model_types={},
         model_folders={'checkpoints': {(working, archive)}},
     ))
     yield engine, working, archive
     engine.dispose()
 
 
-def make_component(path: Path, component_type: ComponentType) -> Component:
+def make_component(path: Path, component_type: ComponentType,
+                   relative_path: str = '') -> Component:
     stat = path.stat()
     return Component(file_name=path.name,
                      size=stat.st_size,
                      modified_at_ns=stat.st_mtime_ns,
+                     relative_path=relative_path,
                      component_type=component_type,
                      touched='timestamp')
 
@@ -65,15 +69,48 @@ def add_working_model(engine, working: Path, where: str = 'w') -> None:
                   touched='timestamp',
                   component_sets=[ComponentSet(
                       where=where,
-                      primary_dir=str(model_dir),
+                      primary_dir=str(working),
                       examples_dir=str(examples_dir),
-                      components=[make_component(weights, ComponentType.MODEL),
-                                  make_component(metadata, ComponentType.METADATA),
+                      components=[make_component(weights, ComponentType.MODEL, 'nested'),
+                                  make_component(metadata, ComponentType.METADATA, 'nested'),
                                   make_component(example, ComponentType.EXAMPLE)],
                   )])
     with Session(engine) as session:
         session.add(model)
         session.commit()
+
+
+def test_model_representation_includes_actual_and_prospective_paths(model_repository):
+    engine, working, archive = model_repository
+    add_working_model(engine, working)
+
+    result = repository.get_model(MODEL_ID)
+
+    assert result['working_path'] == str(working / 'nested')
+    assert result['archive_path'] == str(archive / 'nested')
+    assert result['working_set']['where'] == 'w'
+    assert result['archive_set'] is None
+    assert 'component_sets' not in result
+
+
+def test_database_rejects_two_component_sets_on_same_model_side(model_repository):
+    engine, working, _ = model_repository
+    model = Model(id=MODEL_ID,
+                  file_name='model',
+                  internal_name='Model',
+                  type='checkpoints',
+                  relative_path='',
+                  deployment='working',
+                  touched='timestamp',
+                  component_sets=[
+                      ComponentSet(where='w', primary_dir=str(working), components=[]),
+                      ComponentSet(where='w', primary_dir=str(working), components=[]),
+                  ])
+
+    with Session(engine) as session:
+        session.add(model)
+        with pytest.raises(IntegrityError):
+            session.commit()
 
 
 def test_synchronize_model_simulation_plans_all_components(model_repository):
@@ -160,11 +197,11 @@ def test_synchronize_model_uses_working_collection_as_authority(model_repository
         model = session.get(Model, MODEL_ID)
         model.component_sets.append(ComponentSet(
             where='a',
-            primary_dir=str(archive_dir),
+            primary_dir=str(archive),
             examples_dir=str(archive_examples),
-            components=[make_component(weights, ComponentType.MODEL),
-                        make_component(metadata, ComponentType.METADATA),
-                        make_component(obsolete, ComponentType.EXTRA),
+            components=[make_component(weights, ComponentType.MODEL, 'nested'),
+                        make_component(metadata, ComponentType.METADATA, 'nested'),
+                        make_component(obsolete, ComponentType.EXTRA, 'nested'),
                         make_component(example, ComponentType.EXAMPLE)],
         ))
         model.deployment = 'mismatch'

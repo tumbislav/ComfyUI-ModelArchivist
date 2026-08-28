@@ -74,10 +74,13 @@ def upgrade() -> None:
     sa.Column('examples_dir', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('model_id', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('workflow_id', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
+    sa.CheckConstraint("\"where\" IN ('w', 'a')"),
     sa.CheckConstraint('(model_id IS NOT NULL AND workflow_id IS NULL) OR (model_id IS NULL AND workflow_id IS NOT NULL)'),
     sa.ForeignKeyConstraint(['model_id'], ['model.id'], ),
     sa.ForeignKeyConstraint(['workflow_id'], ['workflow.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('model_id', 'where'),
+    sa.UniqueConstraint('workflow_id', 'where')
     )
     op.create_table('modelcollectionlink',
     sa.Column('model_id', sqlmodel.sql.sqltypes.AutoString(), nullable=False),

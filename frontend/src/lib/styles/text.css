@@ -6,8 +6,6 @@
 
 :root {
     --title-font-size: 18pt;
-    --nav-icon-font-size: 16pt;
-    --icon-font-size: 14pt;
     --large-font-size: 12pt;
     --medium-font-size: 10pt;
     --small-font-size: 9pt;
@@ -55,6 +53,13 @@ h3:has(+ p.subtitle) {
     margin-top: 0;
 }
 
+/* Small note */
+.annotation {
+    font-size: var(--small-font-size);
+    color: var(--text-dim);
+    font-style: italic;
+}
+
 /* Small note shown at right */
 .annotation-right {
     font-size: var(--tiny-font-size);
@@ -62,6 +67,7 @@ h3:has(+ p.subtitle) {
     font-style: italic;
     text-align: right;
 }
+
 
 /* Various display styles
  * ----------------------------------------------- */
@@ -72,11 +78,12 @@ p.section-label {
     margin-top: 0;
 }
 
-p.dialog-label {
+.dialog-label {
     font-size: var(--medium-font-size);
     color: var(--text-color);
     font-weight: 600;
     margin-bottom: 1px;
+    margin-top: 1px;
 }
 
 p.labeled {
@@ -126,13 +133,12 @@ p.labeled :first-child {
     font-weight: bold;
 }
 
-/* To be reviewed
- * ----------------------------------------------- */
-
-
 .text-compact {
     font-size: var(--medium-font-size);
 }
+
+/* To be reviewed
+ * ----------------------------------------------- */
 
 .display-string {
     font-size: var(--medium-font-size);

@@ -6,7 +6,7 @@
 from enum import StrEnum
 from pathlib import Path
 
-from sqlalchemy import Column, JSON
+from sqlalchemy import Column, JSON, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel, CheckConstraint
 from uuid import uuid4
 
@@ -135,13 +135,18 @@ class Model(SQLModel, table=True):
                  'read_only': self.read_only,
                  'metadata_update_available': self.metadata_update_available }
 
-    def representation(self, type_map: dict) -> dict:
+    def representation(self, type_map: dict, working_path: str | None = None,
+                       archive_path: str | None = None) -> dict:
+        sets = {component_set.where: component_set.representation()
+                for component_set in self.component_sets}
         return { 'id': self.id,
                  'file_name': self.file_name,
                  'internal_name': self.internal_name,
                  'type': type_map.get(self.type, self.type),
                  'raw_type': self.type,
                  'file_format': self.file_format,
+                 'working_path': working_path,
+                 'archive_path': archive_path,
                  'relative_path': self.relative_path.replace('\\', '/'),
                  'deployment': self.deployment,
                  'touched': self.touched,
@@ -149,7 +154,8 @@ class Model(SQLModel, table=True):
                  'read_only': self.read_only,
                  'metadata_update_available': self.metadata_update_available,
                  'tags': [tag.tag for tag in self.tags],
-                 'component_sets': [cs.representation() for cs in self.component_sets],
+                 'working_set': sets.get('w'),
+                 'archive_set': sets.get('a'),
                  'collections': [collection.summary() for collection in self.collections] }
 
 
@@ -202,18 +208,24 @@ class Workflow(SQLModel, table=True):
                  'errors': self.errors,
                  'read_only': self.read_only }
 
-    def representation(self) -> dict:
+    def representation(self, working_path: str | None = None,
+                       archive_path: str | None = None) -> dict:
+        sets = {component_set.where: component_set.representation()
+                for component_set in self.component_sets}
         return {'id': self.id,
                 'file_name': self.file_name,
                 'internal_name': self.internal_name,
                 'purpose': self.purpose,
+                'working_path': working_path,
+                'archive_path': archive_path,
                 'relative_path': self.relative_path,
                 'deployment': self.deployment,
                 'touched': self.touched,
                 'errors': self.errors,
                 'read_only': self.read_only,
                 'tags': [tag.tag for tag in self.tags],
-                'component_sets': [cs.representation() for cs in self.component_sets],
+                'working_set': sets.get('w'),
+                'archive_set': sets.get('a'),
                 'collections': [collection.summary() for collection in self.collections]}
 
 # ---------------------------------------------------------------------------
@@ -299,8 +311,14 @@ class ComponentSet(SQLModel, table=True):
     """
     All the components in a set
     """
-    __table_args__ = (CheckConstraint(
-        "(model_id IS NOT NULL AND workflow_id IS NULL) OR (model_id IS NULL AND workflow_id IS NOT NULL)"),)
+    __table_args__ = (
+        CheckConstraint("\"where\" IN ('w', 'a')"),
+        CheckConstraint(
+            "(model_id IS NOT NULL AND workflow_id IS NULL) OR "
+            "(model_id IS NULL AND workflow_id IS NOT NULL)"),
+        UniqueConstraint('model_id', 'where'),
+        UniqueConstraint('workflow_id', 'where'),
+    )
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     where: str
     primary_dir: str

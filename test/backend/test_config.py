@@ -147,3 +147,32 @@ def test_resolve_paths_flags_inaccessible_folders(
     for flag in folders:
         assert getattr(config, flag) is (flag != inaccessible_flag)
     assert config.read_only is True
+
+
+def test_model_location_pair_registration_is_idempotent(tmp_path: Path):
+    config, _ = make_configuration(tmp_path)
+    working = tmp_path / 'working'
+    archive = tmp_path / 'archive-copy'
+
+    config.add_model_locations('checkpoints', working, archive)
+    config.add_model_locations('checkpoints', working, archive)
+
+    assert config.model_folders['checkpoints'] == {(working, archive)}
+
+
+@pytest.mark.parametrize('reuse_side', ['working', 'archive'])
+def test_model_location_rejects_directory_reused_in_another_pair(
+    tmp_path: Path,
+    reuse_side: str,
+):
+    config, _ = make_configuration(tmp_path)
+    first_working = tmp_path / 'working-1'
+    first_archive = tmp_path / 'archive-1'
+    config.add_model_locations('checkpoints', first_working, first_archive)
+    second_working = first_working if reuse_side == 'working' else tmp_path / 'working-2'
+    second_archive = first_archive if reuse_side == 'archive' else tmp_path / 'archive-2'
+
+    with pytest.raises(ConfigException) as exc_info:
+        config.add_model_locations('loras', second_working, second_archive)
+
+    assert exc_info.value.code is ConfigError.DUPLICATE_FOLDER

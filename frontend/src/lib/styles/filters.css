@@ -1,0 +1,69 @@
+/* ------------------------------------------------
+ * system: ModelArchivist
+ * file: filters.css
+ * purpose: Filter bar styling
+ * ----------------------------------------------- */
+
+
+.filter-bar {
+    display: flex;
+    flex-direction: row;
+    padding: 0;
+    background: var(--bg-color);
+}
+
+.filter-buttons {
+    flex: 0 0 auto;
+    display: flex;
+    gap: var(--gap-small);
+    flex-direction: row;
+    padding: var(--gap-small) 0;
+    background: var(--bg-color);
+}
+
+
+.filter-editor {
+    flex: 1 1 100%;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-flow: row wrap;
+    align-items: stretch;
+    gap: var(--gap-small);
+    margin-bottom: var(--gap-mid);
+}
+
+.model-selection-actions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-start;
+    padding: var(--gap-small) var(--gap-mid) var(--gap-small) 0;
+    border-right: var(--solid-border);
+}
+
+.filter-summary {
+    width: 100%;
+    min-height: var(--button-height);
+    display: flex;
+    align-items: center;
+    gap: var(--gap-small);
+    padding: var(--gap-small) var(--gap-mid);
+    text-align: left;
+}
+
+.filter-box {
+    flex: 1 1 10rem;
+    min-width: 10rem;
+    box-sizing: border-box;
+    padding: var(--gap-small);
+    border: var(--solid-border);
+    border-radius: var(--radius-small);
+    background: var(--bg-color);
+}
+
+.filter-actions {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: var(--gap-small);
+}

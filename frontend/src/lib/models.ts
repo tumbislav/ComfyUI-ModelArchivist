@@ -23,6 +23,17 @@ export type ModelSearchCriteria = {
     name_prefix: string;
 }
 
+export type ModelDestination = 'working' | 'archive';
+
+export type Operation = {
+    id: string;
+    type: string;
+    state: 'pending' | 'running' | 'succeeded' | 'failed';
+    progress: Record<string, unknown>;
+    result: Record<string, unknown> | null;
+    error: { type: string; message: string } | null;
+};
+
 export async function getModels(): Promise<ApiResult<ModelSummary[]>> {
     const url = getUrl('/models');
     const response = await fetch(url);
@@ -55,12 +66,36 @@ export async function updateModel(updated_model: Model): Promise<ApiResult<Model
     return await parseResponse(response, toModel, 'updateModel');
 }
 
-export async function syncModel(model_id: string): Promise<ApiResult<Model>> {
-    const url = getUrl(`/models/${model_id}/deployment`);
+export async function syncModel(model_id: string): Promise<ApiResult<Operation>> {
+    const url = getUrl(`/models/${model_id}/synchronize?simulate=false`);
     const response = await fetch(url, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({deployment: 'synced'})
+      method: 'POST'
     });
-    return await parseResponse(response, toModel, 'syncModel');
+    return await parseResponse(response, identity, 'syncModel');
+}
+
+export async function moveModel(model_id: string,
+                                destination: ModelDestination): Promise<ApiResult<Operation>> {
+    const url = getUrl(`/models/${model_id}/move?destination=${destination}&simulate=false`);
+    const response = await fetch(url, {
+      method: 'POST'
+    });
+    return await parseResponse(response, identity, 'moveModel');
+}
+
+export async function getOperation(operation_id: string): Promise<ApiResult<Operation>> {
+    const url = getUrl(`/operations/${operation_id}`);
+    const response = await fetch(url);
+    return await parseResponse(response, identity, 'getOperation');
+}
+
+export async function waitForOperation(operation_id: string): Promise<ApiResult<Operation>> {
+    while (true) {
+        const envelope = await getOperation(operation_id);
+        if (!envelope.ok || envelope.data.state === 'succeeded' ||
+            envelope.data.state === 'failed') {
+            return envelope;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 250));
+    }
 }

@@ -19,7 +19,7 @@
 
 .nav-set {
     display: flex;
-    gap: var(--gap-large);
+    gap: var(--gap-mid);
     flex-shrink: 0;
     flex-direction: row;
     padding: 0 var(--gap-large);
@@ -72,50 +72,4 @@
         filter 300ms ease,
         width 500ms ease 1500ms,
         height 500ms ease 1500ms;
-}
-
-/* Large buttons with icons and text
- * ----------------------------------------------- */
-
-.tab-button {
-    text-align:center;
-    cursor: pointer;
-    background: var(--bg-color);
-    color: var(--text-color);    
-    height: var(--nav-button-size);
-    width: 150px;
-    padding: 0;
-    font-size: var(--large-font-size);
-    font-weight: 500;
-    border: var(--solid-border);
-    border-radius: var(--radius-mid);
-}
-
-.tab-button:hover {
-    border-color: var(--border-highlight);
-    background: var(--bg-accent);
-    transform: translateY(-1px);
-    box-shadow: var(--highlight-shadow);
-}
-
-.tab-button:active {
-    transform: translateY(0);
-    box-shadow: var(--button-shadow);
-}
-
-.tab-button[aria-checked="true"] {
-    background-color: var(--bg-accent);
-}
-
-.nav-icon {
-    font-size: var(--nav-icon-font-size);
-}
-
-/* Square buttons without text
- * ----------------------------------------------- */
- 
- .option-button {
-    height: var(--nav-button-size);
-    width: var(--nav-button-size);
-    border-radius: var(--radius-mid);
 }

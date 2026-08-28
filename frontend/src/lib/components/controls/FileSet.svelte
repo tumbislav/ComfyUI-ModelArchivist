@@ -9,13 +9,15 @@ import { type ComponentSet } from "$lib/objects"
 
 let {
     set,
+    path,
     name
 }: {
-    set: ComponentSet,
+    set: ComponentSet | undefined,
+    path: string | null,
     name: string
 } = $props();
 
-let unpacked = $derived(set.components.reduce<Record<string, string[]>>(
+let unpacked = $derived((set?.components ?? []).reduce<Record<string, string[]>>(
     (a, c) => { (a[c.component_type] ??= []).push(c.file_name); return a; }, {}
 ));
 
@@ -23,7 +25,9 @@ let unpacked = $derived(set.components.reduce<Record<string, string[]>>(
 
 <div class="dialog-section raised-section">
     <p class="section-label">Files in {name}</p>
-    <p class="path-preview" title={set.primary_dir}>{set.primary_dir}</p>
+    {#if path}
+        <p class="path-preview" title={path}>{path}</p>
+    {/if}
     {#if unpacked.model}
         <p class="labeled"><span>Model:</span>{unpacked.model[0]}</p>
     {/if}
@@ -37,7 +41,7 @@ let unpacked = $derived(set.components.reduce<Record<string, string[]>>(
         <p class="labeled"><span>Others:</span>{unpacked.extra.join(', ')}</p>
     {/if}
     {#if unpacked.example && unpacked.example.length}
-        <p class="path-preview" title={set.examples_dir}>{set.examples_dir}</p>
+        <p class="path-preview" title={set?.examples_dir}>{set?.examples_dir}</p>
         <p class="labeled"><span>Samples:</span>{unpacked.example.join(', ')}</p>
     {/if}
 </div>

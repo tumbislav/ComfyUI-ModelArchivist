@@ -15,6 +15,11 @@ button {
     border: var(--solid-border);
     background: var(--bg-color);
     color: var(--text-color);
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: center;
+    align-items: center;
+    gap: var(--gap-small);
 }
 
 button:hover {
@@ -36,39 +41,61 @@ button:disabled {
     pointer-events: none;
 }
 
-.button-text {
+/* Normal buttons
+ * ----------------------------------------------- */
+
+.button-with-text {
+    padding: var(--gap-tiny) var(--gap-small);
+    height: var(--button-height);
+    min-width: var(--button-width);
+    font-size: var(--medium-font-size);
+    border-radius: var(--radius-small);
     color: inherit;
     font-size: var(--medium-font-size);
     font-weight: 600;
 }
 
-.button-with-image {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: var(--gap-tiny) var(--gap-small);
-    gap: var(--gap-small);
-}
-
-.simple-button {
-    padding: var(--gap-tiny) var(--gap-small);
-    border: var(--solid-border);
-    background: var(--bg-color);
+.image-button {
+    padding: var(--gap-tiny) var(--gap-tiny);
     height: var(--button-height);
-    min-width: var(--button-width);
-    font-size: var(--medium-font-size);
+    width: var(--button-height);
     border-radius: var(--radius-small);
 }
 
-.action-icon {
-    height: 16px;
-    filter: var(--mode-filter);
+/* Large navbar buttons
+ * ----------------------------------------------- */
+
+.nav-button {
+    height: var(--nav-button-size);
+    width: 150px;
+    font-size: var(--large-font-size);
+    font-weight: 500;
+    border-radius: var(--radius-mid);
 }
 
-.selector {
-    /* TODO deferred
-     */
-    background-color: var(--bg-color);
+.nav-button[aria-checked="true"] {
+    background-color: var(--bg-accent);
+}
+
+ .nav-option {
+    height: var(--nav-button-size);
+    width: var(--nav-button-size);
+    border-radius: var(--radius-mid);
+}
+
+/* Blank buttons for selecting items
+ * ----------------------------------------------- */
+
+.blank-button {
+    font-size: var(--medium-font-size);
+}
+
+
+/* Mode-styled icon
+ * ----------------------------------------------- */
+
+.action-icon {
+    filter: var(--mode-filter);
 }
 
 /* Checkboxes

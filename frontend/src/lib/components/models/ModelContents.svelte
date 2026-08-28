@@ -8,9 +8,10 @@
 
 /* Nested components
  * ---------------------------------------------------------------------------*/
-import ModelFilter from '$components/models/ModelFilter.svelte'
+import ModelActions from '$components/models/ModelActions.svelte'
 import ModelTable from '$components/models/ModelTable.svelte'
 import ModelDetails from '$components/models/ModelDetails.svelte'
+import MultiModelEditor from '$components/models/MultiModelEditor.svelte'
 
 /* General imports
  * ---------------------------------------------------------------------------*/
@@ -30,10 +31,20 @@ import {
     getModel,
     searchModels,
     updateModel,
+    syncModel,
+    moveModel,
+    waitForOperation,
+    type ModelDestination,
     type ModelSearchCriteria
 } from "$lib/models";
 
 import { type ApiResult } from "$lib/api";
+
+let {
+    multiEditorOpen=$bindable(false)
+}: {
+    multiEditorOpen: boolean;
+} = $props();
 
 /* Initialize the contents
  * ---------------------------------------------------------------------------*/
@@ -57,10 +68,13 @@ onMount(async () => {
  * ---------------------------------------------------------------------------*/
 
 let selected_id = $state<string | null>(null);
+let selected_ids = $state<Set<string>>(new Set());
 let active_id = $state<string | null>(null);
 let active_model = $state<Model | null>(null);
 let active_snapshot = $state<ModelSnapshot | null>(null);
 let saving_active = $state(false);
+let operating_active = $state(false);
+let operation_error = $state<string | null>(null);
 
 type ModelSnapshot = {
     file_name: string;
@@ -111,6 +125,7 @@ async function openDetails(model_id: string) {
         return;
     const envelope = await getModel(model_id);
     if (envelope.ok) {
+        operation_error = null;
         active_snapshot = modelSnapshot(envelope.data);
         active_model = envelope.data;
         active_id = model_id;
@@ -137,6 +152,7 @@ async function closeDetails(): Promise<boolean> {
     active_model = null;
     active_snapshot = null;
     saving_active = false;
+    operation_error = null;
     return true;
 }
 
@@ -154,7 +170,7 @@ async function clickOutside(event: MouseEvent) {
     
     if (target.closest('[data-model-table]') ||
         target.closest('[data-model-details]') ||
-        target.closest('[data-model-filter]')) {
+        target.closest('[data-model-actions]')) {
         return;
     }
     await closeDetails();
@@ -175,23 +191,116 @@ async function saveModel() {
     saving_active = false;
 }
 
+/* Synchronize or move a model ----------------------------------------------*/
+
+async function runModelOperation(destination: ModelDestination | null) {
+    if (active_model == null || operating_active) return;
+    const model_id = active_model.id;
+    operating_active = true;
+    operation_error = null;
+
+    try {
+        const started = destination === null
+            ? await syncModel(model_id)
+            : await moveModel(model_id, destination);
+        if (!started.ok) {
+            operation_error = started.message ?? 'Cannot start model operation';
+            return;
+        }
+
+        const completed = await waitForOperation(started.data.id);
+        if (!completed.ok) {
+            operation_error = completed.message ?? 'Cannot retrieve model operation';
+            return;
+        }
+        if (completed.data.state === 'failed') {
+            operation_error = completed.data.error?.message ?? 'Model operation failed';
+            return;
+        }
+
+        await refreshModels();
+        const refreshed = await getModel(model_id);
+        if (refreshed.ok && active_id === model_id) {
+            active_model = refreshed.data;
+            active_snapshot = modelSnapshot(refreshed.data);
+        } else if (!refreshed.ok && active_id === model_id) {
+            operation_error = refreshed.message ?? 'Cannot refresh model details';
+        }
+    } catch (error) {
+        operation_error = error instanceof Error
+            ? error.message
+            : 'Model operation failed';
+    } finally {
+        operating_active = false;
+    }
+}
+
+async function refreshActiveModel() {
+    if (active_id === null) return;
+    const refreshed = await getModel(active_id);
+    if (!refreshed.ok) {
+        operation_error = refreshed.message ?? 'Cannot refresh model details';
+        return;
+    }
+    active_model = refreshed.data;
+    active_snapshot = modelSnapshot(refreshed.data);
+    await refreshModels();
+}
+
 
 /* Model filter
  * ---------------------------------------------------------------------------*/
- 
-async function filterModels(filter: ModelSearchCriteria): Promise<boolean> {
-    if (!(await closeDetails())) return false;
-    const hasFilters = filter.types.length > 0 || filter.file_formats.length > 0 ||
+
+const empty_filter: ModelSearchCriteria = {
+    types: [],
+    file_formats: [],
+    required_tags: [],
+    forbidden_tags: [],
+    name_prefix: ''
+};
+let current_filter = $state<ModelSearchCriteria>({...empty_filter});
+
+function hasFilters(filter: ModelSearchCriteria): boolean {
+    return filter.types.length > 0 || filter.file_formats.length > 0 ||
         filter.required_tags.length > 0 || filter.forbidden_tags.length > 0 ||
         filter.name_prefix.length > 0;
-    const envelope = hasFilters ? await searchModels(filter) : await getModels();
+}
+
+async function refreshModels(): Promise<boolean> {
+    const envelope = hasFilters(current_filter)
+        ? await searchModels(current_filter)
+        : await getModels();
     if (envelope.ok) {
         models = envelope.data;
         models_error = null;
         return true;
     }
-    models_error = envelope.message ?? 'Cannot filter models';
+    models_error = envelope.message ?? 'Cannot load models';
     return false;
+}
+
+async function filterModels(filter: ModelSearchCriteria): Promise<boolean> {
+    if (!(await closeDetails())) return false;
+    const previous_filter = current_filter;
+    current_filter = {
+        types: [...filter.types],
+        file_formats: [...filter.file_formats],
+        required_tags: [...filter.required_tags],
+        forbidden_tags: [...filter.forbidden_tags],
+        name_prefix: filter.name_prefix
+    };
+    if (await refreshModels()) return true;
+    current_filter = previous_filter;
+    return false;
+}
+
+async function openMultiEditor() {
+    if (selected_ids.size < 2 || !(await closeDetails())) return;
+    multiEditorOpen = true;
+}
+
+function closeMultiEditor() {
+    multiEditorOpen = false;
 }
 
 
@@ -199,14 +308,16 @@ async function filterModels(filter: ModelSearchCriteria): Promise<boolean> {
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions  -->
 <div class="object-view" onclick={clickOutside}>
-    <ModelFilter onFilter={filterModels}/>
+    <ModelActions selectedCount={selected_ids.size}
+                  onFilter={filterModels}
+                  onOpenMulti={openMultiEditor}/>
 
     <div class="object-results">
-        <div class="content-with-actions">
-            <main class="table-container" data-model-table>
-                <ModelTable {models} error={models_error} bind:selected_id />
-            </main>
-        </div>
+        <main data-model-table>
+            <ModelTable {models} error={models_error}
+                        bind:selected_id bind:selected_ids />
+        </main>
+    </div>
 {#if active_model}
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -219,11 +330,18 @@ async function filterModels(filter: ModelSearchCriteria): Promise<boolean> {
         <ModelDetails bind:model={active_model}
                       changed={active_changed}
                       saving={saving_active}
+                      operating={operating_active}
+                      operationError={operation_error}
                       onSave={saveModel}
-                      onClose={closeDetails} />
+                      onClose={closeDetails}
+                      onSync={() => runModelOperation(null)}
+                      onMove={runModelOperation}
+                      onCollectionsChanged={refreshActiveModel} />
     </aside>
 {/if}
-    </div>
+{#if multiEditorOpen}
+    <MultiModelEditor onClose={closeMultiEditor} />
+{/if}
 </div>
 
 

@@ -50,3 +50,57 @@
     border: var(--solid-border);
     box-shadow: var(--shadow-right);
 }
+
+/* Collection membership dialogs
+ * ------------------------------------------------*/
+
+.collection-members,
+.collection-options {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-tiny);
+    margin-bottom: var(--gap-mid);
+    margin-top: var(--gap-mid);
+}
+
+.collection-members label {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-small);
+}
+
+.collection-options {
+    max-height: 40vh;
+    overflow-y: auto;
+}
+
+.collection-options button {
+    text-align: left;
+}
+
+.collection-picker {
+    box-sizing: border-box;
+    max-height: calc(100vh - var(--dialog-top, var(--gap-mid)) - var(--gap-mid));
+    overflow-y: auto;
+}
+
+.collection-create {
+    margin-top: var(--gap-mid);
+}
+
+.collection-create textarea {
+    min-height: 5rem;
+    resize: vertical;
+    margin-bottom: var(--gap-mid);
+}
+
+.nested-modal-parent {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.nested-modal-parent:disabled {
+    opacity: 0.5;
+}

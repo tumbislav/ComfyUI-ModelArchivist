@@ -5,11 +5,19 @@
  ! -------------------------------------------------->
 
 <script lang=ts>
+import modelIcon from '$icons/model24.png';
+import workflowIcon from '$icons/workflow24.png';
+import collectionIcon from '$icons/collection24.png';
+import settingsIcon from '$icons/settings24.png';
+import lightDarkModeIcon from '$icons/light-dark-mode24.png';
+
 import { type ActiveTab } from '$lib/admin';
 let {
-    current_tab = $bindable()
+    current_tab = $bindable(),
+    navigationLocked = false
 }: {
     current_tab: ActiveTab;
+    navigationLocked: boolean;
 } = $props();
 import logo_pic from '$lib/assets/icons/archivist.png';
 
@@ -28,35 +36,40 @@ $effect(() => {
     </div>
     
     <div class="nav-set" role="radiogroup" aria-label="Tab select">
-        <button class="tab-button"
+        <button class="nav-button"
             role="radio"
+            disabled={navigationLocked}
             aria-checked={current_tab === 'models'}
             onclick={() => current_tab = 'models'} >
-            <i class="fa-solid fa-scroll nav-icon"></i> Models
+            <img class="action-icon" alt="model" src={modelIcon} /><span>Models</span>
         </button>
         
-        <button class="tab-button" 
+        <button class="nav-button"
             role="radio"
+            disabled={navigationLocked}
             aria-checked={current_tab === 'workflows'}
             onclick={() => current_tab = 'workflows'}>
-            <i class="fa-solid fa-arrows-turn-to-dots nav-icon"></i> Workflows
+            <img class="action-icon" alt="workflows" src={workflowIcon} /><span>Workflows</span>
         </button>
         
-        <button class="tab-button" 
+        <button class="nav-button"
             role="radio"
+            disabled={navigationLocked}
             aria-checked={current_tab === 'collections'}
             onclick={() => current_tab = 'collections'} >
-            <i class="fa-solid fa-object-group nav-icon"></i> Collections
+            <img class="action-icon" alt="collections" src={collectionIcon} /><span>Collections</span>
         </button>
     </div>
     
     <div class="nav-set">
-        <button class="option-button" aria-label="options">
-            <i class="fa-solid fa-gear nav-icon"></i>
+        <button class="nav-option" aria-label="options">
+            <img class="action-icon" alt="options" src={settingsIcon} />
         </button>
-        <button class="option-button theme-toggle"
+        <button class="nav-option"
                 onclick={() => theme = theme === 'light' ? 'dark' : 'light'}
-                aria-label="toggle theme"></button>
+                aria-label="toggle theme">
+            <img class="action-icon"  alt="dark light mode" src={lightDarkModeIcon} />
+        </button>
     </div>
 </div>
 

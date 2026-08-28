@@ -5,6 +5,8 @@
  ! -------------------------------------------------->
 
 <script lang="ts">
+    import confirmIcon from '$icons/confirm16.png';
+    import cancelIcon from '$icons/cancel16.png';
     import { confirmState } from '$lib/confirm.svelte';
     
     function close(result: boolean) {
@@ -15,19 +17,21 @@
 
 {#if confirmState.open}
     <div class="modal-backdrop">
-        <div class="modal-dialog">
+        <div class="modal-dialog" style={confirmState.position}>
             <h2>{confirmState.title}</h2>
             
             <p class="text-compact">{confirmState.message}</p>
             
             <div class="dialog-section spaced-horizontally">
-                <button class="simple-button"
+                <button class="button-with-text"
                         onclick={() => close(true)} >
-                    <span class="button-text">Ok</span>
+                    <img class="action-icon" alt="confirm" src={confirmIcon} />
+                    <span>Ok</span>
                 </button>
-                <button class="simple-button"
+                <button class="button-with-text"
                         onclick={() => close(false)} >
-                    <span class="button-text">Cancel</span>
+                    <img class="action-icon" alt="cancel" src={cancelIcon} />
+                    <span>Cancel</span>
                 </button>
             </div>
         </div>

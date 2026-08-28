@@ -201,7 +201,8 @@ class Scanner:
             scanned = scan_model_metadata(model_file, rehash)
             return md_file.name, scanned.data, scanned.unreadable, scanned.hash_calculated
 
-        def assemble_set(data: dict, primary_dir: Path, ex_root: Path, where: str) \
+        def assemble_set(data: dict, model_dir: Path, configured_root: Path,
+                         ex_root: Path, where: str, relative_path: str) \
                 -> tuple[dict | None, set[ModelError], ComponentSet]:
             """
             Turn a list of files into a component set.
@@ -210,17 +211,18 @@ class Scanner:
                 flist = data[where]
             else:
                 return None, set(), ComponentSet(where=where,
-                                          primary_dir=primary_dir.as_posix(),
+                                          primary_dir=configured_root.as_posix(),
                                           components=[])
             components = []
             model_names = []
             errors = set()
             for component_type, file_name in flist:
-                components.append(scanned_component(primary_dir / file_name,
+                components.append(scanned_component(model_dir / file_name,
                                                     component_type,
-                                                    self.timestamp))
+                                                    self.timestamp,
+                                                    relative_path))
                 try:
-                    with (primary_dir / file_name).open('rb') as component_file:
+                    with (model_dir / file_name).open('rb') as component_file:
                         component_file.read(1)
                 except OSError:
                     errors.add(ModelError.UNREADABLE)
@@ -228,18 +230,18 @@ class Scanner:
                     model_names.append(file_name)
             if not model_names:
                 return None, set(), ComponentSet(where=where,
-                                          primary_dir=primary_dir.as_posix(),
+                                          primary_dir=configured_root.as_posix(),
                                           components=components)
 
             if len(model_names) > 1:
                 errors.add(ModelError.AMBIGUOUS_STEM)
             model_name = model_names[0]
             try:
-                metadata_filename, metadata, unreadable, hash_calculated = get_metadata(model_name, primary_dir)
+                metadata_filename, metadata, unreadable, hash_calculated = get_metadata(model_name, model_dir)
             except OSError as error:
-                self.report(error=f'unreadable model file {primary_dir / model_name}: {error}')
+                self.report(error=f'unreadable model file {model_dir / model_name}: {error}')
                 return None, {ModelError.UNREADABLE}, ComponentSet(
-                    where=where, primary_dir=primary_dir.as_posix(), components=components)
+                    where=where, primary_dir=configured_root.as_posix(), components=components)
             if unreadable:
                 errors.add(ModelError.UNREADABLE)
             if hash_calculated:
@@ -248,9 +250,10 @@ class Scanner:
                 errors.add(ModelError.METADATA_RENAME)
 
             if not any(c.file_name == metadata_filename for c in components):
-                components.append(scanned_component(primary_dir / metadata_filename,
+                components.append(scanned_component(model_dir / metadata_filename,
                                                     ComponentType.METADATA,
-                                                    self.timestamp))
+                                                    self.timestamp,
+                                                    relative_path))
             sha = metadata['sha256']
             ex_dir = ex_root / sha
             if ex_dir.is_dir():
@@ -268,7 +271,7 @@ class Scanner:
                     except OSError:
                         errors.add(ModelError.UNREADABLE)
             return metadata, errors, ComponentSet(where=where,
-                                        primary_dir=primary_dir.as_posix(),
+                                        primary_dir=configured_root.as_posix(),
                                         examples_dir=ex_dir.as_posix(),
                                         components=components)
 
@@ -309,8 +312,10 @@ class Scanner:
 
             # then assemble the models and save them
             for stem, data in found.items():
-                working_md, working_errors, working_set = assemble_set(data, working_dir, working_examples, 'w')
-                archive_md, archive_errors, archive_set = assemble_set(data, archive_dir, archive_examples, 'a')
+                working_md, working_errors, working_set = assemble_set(
+                    data, working_dir, working_root, working_examples, 'w', relative_path)
+                archive_md, archive_errors, archive_set = assemble_set(
+                    data, archive_dir, archive_root, archive_examples, 'a', relative_path)
                 metadata, err = reconcile_metadata(archive_md, working_md)
                 if err == 'mismatched sha256':
                     for side_metadata, side_errors, present_set, absent_set in (
@@ -331,10 +336,7 @@ class Scanner:
                                            else DeploymentStatus.ARCHIVE),
                             touched=self.timestamp,
                             errors=[error.value for error in ModelError if error in conflict_errors],
-                            component_sets=[present_set, ComponentSet(
-                                where=absent_set.where,
-                                primary_dir=absent_set.primary_dir,
-                                components=[])])
+                            component_sets=[present_set])
                         with repo.lock:
                             repo.save_scanned_model(conflict_model, side_metadata['tags'])
                         self.report(models=1)
@@ -355,7 +357,9 @@ class Scanner:
                               touched=self.timestamp,
                               errors=[error.value for error in ModelError
                                       if error in working_errors | archive_errors],
-                              component_sets = [working_set, archive_set])
+                              component_sets=[component_set for component_set
+                                              in (working_set, archive_set)
+                                              if component_set.components])
 
                 with repo.lock:
                     repo.save_scanned_model(model, metadata['tags'])
@@ -394,8 +398,14 @@ class Scanner:
                     errors.add(WorkflowError.LOCATION_MISMATCH)
 
             selected = working[0] if working else archive[0]
-            grouped_components: dict[tuple[str, Path], list[Component]] = {}
+            canonical_root = {
+                'w': working[0].root if working else None,
+                'a': archive[0].root if archive else None,
+            }
+            grouped_components: dict[str, list[Component]] = {}
             for candidate in candidates:
+                if candidate.root != canonical_root[candidate.where]:
+                    continue
                 relative_parent = candidate.relative_file.parent.as_posix()
                 if relative_parent == '.':
                     relative_parent = ''
@@ -403,12 +413,12 @@ class Scanner:
                                               ComponentType.WORKFLOW,
                                               self.timestamp,
                                               relative_parent)
-                grouped_components.setdefault((candidate.where, candidate.root), []).append(component)
+                grouped_components.setdefault(candidate.where, []).append(component)
             component_sets = [
                 ComponentSet(where=where,
-                             primary_dir=root.as_posix(),
+                             primary_dir=canonical_root[where].as_posix(),
                              components=components)
-                for (where, root), components in grouped_components.items()
+                for where, components in grouped_components.items()
             ]
             deployment = (DeploymentStatus.SYNCED if working and archive else
                           DeploymentStatus.WORKING if working else DeploymentStatus.ARCHIVE)
