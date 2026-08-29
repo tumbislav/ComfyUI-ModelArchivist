@@ -33,12 +33,12 @@ import {
     updateModel,
     syncModel,
     moveModel,
-    waitForOperation,
     type ModelDestination,
     type ModelSearchCriteria
 } from "$lib/models";
 
 import { type ApiResult } from "$lib/api";
+import { statusMonitor } from '$lib/status.svelte';
 
 let {
     multiEditorOpen=$bindable(false)
@@ -208,7 +208,7 @@ async function runModelOperation(destination: ModelDestination | null) {
             return;
         }
 
-        const completed = await waitForOperation(started.data.id);
+        const completed = await statusMonitor.waitForOperation(started.data);
         if (!completed.ok) {
             operation_error = completed.message ?? 'Cannot retrieve model operation';
             return;
@@ -303,6 +303,10 @@ function closeMultiEditor() {
     multiEditorOpen = false;
 }
 
+async function refreshAfterMultiEdit() {
+    await refreshModels();
+}
+
 
 </script>
 
@@ -340,7 +344,9 @@ function closeMultiEditor() {
     </aside>
 {/if}
 {#if multiEditorOpen}
-    <MultiModelEditor onClose={closeMultiEditor} />
+    <MultiModelEditor modelIds={[...selected_ids]}
+                      onClose={closeMultiEditor}
+                      onChanged={refreshAfterMultiEdit} />
 {/if}
 </div>
 

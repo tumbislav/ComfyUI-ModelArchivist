@@ -181,14 +181,6 @@ class Workflow(SQLModel, table=True):
     def read_only(self) -> bool:
         return len(self.errors) > 0
 
-    @property
-    def read_only(self) -> bool:
-        return any(error != ModelError.METADATA_RENAME.value for error in self.errors)
-
-    @property
-    def metadata_update_available(self) -> bool:
-        return ModelError.METADATA_RENAME.value in self.errors
-
     def update_from(self, other) -> None:
         self.file_name = other.file_name
         self.internal_name = other.internal_name
@@ -197,13 +189,12 @@ class Workflow(SQLModel, table=True):
         self.deployment = other.deployment
         self.touched = other.touched
         self.errors = list(other.errors)
-        self.errors = list(other.errors)
-        self.errors = list(other.errors)
 
     def summary(self) -> dict:
         return { 'id': self.id,
                  'file_name': self.file_name,
                  'internal_name': self.internal_name,
+                 'purpose': self.purpose,
                  'deployment': self.deployment,
                  'errors': self.errors,
                  'read_only': self.read_only }

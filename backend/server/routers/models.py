@@ -25,6 +25,15 @@ class ModelSearchCriteria(BaseModel):
     name_prefix: str = ''
 
 
+class ModelIds(BaseModel):
+    ids: list[str]
+
+
+class ModelTagUpdate(ModelIds):
+    add: list[str] = Field(default_factory=list)
+    remove: list[str] = Field(default_factory=list)
+
+
 @router.get('/models')
 async def get_models() -> list[dict]:
     return repo.list_models(True)
@@ -41,6 +50,43 @@ async def get_model(id: str) -> dict | None:
 async def search_models(criteria: ModelSearchCriteria) -> list[dict]:
     models = repo.list_models(True, criteria.model_dump())
     return models
+
+
+@router.post('/models/bulk/tags')
+async def update_model_tags(data: ModelTagUpdate) -> dict:
+    return repo.update_model_tags(data.ids, data.add, data.remove)
+
+
+@router.post('/models/bulk/synchronize')
+async def synchronize_models(data: ModelIds, response: Response,
+                             simulate: bool = True) -> dict:
+    if simulate:
+        return repo.model_batch_operation(data.ids, 'synchronize', True)
+    try:
+        operation = dispatcher.submit(
+            'model_batch_sync',
+            lambda report: repo.model_batch_operation(
+                data.ids, 'synchronize', False, progress=report))
+    except OperationBusyError as error:
+        raise HTTPException(409, str(error))
+    response.status_code = 202
+    return operation
+
+
+@router.post('/models/bulk/move')
+async def move_models(data: ModelIds, destination: DeploymentStatus,
+                      response: Response, simulate: bool = True) -> dict:
+    if simulate:
+        return repo.model_batch_operation(data.ids, 'move', True, destination)
+    try:
+        operation = dispatcher.submit(
+            'model_batch_move',
+            lambda report: repo.model_batch_operation(
+                data.ids, 'move', False, destination, report))
+    except OperationBusyError as error:
+        raise HTTPException(409, str(error))
+    response.status_code = 202
+    return operation
 
 @router.put('/models/{id}')
 async def update_mode(changed_model: dict) -> dict:

@@ -69,6 +69,44 @@ def test_create_collection_with_direct_members(collection_repository):
         assert {tag.tag for tag in collection.tags} == {'favorite'}
 
 
+def test_update_collection_models_adds_and_removes_selected_models(collection_repository):
+    second_id = 'b' * 64
+    with Session(collection_repository) as session:
+        session.add(Model(id=second_id, file_name='second', internal_name='Second',
+                          type='checkpoints', relative_path='', deployment='working',
+                          touched='timestamp'))
+        session.commit()
+    collection = repository.create_collection({
+        'name': 'Models', 'purpose': '', 'models': [MODEL_ID]
+    })
+
+    repository.update_collection_models(collection['id'], [second_id], True)
+    repository.update_collection_models(collection['id'], [MODEL_ID], False)
+
+    with Session(collection_repository) as session:
+        stored = session.get(Collection, collection['id'])
+        assert {model.id for model in stored.models} == {second_id}
+
+
+def test_update_collection_workflows_adds_and_removes_selected_workflows(
+        collection_repository):
+    second_id = '22222222-2222-2222-2222-222222222222'
+    with Session(collection_repository) as session:
+        session.add(Workflow(id=second_id, file_name='second', internal_name='Second',
+                             purpose='', relative_path='', deployment='working',
+                             touched='timestamp'))
+        session.commit()
+    collection = repository.create_collection({
+        'name': 'Workflows', 'purpose': '', 'workflows': [WORKFLOW_ID]})
+
+    repository.update_collection_workflows(collection['id'], [second_id], True)
+    repository.update_collection_workflows(collection['id'], [WORKFLOW_ID], False)
+
+    with Session(collection_repository) as session:
+        stored = session.get(Collection, collection['id'])
+        assert {workflow.id for workflow in stored.workflows} == {second_id}
+
+
 def test_create_collection_rejects_empty_collection(collection_repository):
     with pytest.raises(ArcException) as exc_info:
         repository.create_collection({'name': 'Empty', 'purpose': ''})

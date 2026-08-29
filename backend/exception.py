@@ -15,6 +15,7 @@ class ArcException(Exception):
         DATABASE_UNAVAILABLE = 'Database unavailable'
         INVALID_DATABASE = 'Invalid database'
         INACCESSIBLE_FOLDER = 'Inaccessible folder'
+        INACCESSIBLE_FILE = 'Inaccessible file'
         READ_ONLY = 'Application is read-only'
         MISSING_MODEL_FILE = 'Missing model file'
         INCONSISTENT_FILENAME = 'Model files have different names'

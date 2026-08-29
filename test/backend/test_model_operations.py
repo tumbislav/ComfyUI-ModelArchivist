@@ -256,3 +256,23 @@ def test_move_model_moves_collection_and_updates_database(model_repository):
         model = session.get(Model, MODEL_ID)
         assert model.deployment == 'archive'
         assert [item.where for item in model.component_sets] == ['a']
+
+
+def test_model_batch_operation_preflights_and_executes(model_repository):
+    engine, working, archive = model_repository
+    add_working_model(engine, working)
+    progress = []
+
+    validation = repository.model_batch_operation(
+        [MODEL_ID], 'synchronize', True)
+    result = repository.model_batch_operation(
+        [MODEL_ID], 'synchronize', False, progress=progress.append)
+
+    assert validation['allowed'] is True
+    assert validation['performed'] is False
+    assert result['performed'] is True
+    assert len(result['members']) == 1
+    assert progress[0]['bytes_total'] > 0
+    assert progress[-1]['bytes_completed'] == progress[-1]['bytes_total']
+    assert progress[-1]['files_completed'] == progress[-1]['files_total']
+    assert (archive / 'nested' / 'model.safetensors').exists()

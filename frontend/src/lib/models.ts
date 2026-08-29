@@ -83,19 +83,33 @@ export async function moveModel(model_id: string,
     return await parseResponse(response, identity, 'moveModel');
 }
 
-export async function getOperation(operation_id: string): Promise<ApiResult<Operation>> {
-    const url = getUrl(`/operations/${operation_id}`);
-    const response = await fetch(url);
-    return await parseResponse(response, identity, 'getOperation');
+export async function updateModelTags(ids: string[], add: string[],
+                                      remove: string[]): Promise<ApiResult<Model[]>> {
+    const response = await fetch(getUrl('/models/bulk/tags'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ids, add, remove})
+    });
+    return await parseResponse(response,
+        value => value.models.map(toModel), 'updateModelTags');
 }
 
-export async function waitForOperation(operation_id: string): Promise<ApiResult<Operation>> {
-    while (true) {
-        const envelope = await getOperation(operation_id);
-        if (!envelope.ok || envelope.data.state === 'succeeded' ||
-            envelope.data.state === 'failed') {
-            return envelope;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 250));
-    }
+export async function syncModels(ids: string[]): Promise<ApiResult<Operation>> {
+    const response = await fetch(getUrl('/models/bulk/synchronize?simulate=false'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ids})
+    });
+    return await parseResponse(response, identity, 'syncModels');
+}
+
+export async function moveModels(ids: string[],
+                                 destination: ModelDestination): Promise<ApiResult<Operation>> {
+    const response = await fetch(getUrl(
+        `/models/bulk/move?destination=${destination}&simulate=false`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ids})
+    });
+    return await parseResponse(response, identity, 'moveModels');
 }

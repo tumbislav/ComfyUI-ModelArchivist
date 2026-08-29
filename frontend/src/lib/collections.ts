@@ -102,3 +102,22 @@ export async function removeModelFromCollection(collectionId: string,
     input.models = input.models.filter((id) => id !== modelId);
     return await updateCollection(collectionId, input);
 }
+
+export async function updateCollectionModels(collectionId: string, modelIds: string[],
+                                             add: boolean): Promise<ApiResult<CollectionSummary>> {
+    const response = await fetch(getUrl(`/collections/${collectionId}/models`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({model_ids: modelIds, add})
+    });
+    return await parseResponse(response, identity, 'updateCollectionModels');
+}
+
+export async function updateCollectionWorkflows(collectionId: string, workflowIds: string[],
+                                                add: boolean): Promise<ApiResult<CollectionSummary>> {
+    const response = await fetch(getUrl(`/collections/${collectionId}/workflows`), {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({workflow_ids: workflowIds, add})
+    });
+    return await parseResponse(response, identity, 'updateCollectionWorkflows');
+}

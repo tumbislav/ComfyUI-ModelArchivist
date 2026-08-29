@@ -7,8 +7,14 @@
 from fastapi import APIRouter, HTTPException
 
 from backend.dispatcher import UnknownOperationError, dispatcher
+from backend.repository.repository import repository_counts
 
 router = APIRouter()
+
+
+@router.get('/repository-status')
+async def repository_status() -> dict:
+    return {'counts': repository_counts(), 'operation': dispatcher.current()}
 
 
 @router.get('/operations/{id}')

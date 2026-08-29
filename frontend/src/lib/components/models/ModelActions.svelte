@@ -12,7 +12,7 @@
     import confirmIcon from '$icons/confirm16.png';
     import cancelIcon from '$icons/cancel16.png';
     import resetIcon from '$icons/reset16.png';
-    import modelIcon from '$icons/model24.png';
+    import openIcon from '$icons/open16.png';
 
     import MultiSelect from '$components/controls/MultiSelect.svelte';
     import TagEditor from '$components/controls/TagEditor.svelte';
@@ -128,7 +128,7 @@
                         disabled={selectedCount < 2}
                         onclick={onOpenMulti}
                         aria-label="edit selected models">
-                    <img class="action-icon" alt="edit selected models" src={modelIcon} />
+                    <img class="action-icon" alt="edit selected models" src={openIcon} />
                 </button>
             </div>
             <div class="filter-buttons">
@@ -184,7 +184,7 @@
                         disabled={selectedCount < 2}
                         onclick={onOpenMulti}
                         aria-label="edit selected models">
-                    <img class="action-icon" alt="edit selected models" src={modelIcon} />
+                    <img class="action-icon" alt="edit selected models" src={openIcon} />
                 </button>
             </div>
             <div class="filter-buttons">

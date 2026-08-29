@@ -10,6 +10,7 @@ import {
     parseResponse,
     type ApiResult
 } from "$lib/api";
+import { type Operation } from '$lib/models';
 
 export type ActiveTab = 'models' | 'workflows' | 'collections' | null;
 
@@ -61,7 +62,7 @@ function toScanStatus(json: any): ScanStatus {
     }
 }
 
-export async function startScan(): Promise<ApiResult> {
+export async function startScan(): Promise<ApiResult<Operation>> {
     const url = getUrl('/scan');
     const response = await fetch(url,{
         method: 'POST',

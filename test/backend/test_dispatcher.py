@@ -96,3 +96,42 @@ def test_dispatcher_rejects_unknown_operation(monkeypatch: pytest.MonkeyPatch):
 
     with pytest.raises(UnknownOperationError):
         dispatcher.get('missing')
+
+
+def test_dispatcher_returns_active_operation(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(dispatcher_module, '_get_scanner', lambda: None)
+    dispatcher = OperationDispatcher()
+    release = Event()
+    started = Event()
+
+    def target(report):
+        started.set()
+        release.wait(2)
+        return {'allowed': True}
+
+    submitted = dispatcher.submit('model_move', target)
+    assert started.wait(1)
+    assert dispatcher.current()['id'] == submitted['id']
+    release.set()
+    await_finished(dispatcher, submitted['id'])
+    assert dispatcher.current() is None
+
+
+def test_dispatcher_surfaces_external_scan(monkeypatch: pytest.MonkeyPatch):
+    class ScannerStub:
+        started = True
+        finished = False
+        timestamp = 'scan-id'
+
+        @staticmethod
+        def progress():
+            return {'started': True, 'finished': False, 'models_scanned': 4}
+
+    monkeypatch.setattr(dispatcher_module, '_get_scanner', lambda: ScannerStub())
+    dispatcher = OperationDispatcher()
+
+    operation = dispatcher.current()
+
+    assert operation['id'] == 'scan-id'
+    assert operation['type'] == 'scan'
+    assert operation['progress']['models_scanned'] == 4

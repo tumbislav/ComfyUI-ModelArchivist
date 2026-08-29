@@ -14,7 +14,7 @@ from sqlmodel import Session, create_engine
 import backend.repository.repository as repository
 from backend.repository.migrations import update_database_schema
 from backend.repository.tables import (Component, ComponentSet, ComponentType,
-                                       DeploymentStatus, Workflow)
+                                       DeploymentStatus, Tag, Workflow)
 
 
 @pytest.fixture
@@ -171,3 +171,56 @@ def test_move_workflow_moves_file_and_updates_database(workflow_repository):
         workflow = session.get(Workflow, workflow_id)
         assert workflow.deployment == 'archive'
         assert [item.where for item in workflow.component_sets] == ['a']
+
+
+def test_update_workflow_updates_json_and_renames_file(workflow_repository):
+    engine, working, _archive = workflow_repository
+    workflow_id = add_workflow(engine, working, 'w', '{"id": "value", "config": {}}')
+
+    result = repository.update_workflow({
+        'id': workflow_id, 'file_name': 'renamed', 'internal_name': 'New name',
+        'purpose': 'Several\nlines', 'tags': ['updated']})
+
+    updated_file = working / 'nested' / 'renamed.json'
+    assert result['file_name'] == 'renamed'
+    assert not (working / 'nested' / 'workflow.json').exists()
+    data = __import__('json').loads(updated_file.read_text(encoding='utf-8'))
+    assert data['config'] == {
+        'name': 'New name', 'purpose': 'Several\nlines', 'tags': ['updated']}
+    with Session(engine) as session:
+        workflow = session.get(Workflow, workflow_id)
+        assert workflow.internal_name == 'New name'
+        assert [tag.tag for tag in workflow.tags] == ['updated']
+
+
+def test_list_workflows_filters_name_and_tags(workflow_repository):
+    engine, working, _archive = workflow_repository
+    first_id = add_workflow(engine, working, 'w', '{}')
+    second_root = working / 'second'
+    second_root.mkdir()
+    second_id = add_workflow(engine, second_root, 'w', '{}')
+    with Session(engine) as session:
+        first = session.get(Workflow, first_id)
+        first.internal_name = 'Alpha workflow'
+        first.tags = [Tag(tag='wanted')]
+        second = session.get(Workflow, second_id)
+        second.internal_name = 'Beta workflow'
+        session.add(first)
+        session.add(second)
+        session.commit()
+
+    result = repository.list_workflows(True, {
+        'name_prefix': 'alpha', 'required_tags': ['wanted'], 'forbidden_tags': []})
+
+    assert [workflow['id'] for workflow in result] == [first_id]
+
+
+def test_workflow_batch_operation_preflights_and_executes(workflow_repository):
+    _engine, working, archive = workflow_repository
+    workflow_id = add_workflow(_engine, working, 'w', '{}')
+
+    result = repository.workflow_batch_operation([workflow_id], 'synchronize', False)
+
+    assert result['allowed'] is True
+    assert result['performed'] is True
+    assert (archive / 'nested' / 'workflow.json').exists()

@@ -47,3 +47,24 @@ th, td {
 .main-table tr[aria-selected=true] {
     font-style: italic;
 }
+
+.workflow-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+.workflow-table .workflow-purpose {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.workflow-table th:nth-child(2),
+.workflow-table td:nth-child(2) {
+    width: 25%;
+}
+
+.workflow-table th:nth-child(3),
+.workflow-table td:nth-child(3) {
+    width: 50%;
+}

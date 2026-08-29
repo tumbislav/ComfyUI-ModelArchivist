@@ -6,11 +6,22 @@
 
 import backend.repository.repository as repo
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from backend.exception import ArcException
 from backend.repository.tables import DeploymentStatus
 
 router = APIRouter()
+
+
+class CollectionModelUpdate(BaseModel):
+    model_ids: list[str]
+    add: bool
+
+
+class CollectionWorkflowUpdate(BaseModel):
+    workflow_ids: list[str]
+    add: bool
 
 @router.get('/collections')
 async def get_collections() -> list[dict]:
@@ -53,6 +64,34 @@ async def update_collection(id: str, data: dict) -> dict:
             raise HTTPException(404, error.message)
         if error.code in (ArcException.Code.DUPLICATE_COLLECTION_MEMBER,
                           ArcException.Code.COLLECTION_CYCLE):
+            raise HTTPException(409, error.message)
+        raise HTTPException(400, error.message)
+
+
+@router.post('/collections/{id}/models')
+async def update_collection_models(id: str, data: CollectionModelUpdate) -> dict:
+    try:
+        return repo.update_collection_models(id, data.model_ids, data.add)
+    except ArcException as error:
+        if error.code in (ArcException.Code.UNKNOWN_MODEL,
+                          ArcException.Code.UNKNOWN_COLLECTION):
+            raise HTTPException(404, error.message)
+        if error.code in (ArcException.Code.EMPTY_COLLECTION,
+                          ArcException.Code.DUPLICATE_COLLECTION_MEMBER):
+            raise HTTPException(409, error.message)
+        raise HTTPException(400, error.message)
+
+
+@router.post('/collections/{id}/workflows')
+async def update_collection_workflows(id: str, data: CollectionWorkflowUpdate) -> dict:
+    try:
+        return repo.update_collection_workflows(id, data.workflow_ids, data.add)
+    except ArcException as error:
+        if error.code in (ArcException.Code.UNKNOWN_WORKFLOW,
+                          ArcException.Code.UNKNOWN_COLLECTION):
+            raise HTTPException(404, error.message)
+        if error.code in (ArcException.Code.EMPTY_COLLECTION,
+                          ArcException.Code.DUPLICATE_COLLECTION_MEMBER):
             raise HTTPException(409, error.message)
         raise HTTPException(400, error.message)
 

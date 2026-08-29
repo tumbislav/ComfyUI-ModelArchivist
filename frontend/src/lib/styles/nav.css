@@ -6,7 +6,7 @@
  
  /* Containers
   * ----------------------------------------------- */
- .header {
+.header {
     width: 100%;
     height: 100%;
     margin: 0 auto;
@@ -22,18 +22,27 @@
     gap: var(--gap-mid);
     flex-shrink: 0;
     flex-direction: row;
+    align-items: center;
     padding: 0 var(--gap-large);
 }
 
+.option-set {
+    display: flex;
+    gap: var(--gap-mid);
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+    padding: 0 var(--gap-large);
+}
 
-/* App title and image 
+/* App title and image
  * ----------------------------------------------- */
 .app-title {
     display: flex;
     align-items: center;
     flex-shrink: 0;
     gap: var(--gap-small);
-    padding: 0 var(--gap-large);
+    padding: 0 var(--gap-mid);
 }
 
 .app-title span {
@@ -72,4 +81,77 @@
         filter 300ms ease,
         width 500ms ease 1500ms,
         height 500ms ease 1500ms;
+}
+
+/* Status box
+ * ----------------------------------------------- */
+
+.status-box {
+    display: flex;
+    gap: 0;
+    flex-shrink: 0;
+    flex-direction: column;
+    width: 10rem;
+    height: var(--nav-button-size);
+    padding: 0;
+    border: var(--solid-border);
+}
+
+.status-summary {
+    flex: 0 0 0;
+}
+
+.summary-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: var(--medium-font-size);
+}
+
+.summary-table td:nth-child(odd) {
+    background-color: var(--bg-accent);
+}
+
+.summary-table td {
+    padding: var(--gap-tiny);
+    text-align: center;
+    font-size: var(--small-font-size);
+}
+
+.progress-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 0 1rem;
+    font-size: var(--small-font-size);
+    font-weight: 700;
+    text-align: center;
+    border-top: var(--solid-border);
+}
+
+.progress-bar progress {
+    width: 100%;
+    height: 100%;
+    accent-color: var(--bg-accent);
+}
+
+.progress-label {
+    position: absolute;
+}
+
+.status-blinker {
+    width: 0.45rem;
+    height: 0.45rem;
+    margin-left: var(--gap-small);
+    border-radius: 50%;
+    background: var(--bg-accent);
+    animation: status-blink 1s steps(2, start) infinite;
+}
+
+@keyframes status-blink {
+    50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .status-blinker { animation: none; }
 }

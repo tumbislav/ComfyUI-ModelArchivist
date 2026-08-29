@@ -120,7 +120,10 @@ export type WorkflowSummary = {
     id: string;
     internal_name: string;
     file_name: string;
+    purpose: string;
     deployment: string;
+    errors: string[];
+    read_only: boolean;
 }
 
 export type Workflow = {
@@ -128,7 +131,7 @@ export type Workflow = {
     file_name: string;
     internal_name: string;
     purpose: string;
-    relative_path: str;
+    relative_path: string;
     working_path: string | null;
     archive_path: string | null;
     deployment: string;
@@ -137,12 +140,15 @@ export type Workflow = {
     archive_set?: ComponentSet;
     tags: string[];
     collections: CollectionSummary[];
+    errors: string[];
+    read_only: boolean;
 }
 
 export function toWorkflow(json: any): Workflow {
     return {
         id: json.id,
-        internal_name: json.name,
+        file_name: json.file_name,
+        internal_name: json.internal_name,
         purpose: json.purpose,
         relative_path: json.relative_path,
         working_path: json.working_path,
@@ -152,8 +158,22 @@ export function toWorkflow(json: any): Workflow {
         tags: json.tags,
         working_set: json.working_set ? toComponentSet(json.working_set) : undefined,
         archive_set: json.archive_set ? toComponentSet(json.archive_set) : undefined,
-        collections: json.collections
+        collections: json.collections,
+        errors: json.errors ?? [],
+        read_only: json.read_only ?? false
     }
+}
+
+export function toWorkflowSummary(workflow: any): WorkflowSummary {
+    return {
+        id: workflow.id,
+        file_name: workflow.file_name,
+        internal_name: workflow.internal_name,
+        purpose: workflow.purpose,
+        deployment: workflow.deployment,
+        errors: workflow.errors ?? [],
+        read_only: workflow.read_only ?? false
+    };
 }
 
 /* Collections

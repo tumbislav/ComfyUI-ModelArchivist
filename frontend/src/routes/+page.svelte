@@ -17,7 +17,7 @@ import { getServerStatus, type ActiveTab } from "$lib/admin";
 
 let current_tab = $state<ActiveTab>( null );
 let server_ready = $state( false );
-let models_modal_open = $state(false);
+let content_modal_open = $state(false);
 
 onMount(() => {
     async function checkStatus() {
@@ -42,16 +42,16 @@ onMount(() => {
 </script>
 
 <heading class="page-header">
-    <ArchivistHeader bind:current_tab navigationLocked={models_modal_open}/>
+    <ArchivistHeader bind:current_tab navigationLocked={content_modal_open}/>
 </heading>
 
 <div class="page-contents">
     {#if !server_ready}
         <WaitingForStart />
     {:else if current_tab === 'models'}
-        <ModelContents bind:multiEditorOpen={models_modal_open}/>
+        <ModelContents bind:multiEditorOpen={content_modal_open}/>
     {:else if current_tab === 'workflows'}
-        <WorkflowContents/>
+        <WorkflowContents bind:multiEditorOpen={content_modal_open}/>
     {:else if current_tab === 'collections'}
         <CollectionContents/>
     {/if}

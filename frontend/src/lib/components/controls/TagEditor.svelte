@@ -14,13 +14,15 @@
         onChanged,
         disabled,
         title,
-        editable
+        editable,
+        availableTags
     }: {
         tags: string[];
         onChanged: (t: string[]) => void;
         disabled: boolean;
         title?: string;
         editable: boolean;
+        availableTags?: string[];
     } = $props();
     
     let draft_tags = $state<string[]>([]);
@@ -41,7 +43,7 @@
         
         if (!q) return [];
         
-        return global_tags.all_tags
+        return (availableTags ?? global_tags.all_tags)
             .filter(tag => tag.toLowerCase().startsWith(q))
             .filter(tag => !normalizedDraft.has(tag.toLowerCase()));
     });

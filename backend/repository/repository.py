@@ -14,6 +14,7 @@ from pathlib import Path
 from sqlmodel import Session, create_engine, select, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.engine.base import Engine
+from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 from backend.repository.tables import (Model, Workflow, Collection, Component, ComponentSet,
                                        ComponentType, Tag, PrimaryObjectType, DeploymentStatus,
@@ -24,6 +25,7 @@ from backend.config import Configuration, get_config
 from backend.files.scanner import get_scanner, create_scanner
 from backend.repository.migrations import update_database_schema
 import backend.files.model_files as model_files
+import backend.files.workflow_files as workflow_files
 from backend.files.operations import (FileAction, FileSnapshot, OperationIssue, OperationPlan,
                                       action_transfer_size, atomic_copy, execute_file_action)
 
@@ -126,6 +128,18 @@ def repo_status():
         status_dict['scanning'] = scan_progress['started'] and not scan_progress['finished']
         status_dict['ready'] = not status_dict['scanning']
     return status_dict
+
+
+def repository_counts() -> dict[str, int]:
+    """Return counts of the logical objects displayed by the application."""
+    if not _repo_started:
+        return {'models': 0, 'workflows': 0, 'collections': 0}
+    with Session(_engine) as session:
+        return {
+            'models': session.exec(select(func.count()).select_from(Model)).one(),
+            'workflows': session.exec(select(func.count()).select_from(Workflow)).one(),
+            'collections': session.exec(select(func.count()).select_from(Collection)).one(),
+        }
 
 #-----------------------------------------------------------------------------------
 #
@@ -270,6 +284,112 @@ def update_model(updates: dict) -> dict:
         session.commit()
         working_path, archive_path = _model_paths(model)
         return model.representation(_config.model_types, working_path, archive_path)
+
+
+def update_model_tags(ids: list[str], add: list[str], remove: list[str]) -> dict:
+    """Apply tag additions and removals to several models."""
+    if _config.read_only:
+        raise ArcException(ArcException.Code.READ_ONLY, 'Model updates are disabled')
+    results = []
+    removed = set(remove)
+    for model_id in dict.fromkeys(ids):
+        current = get_model(model_id)
+        tags = [tag for tag in current['tags'] if tag not in removed]
+        tags.extend(tag for tag in add if tag not in tags)
+        changed = dict(current)
+        changed['tags'] = tags
+        results.append(update_model(changed))
+    return {'models': results}
+
+
+def model_batch_operation(ids: list[str], operation: str, simulate: bool = True,
+                          destination: DeploymentStatus | None = None,
+                          progress: Callable[[dict], None] | None = None) -> dict:
+    """Validate and execute one filesystem operation for several models."""
+    model_ids = list(dict.fromkeys(ids))
+
+    def run(model_id: str, member_simulate: bool,
+            member_progress: Callable[[dict], None] | None = None) -> dict:
+        if operation == 'synchronize':
+            return synchronize_model(model_id, member_simulate, member_progress)
+        return move_model(model_id, destination, member_simulate, member_progress)
+
+    validations = [run(model_id, True) for model_id in model_ids]
+    rejected = [result for result in validations if not result['allowed']]
+    output = {
+        'operation': operation,
+        'object_type': 'model_batch',
+        'object_id': 'batch',
+        'simulate': simulate,
+        'allowed': not rejected,
+        'performed': False,
+        'errors': [],
+        'warnings': [],
+        'actions': [action for result in validations for action in result['actions']],
+        'members': validations,
+    }
+    if rejected:
+        output['errors'] = [
+            {'code': 'member_validation_failed',
+             'message': f'{result["object_id"]}: {result["errors"]}'}
+            for result in rejected
+        ]
+        return output
+    if simulate:
+        return output
+
+    results = []
+    total = len(model_ids)
+    member_bytes = [sum(action_transfer_size(FileAction(
+        action=action['action'], source=action['source'], destination=action['destination'],
+        source_before=(FileSnapshot(**action['source_before'])
+                       if action['source_before'] is not None else None),
+        destination_before=FileSnapshot(**action['destination_before'])))
+        for action in validation['actions']) for validation in validations]
+    member_files = [len(validation['actions']) for validation in validations]
+    bytes_total = sum(member_bytes)
+    files_total = sum(member_files)
+    bytes_before = 0
+    files_before = 0
+    if progress is not None:
+        progress({'phase': 'executing', 'models_total': total, 'models_completed': 0,
+                  'files_total': files_total, 'files_completed': 0,
+                  'bytes_total': bytes_total, 'bytes_completed': 0})
+    for index, model_id in enumerate(model_ids):
+        def report_member(value: dict, completed=index) -> None:
+            if progress is not None:
+                progress({'phase': value.get('phase', 'executing'),
+                          'models_total': total,
+                          'models_completed': completed,
+                          'current_model': model_id,
+                          'files_total': files_total,
+                          'files_completed': files_before + value.get('files_completed', 0),
+                          'bytes_total': bytes_total,
+                          'bytes_completed': bytes_before + value.get('bytes_completed', 0),
+                          'current': value})
+        result = run(model_id, False, report_member)
+        results.append(result)
+        if not result['allowed'] or not result['performed']:
+            break
+        if progress is not None:
+            progress({'phase': 'executing', 'models_total': total,
+                      'models_completed': index + 1, 'current_model': model_id,
+                      'files_total': files_total,
+                      'files_completed': files_before + member_files[index],
+                      'bytes_total': bytes_total,
+                      'bytes_completed': bytes_before + member_bytes[index]})
+        bytes_before += member_bytes[index]
+        files_before += member_files[index]
+    output['members'] = results
+    output['performed'] = len(results) == total and all(
+        result['allowed'] and result['performed'] for result in results)
+    if not output['performed']:
+        output['allowed'] = False
+        output['errors'].append({
+            'code': 'member_execution_failed',
+            'message': f'{len(results)} of {total} models were attempted',
+        })
+    return output
 
 def deploy_model(id: str, deployment: DeploymentStatus) -> Model:
     """
@@ -687,9 +807,21 @@ def move_model(id: str, destination: DeploymentStatus,
 def list_workflows(ordered: bool, search_criteria: dict | None = None) -> list[dict]:
     with Session(_engine) as session:
         if ordered:
-            statement = select(Workflow).order_by(Workflow.purpose, Workflow.internal_name)
+            statement = select(Workflow).order_by(Workflow.internal_name)
         else:
             statement = select(Workflow).order_by(Workflow.internal_name)
+        criteria = search_criteria or {}
+        for tag in criteria.get('required_tags', []):
+            statement = statement.where(Workflow.tags.any(Tag.tag == tag))
+        for tag in criteria.get('forbidden_tags', []):
+            statement = statement.where(~Workflow.tags.any(Tag.tag == tag))
+        name_prefix = criteria.get('name_prefix', '')
+        if name_prefix:
+            escaped_prefix = (name_prefix.replace('\\', '\\\\')
+                                          .replace('%', '\\%')
+                                          .replace('_', '\\_'))
+            statement = statement.where(
+                Workflow.internal_name.ilike(f'{escaped_prefix}%', escape='\\'))
         return [workflow.summary() for workflow in session.exec(statement).all()]
 
 
@@ -702,6 +834,79 @@ def get_workflow(id: str) -> dict:
             raise ArcException(ArcException.Code.UNKNOWN_WORKFLOW, msg)
         working_path, archive_path = _workflow_paths(workflow)
         return workflow.representation(working_path, archive_path)
+
+
+def update_workflow(updates: dict) -> dict:
+    """Update workflow metadata in the database and deployed JSON files."""
+    if _config.read_only:
+        raise ArcException(ArcException.Code.READ_ONLY, 'Workflow updates are disabled')
+    with Session(_engine) as session:
+        workflow = session.get(Workflow, updates['id'])
+        if workflow is None:
+            raise ArcException(ArcException.Code.UNKNOWN_WORKFLOW, updates['id'])
+        if workflow.read_only:
+            raise ArcException(ArcException.Code.READ_ONLY, 'Workflow is read-only')
+        try:
+            workflow_files.update_workflow(
+                workflow, updates['file_name'], updates['internal_name'],
+                updates.get('purpose', ''), updates.get('tags', []))
+        except (OSError, UnicodeError, ValueError, TypeError) as error:
+            raise ArcException(ArcException.Code.INACCESSIBLE_FILE, str(error)) from error
+        workflow.file_name = updates['file_name']
+        workflow.internal_name = updates['internal_name']
+        workflow.purpose = updates.get('purpose', '')
+        workflow.tags = resolve_tags(session, updates.get('tags', []))
+        workflow.touched = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
+        session.add(workflow)
+        session.commit()
+        working_path, archive_path = _workflow_paths(workflow)
+        return workflow.representation(working_path, archive_path)
+
+
+def update_workflow_tags(ids: list[str], add: list[str], remove: list[str]) -> dict:
+    """Apply tag additions and removals to several workflows."""
+    results = []
+    removed = set(remove)
+    for workflow_id in dict.fromkeys(ids):
+        current = get_workflow(workflow_id)
+        tags = [tag for tag in current['tags'] if tag not in removed]
+        tags.extend(tag for tag in add if tag not in tags)
+        results.append(update_workflow({**current, 'tags': tags}))
+    return {'workflows': results}
+
+
+def workflow_batch_operation(ids: list[str], operation: str, simulate: bool = True,
+                             destination: DeploymentStatus | None = None) -> dict:
+    """Preflight and synchronously execute an operation for several workflows."""
+    workflow_ids = list(dict.fromkeys(ids))
+
+    def run(workflow_id: str, member_simulate: bool) -> dict:
+        if operation == 'synchronize':
+            return synchronize_workflow(workflow_id, member_simulate)
+        return move_workflow(workflow_id, destination, member_simulate)
+
+    validations = [run(workflow_id, True) for workflow_id in workflow_ids]
+    rejected = [result for result in validations if not result['allowed']]
+    output = {'operation': operation, 'object_type': 'workflow_batch',
+              'object_id': 'batch', 'simulate': simulate, 'allowed': not rejected,
+              'performed': False, 'errors': [], 'warnings': [],
+              'actions': [action for result in validations for action in result['actions']],
+              'members': validations}
+    if rejected:
+        output['errors'] = [{'code': 'member_validation_failed',
+                             'message': f'{result["object_id"]}: {result["errors"]}'}
+                            for result in rejected]
+        return output
+    if simulate:
+        return output
+    results = [run(workflow_id, False) for workflow_id in workflow_ids]
+    output['members'] = results
+    output['performed'] = all(result['allowed'] and result['performed'] for result in results)
+    output['allowed'] = output['performed']
+    if not output['performed']:
+        output['errors'].append({'code': 'member_execution_failed',
+                                 'message': 'A workflow operation failed'})
+    return output
 
 
 def synchronize_workflow(id: str, simulate: bool = True) -> dict:
@@ -1233,6 +1438,40 @@ def update_collection(id: str, data: dict) -> dict:
         session.commit()
         session.refresh(collection)
         return collection.summary()
+
+
+def update_collection_models(id: str, model_ids: list[str], add: bool) -> dict:
+    """Add or remove direct model memberships in one validated update."""
+    current = get_collection(id)
+    selected = set(model_ids)
+    existing = [model['id'] for model in current['models']]
+    models = (existing + [model_id for model_id in model_ids if model_id not in existing]
+              if add else [model_id for model_id in existing if model_id not in selected])
+    return update_collection(id, {
+        'id': id,
+        'name': current['name'],
+        'purpose': current['purpose'],
+        'tags': current['tags'],
+        'models': models,
+        'workflows': [workflow['id'] for workflow in current['workflows']],
+        'children': [child['id'] for child in current['children']],
+    })
+
+
+def update_collection_workflows(id: str, workflow_ids: list[str], add: bool) -> dict:
+    """Add or remove direct workflow memberships in one validated update."""
+    current = get_collection(id)
+    selected = set(workflow_ids)
+    existing = [workflow['id'] for workflow in current['workflows']]
+    workflows = (existing + [item for item in workflow_ids if item not in existing]
+                 if add else [item for item in existing if item not in selected])
+    return update_collection(id, {
+        'id': id, 'name': current['name'], 'purpose': current['purpose'],
+        'tags': current['tags'],
+        'models': [model['id'] for model in current['models']],
+        'workflows': workflows,
+        'children': [child['id'] for child in current['children']],
+    })
 
 
 def delete_collection(id: str) -> dict:

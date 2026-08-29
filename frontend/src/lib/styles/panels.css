@@ -95,10 +95,14 @@ body {
     box-sizing: border-box;
     background: color-mix(in srgb, var(--bg-color) 65%, transparent);
     backdrop-filter: blur(2px);
+    display: flex;
+    justify-content: flex-end;
 }
 
 .multi-model-editor {
-    width: 100%;
+    width: var(--max-width-right);
+    min-width: var(--min-width-right);
+    max-width: var(--max-width-right);
     height: 100%;
     box-sizing: border-box;
     padding: var(--gap-mid);
@@ -107,4 +111,22 @@ body {
     border: var(--solid-border);
     border-radius: var(--radius-mid);
     box-shadow: var(--shadow-right);
+}
+
+.multi-model-list {
+    max-height: 10rem;
+    overflow-y: auto;
+}
+
+.multi-model-list p {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: clip;
+    white-space: nowrap;
+}
+
+.multi-model-deployment-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--gap-small);
 }

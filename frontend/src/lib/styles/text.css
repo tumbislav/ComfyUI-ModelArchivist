@@ -137,6 +137,10 @@ p.labeled :first-child {
     font-size: var(--medium-font-size);
 }
 
+.text-small {
+    font-size: var(--small-font-size);
+}
+
 /* To be reviewed
  * ----------------------------------------------- */
 

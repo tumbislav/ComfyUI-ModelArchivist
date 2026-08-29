@@ -68,6 +68,33 @@ class OperationDispatcher:
                 raise UnknownOperationError(operation_id)
             return deepcopy(operation)
 
+    def active(self) -> dict | None:
+        """Return the active dispatched operation, if there is one."""
+        with self._lock:
+            if self._active_id is None:
+                return None
+            return deepcopy(self._operations[self._active_id])
+
+    def current(self) -> dict | None:
+        """Return the active LRO, including scans started outside the dispatcher."""
+        operation = self.active()
+        if operation is not None:
+            return operation
+        scanner = _get_scanner()
+        if scanner is None or not scanner.started or scanner.finished:
+            return None
+        return {
+            'id': scanner.timestamp,
+            'type': 'scan',
+            'state': 'running',
+            'submitted_at': scanner.timestamp,
+            'started_at': scanner.timestamp,
+            'finished_at': None,
+            'progress': scanner.progress(),
+            'result': None,
+            'error': None,
+        }
+
     def _run(self, operation_id: str, target: OperationTarget) -> None:
         with self._lock:
             operation = self._operations[operation_id]

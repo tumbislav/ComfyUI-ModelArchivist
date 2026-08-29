@@ -10,6 +10,8 @@ import workflowIcon from '$icons/workflow24.png';
 import collectionIcon from '$icons/collection24.png';
 import settingsIcon from '$icons/settings24.png';
 import lightDarkModeIcon from '$icons/light-dark-mode24.png';
+import { onMount } from 'svelte';
+import { statusMonitor } from '$lib/status.svelte';
 
 import { type ActiveTab } from '$lib/admin';
 let {
@@ -22,6 +24,15 @@ let {
 import logo_pic from '$lib/assets/icons/archivist.png';
 
 let theme = $state<'light' | 'dark'>('light');
+let progress = $derived(statusMonitor.operation?.progress ?? null);
+let bytesTotal = $derived(typeof progress?.bytes_total === 'number'
+    ? progress.bytes_total : 0);
+let bytesCompleted = $derived(typeof progress?.bytes_completed === 'number'
+    ? progress.bytes_completed : 0);
+let percent = $derived(bytesTotal > 0
+    ? Math.min(100, Math.round(bytesCompleted * 100 / bytesTotal)) : 0);
+
+onMount(() => statusMonitor.start());
 
 $effect(() => {
     document.documentElement.dataset.theme = theme;
@@ -60,8 +71,30 @@ $effect(() => {
             <img class="action-icon" alt="collections" src={collectionIcon} /><span>Collections</span>
         </button>
     </div>
-    
-    <div class="nav-set">
+
+    <div class="option-set">
+        <div class="status-box">
+            <div class="status-summary">
+                <table class="summary-table">
+                    <tbody>
+                        <tr>
+                            <td title="Models">{statusMonitor.counts.models}</td>
+                            <td title="Workflows">{statusMonitor.counts.workflows}</td>
+                            <td title="Reserved">0</td>
+                            <td title="Collections">{statusMonitor.counts.collections}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="progress-bar">
+                {#if statusMonitor.operation?.type === 'scan'}
+                    <span>Scanning</span><span class="status-blinker" aria-hidden="true"></span>
+                {:else if statusMonitor.operation && bytesTotal > 0}
+                    <progress max="100" value={percent} aria-label={`${percent}% complete`}></progress>
+                    <span class="progress-label">{percent}%</span>
+                {/if}
+            </div>
+        </div>
         <button class="nav-option" aria-label="options">
             <img class="action-icon" alt="options" src={settingsIcon} />
         </button>
