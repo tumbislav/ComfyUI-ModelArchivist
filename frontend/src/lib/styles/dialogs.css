@@ -51,6 +51,118 @@
     box-shadow: var(--shadow-right);
 }
 
+.settings-dialog {
+    box-sizing: border-box;
+    top: var(--gap-medium);
+    width: min(70rem, calc(100vw - 2 * var(--gap-medium)));
+    height: calc(100vh - 2 * var(--gap-medium));
+    display: flex;
+    flex-direction: column;
+}
+
+.settings-dialog > header h2 {
+    margin-top: 0;
+}
+
+.settings-layout {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 13rem minmax(0, 1fr);
+    flex: 1;
+    gap: var(--gap-mid);
+}
+
+.settings-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-tiny);
+    border-right: var(--solid-border);
+    padding-right: var(--gap-mid);
+}
+
+.settings-tabs button {
+    min-height: var(--button-height);
+    justify-content: flex-start;
+    padding: var(--gap-small);
+    border-radius: var(--radius-small);
+}
+
+.settings-tabs button.active {
+    background: var(--bg-accent);
+}
+
+.settings-content {
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: var(--gap-small);
+}
+
+.settings-heading,
+.settings-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-small);
+}
+
+.settings-content details {
+    margin-bottom: var(--gap-small);
+    border: var(--solid-border);
+    border-radius: var(--radius-small);
+    background: var(--bg-color);
+}
+
+.settings-content summary {
+    cursor: pointer;
+    padding: var(--gap-small);
+    font-weight: 600;
+}
+
+.settings-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--gap-small) var(--gap-mid);
+    padding: var(--gap-small);
+}
+
+.settings-form label:not(.checkbox-label) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-tiny);
+}
+
+.settings-form textarea {
+    min-height: 4rem;
+    resize: vertical;
+}
+
+.settings-form .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-small);
+}
+
+.settings-actions {
+    justify-content: flex-end;
+    margin-top: var(--gap-mid);
+}
+
+.nested-settings-guard {
+    z-index: calc(var(--z-modal) + 1);
+    background: rgb(0 0 0 / 15%);
+}
+
+.settings-guard {
+    min-width: 24rem;
+}
+
+@media (max-width: 700px) {
+    .settings-layout { grid-template-columns: 1fr; }
+    .settings-tabs { flex-flow: row wrap; border-right: 0; border-bottom: var(--solid-border); }
+    .settings-form { grid-template-columns: 1fr; }
+}
+
 /* Collection membership dialogs
  * ------------------------------------------------*/
 

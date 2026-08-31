@@ -176,6 +176,37 @@ export function toWorkflowSummary(workflow: any): WorkflowSummary {
     };
 }
 
+/* User-defined objects
+ * ---------------------------------------------------------------------------*/
+
+export type UserDefinedType = {
+    id: string;
+    name: string;
+    short_name: string;
+    object_class: 'file' | 'folder';
+    extensions: string[];
+    icon: string;
+    purpose: string;
+    size_limit: number;
+    small: boolean;
+    object_count: number;
+    working_dir?: string;
+    archive_dir?: string;
+}
+
+export type UserObjectSummary = {
+    id: string;
+    type_id: string;
+    relative_path: string;
+    display_name: string;
+    purpose: string;
+    deployment: string;
+    size: number;
+    modified_at_ns: number;
+    errors: string[];
+    read_only: boolean;
+}
+
 /* Collections
  * ---------------------------------------------------------------------------*/
 
@@ -193,6 +224,7 @@ export type Collection = {
     tags: string[];
     models: ModelSummary[];
     workflows: WorkflowSummary[];
+    user_objects: UserObjectSummary[];
     parents: CollectionSummary[];
     children: CollectionSummary[];
 }
@@ -204,6 +236,7 @@ export type Tag = {
     tag: string;
     models: ModelSummary[];
     workflows: WorkflowSummary[];
+    user_objects: UserObjectSummary[];
     collections: CollectionSummary[];
 }
 

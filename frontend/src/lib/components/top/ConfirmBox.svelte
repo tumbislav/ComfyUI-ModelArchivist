@@ -5,8 +5,8 @@
  ! -------------------------------------------------->
 
 <script lang="ts">
-    import confirmIcon from '$icons/confirm16.png';
-    import cancelIcon from '$icons/cancel16.png';
+    import confirmIcon from '$icons/actions/confirm16.png';
+    import cancelIcon from '$icons/actions/cancel16.png';
     import { confirmState } from '$lib/confirm.svelte';
     
     function close(result: boolean) {

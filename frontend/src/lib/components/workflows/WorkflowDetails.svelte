@@ -8,10 +8,10 @@
 import FileSet from '$components/controls/FileSet.svelte';
 import TagEditor from '$components/controls/TagEditor.svelte';
 import WorkflowCollectionEditor from '$components/workflows/WorkflowCollectionEditor.svelte';
-import moveDownIcon from '$icons/move-down16.png';
-import moveUpIcon from '$icons/move-up16.png';
-import syncIcon from '$icons/move-up-down16.png';
-import saveIcon from '$icons/save16.png';
+import moveDownIcon from '$icons/actions/move-down16.png';
+import moveUpIcon from '$icons/actions/move-up16.png';
+import syncIcon from '$icons/actions/move-up-down16.png';
+import saveIcon from '$icons/actions/save16.png';
 import { shortDate } from '$lib/common';
 import { type ComponentSet, type Workflow } from '$lib/objects';
 let { workflow=$bindable(), changed, saving, operating, operationError, onSave, onClose,

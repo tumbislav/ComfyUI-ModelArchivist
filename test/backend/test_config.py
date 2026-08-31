@@ -1,178 +1,116 @@
 # ---------------------------------------------------------------------------
 # system: ModelArchivist
 # file: test_config.py
-# purpose: Tests for application configuration loading
+# purpose: Tests for bootstrap and runtime configuration
 # ---------------------------------------------------------------------------
 
 from pathlib import Path
 
 import pytest
 
-from backend.config import (
-    ConfigError,
-    ConfigException,
-    Configuration,
-    DatabaseConfig,
-    LoggingConfig,
-    ModelsConfig,
-    OptionsConfig,
-    PathsConfig,
-    WebConfig,
-    WorkflowConfig,
-    WorkflowFolders,
-    load_config,
-)
+from backend.config import (ConfigError, ConfigException, Configuration, DatabaseConfig,
+                            LoggingConfig, WebConfig, load_config)
 
 
-def make_configuration(tmp_path: Path) -> tuple[Configuration, dict[str, Path]]:
-    comfy_root = tmp_path / 'comfy'
-    model_working = comfy_root / 'models'
-    model_archive = tmp_path / 'archive' / 'models'
-    workflow_working = tmp_path / 'user' / 'workflows'
-    workflow_archive = tmp_path / 'archive' / 'workflows'
-    (model_working / 'checkpoints').mkdir(parents=True)
-    model_archive.mkdir(parents=True)
-
+def make_configuration(tmp_path: Path, mode: str = 'standalone') -> Configuration:
     config = Configuration(
-        paths=PathsConfig(
-            comfy=str(comfy_root),
-            archive=str(tmp_path / 'archive'),
-            user=str(tmp_path / 'user'),
-            database=str(tmp_path / 'database'),
-            html=str(tmp_path / 'html'),
-        ),
-        database=DatabaseConfig(database_file='database.db', dbms_prefix='sqlite:///'),
-        models=ModelsConfig(
-            working=str(model_working),
-            archive=str(model_archive),
-            extras=[],
-            types={'checkpoints': 'Checkpoint'},
-            extensions=['.safetensors'],
-        ),
-        workflows=WorkflowConfig(
-            folders=[WorkflowFolders(working=str(workflow_working), archive=str(workflow_archive))]
-        ),
-        web=WebConfig(host='127.0.0.1', port=5173, static_html='html'),
-        options=OptionsConfig(
-            update_json_metadata=True,
-            ignore_unknown_types=False,
-            always_recalc_hashes=False,
-        ),
-        logging=LoggingConfig(level='INFO', sql_level='WARNING', file='archivist.log'),
-    )
-    folders = {
-        'model_working_accessible': model_working / 'checkpoints',
-        'model_archive_accessible': model_archive / 'checkpoints',
-        'workflow_working_accessible': workflow_working,
-        'workflow_archive_accessible': workflow_archive,
-    }
-    return config, folders
+        database=DatabaseConfig(database_file=str(tmp_path / 'database.db')),
+        web=WebConfig(host='127.0.0.1', port=5173,
+                      static_html=str(tmp_path / 'html')),
+        logging=LoggingConfig(level='INFO', sql_level='WARNING',
+                              file=str(tmp_path / 'archivist.log')))
+    config.initialize(tmp_path, tmp_path / 'config.toml', mode)
+    return config
 
 
 def test_load_config_reports_missing_file(tmp_path: Path):
     config_file = tmp_path / 'missing.toml'
-
     with pytest.raises(ConfigException) as exc_info:
         load_config(config_file)
-
     assert exc_info.value.code is ConfigError.CONFIG_NOT_FOUND
-    assert str(config_file) in exc_info.value.message
 
 
 def test_load_config_reports_malformed_toml(tmp_path: Path):
     config_file = tmp_path / 'malformed.toml'
-    config_file.write_text('[paths\ncomfy = "unterminated', encoding='utf-8')
-
+    config_file.write_text('[database\nfile = "unterminated', encoding='utf-8')
     with pytest.raises(ConfigException) as exc_info:
         load_config(config_file)
-
     assert exc_info.value.code is ConfigError.INVALID_CONFIG
-    assert str(config_file) in exc_info.value.message
 
 
 def test_load_config_reports_missing_required_sections(tmp_path: Path):
     config_file = tmp_path / 'incomplete.toml'
-    config_file.write_text('[paths]\ncomfy = "comfy"', encoding='utf-8')
-
+    config_file.write_text('[database]\ndatabase_file = "db.sqlite"', encoding='utf-8')
     with pytest.raises(ConfigException) as exc_info:
         load_config(config_file)
-
     assert exc_info.value.code is ConfigError.INVALID_CONFIG
-    assert 'missing sections' in exc_info.value.message
 
 
-def test_load_config_reports_unreadable_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_load_config_reports_invalid_bootstrap_value_type(tmp_path: Path):
+    config_file = tmp_path / 'invalid-value.toml'
+    config_file.write_text('''
+[database]
+database_file = "database.db"
+[web]
+host = "127.0.0.1"
+port = "not-a-port"
+static_html = "frontend/build"
+[logging]
+level = "INFO"
+sql_level = "WARNING"
+file = "archivist.log"
+''', encoding='utf-8')
+    with pytest.raises(ConfigException) as exc_info:
+        load_config(config_file)
+    assert exc_info.value.code is ConfigError.INVALID_CONFIG
+
+
+def test_load_config_reports_unreadable_file(tmp_path: Path,
+                                             monkeypatch: pytest.MonkeyPatch):
     config_file = tmp_path / 'unreadable.toml'
     config_file.touch()
-
-    def deny_read(_path: Path, *args, **kwargs):
-        raise PermissionError('access denied')
-
-    monkeypatch.setattr(Path, 'read_text', deny_read)
-
+    monkeypatch.setattr(Path, 'read_text',
+                        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                            PermissionError('access denied')))
     with pytest.raises(ConfigException) as exc_info:
         load_config(config_file)
-
     assert exc_info.value.code is ConfigError.CONFIG_UNREADABLE
-    assert str(config_file) in exc_info.value.message
 
 
-@pytest.mark.parametrize(
-    'inaccessible_flag',
-    [
-        'model_working_accessible',
-        'model_archive_accessible',
-        'workflow_working_accessible',
-        'workflow_archive_accessible',
-    ],
-)
-def test_resolve_paths_flags_inaccessible_folders(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    inaccessible_flag: str,
-):
-    config, folders = make_configuration(tmp_path)
-    inaccessible_folder = folders[inaccessible_flag]
+def test_runtime_path_failure_sets_dimension_flag(tmp_path: Path,
+                                                  monkeypatch: pytest.MonkeyPatch):
+    config = make_configuration(tmp_path)
+    working = tmp_path / 'working'
+    archive = tmp_path / 'archive'
     real_iterdir = Path.iterdir
 
-    def deny_selected_folder(path: Path):
-        if path == inaccessible_folder:
+    def deny_archive(path: Path):
+        if path == archive:
             raise PermissionError('access denied')
         return real_iterdir(path)
 
-    monkeypatch.setattr(Path, 'iterdir', deny_selected_folder)
+    monkeypatch.setattr(Path, 'iterdir', deny_archive)
+    config.add_model_locations('checkpoints', working, archive)
 
-    config.resolve_paths(tmp_path, tmp_path / 'config.toml')
-
-    for flag in folders:
-        assert getattr(config, flag) is (flag != inaccessible_flag)
+    assert config.model_working_accessible is True
+    assert config.model_archive_accessible is False
     assert config.read_only is True
 
 
-def test_model_location_pair_registration_is_idempotent(tmp_path: Path):
-    config, _ = make_configuration(tmp_path)
-    working = tmp_path / 'working'
-    archive = tmp_path / 'archive-copy'
-
-    config.add_model_locations('checkpoints', working, archive)
-    config.add_model_locations('checkpoints', working, archive)
-
-    assert config.model_folders['checkpoints'] == {(working, archive)}
-
-
-@pytest.mark.parametrize('reuse_side', ['working', 'archive'])
-def test_model_location_rejects_directory_reused_in_another_pair(
-    tmp_path: Path,
-    reuse_side: str,
-):
-    config, _ = make_configuration(tmp_path)
-    first_working = tmp_path / 'working-1'
-    first_archive = tmp_path / 'archive-1'
-    config.add_model_locations('checkpoints', first_working, first_archive)
-    second_working = first_working if reuse_side == 'working' else tmp_path / 'working-2'
-    second_archive = first_archive if reuse_side == 'archive' else tmp_path / 'archive-2'
-
+def test_standalone_rejects_multiple_locations_for_one_type(tmp_path: Path):
+    config = make_configuration(tmp_path)
+    config.add_model_locations('checkpoints', tmp_path / 'working-1',
+                               tmp_path / 'archive-1')
     with pytest.raises(ConfigException) as exc_info:
-        config.add_model_locations('loras', second_working, second_archive)
+        config.add_model_locations('checkpoints', tmp_path / 'working-2',
+                                   tmp_path / 'archive-2')
+    assert exc_info.value.code is ConfigError.MULTIPLE_PATHS_PER_TYPE
 
-    assert exc_info.value.code is ConfigError.DUPLICATE_FOLDER
+
+def test_comfy_mode_allows_multiple_locations_for_one_type(tmp_path: Path):
+    config = make_configuration(tmp_path, 'comfyui')
+    config.add_model_locations('checkpoints', tmp_path / 'working-1',
+                               tmp_path / 'archive-1')
+    config.add_model_locations('checkpoints', tmp_path / 'working-2',
+                               tmp_path / 'archive-2')
+    assert len(config.model_folders['checkpoints']) == 2

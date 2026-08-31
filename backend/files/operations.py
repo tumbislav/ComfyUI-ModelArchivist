@@ -20,9 +20,13 @@ class FileSnapshot:
     size: int | None = None
     modified_at_ns: int | None = None
     sha256: str | None = None
+    entry_type: str | None = None
 
     @classmethod
     def capture(cls, path: Path, include_hash: bool = False) -> 'FileSnapshot':
+        if path.is_dir():
+            stat = path.stat()
+            return cls(True, 0, stat.st_mtime_ns, None, 'directory')
         if not path.is_file():
             return cls(exists=False)
         stat = path.stat()
@@ -33,10 +37,12 @@ class FileSnapshot:
                 while chunk := source.read(1 << 20):
                     hasher.update(chunk)
             digest = hasher.hexdigest()
-        return cls(True, stat.st_size, stat.st_mtime_ns, digest)
+        return cls(True, stat.st_size, stat.st_mtime_ns, digest, 'file')
 
     def matches(self, path: Path) -> bool:
         current = self.capture(path, include_hash=self.sha256 is not None)
+        if self.entry_type == 'directory':
+            return current.exists and current.entry_type == 'directory'
         return current == self
 
 
@@ -134,6 +140,18 @@ def execute_file_action(action: FileAction,
                         report_bytes: Callable[[int], None] | None = None) -> None:
     if action.action == 'copy':
         atomic_copy(action, report_bytes)
+        return
+    if action.action == 'mkdir':
+        destination = Path(action.destination)
+        if not action.destination_before.matches(destination):
+            raise RuntimeError(f'destination changed after validation: {destination}')
+        destination.mkdir(parents=True, exist_ok=True)
+        return
+    if action.action == 'rmdir':
+        destination = Path(action.destination)
+        if not action.destination_before.matches(destination):
+            raise RuntimeError(f'destination changed after validation: {destination}')
+        destination.rmdir()
         return
     if action.action == 'remove':
         destination = Path(action.destination)

@@ -17,7 +17,7 @@ import time
 
 from backend.config import get_config
 from .routers import (admin, collections, configuration, health, models, operations, tags,
-                      workflows)
+                      user_types, workflows)
 
 app = FastAPI(title='Model Archivist API', version='1.0.0')
 
@@ -25,14 +25,15 @@ config = get_config()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[config.http_port],
-    allow_credentials=True,
+    allow_origins=['*'],
+    allow_credentials=False,
     allow_methods=['*'],
     allow_headers=['*']
 )
 
 app.include_router(models.router)
 app.include_router(workflows.router)
+app.include_router(user_types.router)
 app.include_router(collections.router)
 app.include_router(tags.router)
 app.include_router(health.router)
@@ -65,13 +66,22 @@ def await_port(interval: float, timeout: float) -> bool:
 def run_server():
     uvicorn.run(app, host=config.host, port=config.http_port, log_config=config.uvicorn_log_config)
 
-def start_ui():
-    app.mount('/', app=AppFiles(directory=config.static_html, html=True), name='static')
+_mounted = False
+
+
+def start_ui(open_browser: bool = True, block: bool = True):
+    global _mounted
+    if not _mounted:
+        app.mount('/', app=AppFiles(directory=config.static_html, html=True), name='static')
+        _mounted = True
     server_thread = Thread(target=run_server, daemon=True)
     server_thread.start()
     if await_port(0.1, 10):
-        webbrowser.open(f'{config.full_url}')
+        if open_browser:
+            webbrowser.open(f'{config.full_url}')
     else:
         raise RuntimeError('Server not ready in time.')
-    server_thread.join()
+    if block:
+        server_thread.join()
+    return server_thread
 

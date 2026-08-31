@@ -10,6 +10,7 @@ import { type Operation } from '$lib/models';
 export type RepositoryCounts = {
     models: number;
     workflows: number;
+    user_objects: number;
     collections: number;
 };
 
@@ -22,7 +23,8 @@ const ACTIVE_INTERVAL = 400;
 const IDLE_INTERVAL = 4000;
 
 class StatusMonitor {
-    counts = $state<RepositoryCounts>({models: 0, workflows: 0, collections: 0});
+    counts = $state<RepositoryCounts>({models: 0, workflows: 0, user_objects: 0,
+                                       collections: 0});
     operation = $state<Operation | null>(null);
     error = $state<string | null>(null);
     private timer: ReturnType<typeof setTimeout> | null = null;

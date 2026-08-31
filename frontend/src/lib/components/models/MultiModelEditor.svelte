@@ -8,10 +8,10 @@
 import { onMount } from 'svelte';
 import TagEditor from '$components/controls/TagEditor.svelte';
 import MultiModelCollectionEditor from '$components/models/MultiModelCollectionEditor.svelte';
-import saveIcon from '$icons/save16.png';
-import moveUpIcon from '$icons/move-up16.png';
-import moveDownIcon from '$icons/move-down16.png';
-import syncIcon from '$icons/move-up-down16.png';
+import saveIcon from '$icons/actions/save16.png';
+import moveUpIcon from '$icons/actions/move-up16.png';
+import moveDownIcon from '$icons/actions/move-down16.png';
+import syncIcon from '$icons/actions/move-up-down16.png';
 import { type Model } from '$lib/objects';
 import {
     getModel,

@@ -10,6 +10,8 @@ import logging
 import datetime
 import os
 from pathlib import Path
+from time import monotonic
+from uuid import uuid4
 
 from sqlmodel import Session, create_engine, select, or_
 from sqlalchemy.exc import SQLAlchemyError
@@ -19,10 +21,15 @@ from sqlalchemy.orm import selectinload
 from backend.repository.tables import (Model, Workflow, Collection, Component, ComponentSet,
                                        ComponentType, Tag, PrimaryObjectType, DeploymentStatus,
                                        ModelError, CollectionCollectionLink, ModelCollectionLink,
-                                       WorkflowCollectionLink)
+                                       WorkflowCollectionLink, UserDefinedType,
+                                       UserDefinedObject, UserObjectCollectionLink,
+                                       UserObjectClass, UserObjectError, UserObjectSet,
+                                       UserObjectEntry, ApplicationSettings,
+                                       ModelTypeSetting, ModelLocationSetting,
+                                       WorkflowLocationSetting)
 from backend.exception import ArcException
-from backend.config import Configuration, get_config
-from backend.files.scanner import get_scanner, create_scanner
+from backend.config import Configuration, OptionsConfig, get_config
+from backend.environment import get_environment_provider
 from backend.repository.migrations import update_database_schema
 import backend.files.model_files as model_files
 import backend.files.workflow_files as workflow_files
@@ -34,9 +41,22 @@ _engine: Engine | None = None
 _config: Configuration | None = None
 
 lock = Lock()
+_user_type_deletion_previews: dict[str, tuple[float, str, tuple]] = {}
 
 _first_run: bool = False
 _repo_started: bool = False
+
+
+def create_scanner():
+    """Lazily resolve the scanner to avoid a repository/scanner import cycle."""
+    from backend.files.scanner import create_scanner as scanner_factory
+    return scanner_factory()
+
+
+def get_scanner():
+    """Lazily resolve the current scanner."""
+    from backend.files.scanner import get_scanner as scanner_getter
+    return scanner_getter()
 
 def prepare_database_file(db_file: Path) -> bool:
     """Validate the SQLite location and return whether a new database is needed."""
@@ -79,6 +99,98 @@ def validate_database(engine: Engine, db_file: Path, first_run: bool) -> None:
         raise ArcException(code, f'{db_file}: {error}') from error
 
 
+def load_repository_configuration(config: Configuration) -> None:
+    """Combine persistent settings with working locations supplied by the environment."""
+    provider = get_environment_provider()
+    config.mode = provider.mode
+    config.reset_runtime_paths()
+    with Session(_engine) as session:
+        settings = session.get(ApplicationSettings, 1)
+        if settings is None:
+            settings = ApplicationSettings()
+            session.add(settings)
+            session.commit()
+        config.options = OptionsConfig(
+            update_json_metadata=settings.update_json_metadata,
+            ignore_unknown_types=settings.ignore_unknown_types,
+            always_recalc_hashes=settings.always_recalc_hashes)
+        config.setup_required = not settings.setup_complete
+
+        type_settings = {item.name: item for item in session.exec(
+            select(ModelTypeSetting)).all()}
+        config.model_type_labels = {
+            name: item.display_name for name, item in type_settings.items()}
+        config.model_extensions_by_type = {
+            name: list(item.extensions) for name, item in type_settings.items()}
+
+        model_locations = session.exec(select(ModelLocationSetting)).all()
+        workflow_locations = session.exec(select(WorkflowLocationSetting)).all()
+        if provider.mode == 'standalone':
+            for location in model_locations:
+                if not location.active or location.source != 'standalone' or not location.archive_dir:
+                    continue
+                config.add_model_locations(location.model_type, Path(location.working_dir),
+                                           Path(location.archive_dir))
+            for location in workflow_locations:
+                if location.active and location.source == 'standalone' and location.archive_dir:
+                    config.add_workflow_locations(Path(location.working_dir),
+                                                  Path(location.archive_dir))
+        else:
+            discovered_models = provider.model_locations()
+            discovered_paths = {str(item.working_dir) for item in discovered_models}
+            stored_models = {location.working_dir: location for location in model_locations
+                             if location.source == 'comfyui'}
+            for location in stored_models.values():
+                location.active = location.working_dir in discovered_paths
+                session.add(location)
+            for discovered in discovered_models:
+                location = stored_models.get(str(discovered.working_dir))
+                if location is None:
+                    location = ModelLocationSetting(
+                        model_type=discovered.model_type, source='comfyui',
+                        working_dir=str(discovered.working_dir), active=True)
+                    session.add(location)
+                else:
+                    location.model_type = discovered.model_type
+                    location.active = True
+                type_setting = type_settings.get(discovered.model_type)
+                if type_setting is None:
+                    type_setting = ModelTypeSetting(
+                        name=discovered.model_type, display_name=discovered.model_type,
+                        extensions=list(discovered.extensions))
+                    session.add(type_setting)
+                    type_settings[discovered.model_type] = type_setting
+                config.model_type_labels[discovered.model_type] = type_setting.display_name
+                config.model_extensions_by_type[discovered.model_type] = list(
+                    discovered.extensions)
+                if location.archive_dir:
+                    config.add_model_locations(discovered.model_type,
+                                               discovered.working_dir,
+                                               Path(location.archive_dir))
+                else:
+                    config.unmapped_model_folders.setdefault(
+                        discovered.model_type, []).append(discovered.working_dir)
+
+            discovered_workflows = provider.workflow_locations()
+            discovered_workflow_paths = {str(path) for path in discovered_workflows}
+            stored_workflows = {location.working_dir: location for location in workflow_locations
+                                if location.source == 'comfyui'}
+            for location in stored_workflows.values():
+                location.active = location.working_dir in discovered_workflow_paths
+                session.add(location)
+            for path in discovered_workflows:
+                location = stored_workflows.get(str(path))
+                if location is None:
+                    location = WorkflowLocationSetting(
+                        source='comfyui', working_dir=str(path), active=True)
+                    session.add(location)
+                if location.archive_dir:
+                    config.add_workflow_locations(path, Path(location.archive_dir))
+                else:
+                    config.unmapped_workflow_folders.append(path)
+            session.commit()
+
+
 def start_repo():
     global _engine, _logger, _config, _first_run, _repo_started
     if _repo_started:
@@ -95,21 +207,27 @@ def start_repo():
         engine.dispose()
         raise
 
+    _engine = engine
     _config = config
     _first_run = first_run
-    _engine = engine
+    try:
+        load_repository_configuration(config)
+    except Exception:
+        engine.dispose()
+        _engine = None
+        _config = None
+        raise
     sql_logger = logging.getLogger('sqlalchemy.engine')
     sql_logger.addHandler(logging.FileHandler(_config.log_file))
     sql_logger.setLevel(_config.sql_log_level)
-    if _first_run and not _config.read_only:
-        _logger.info(f'First run, creating the database in {db_name}')
+    _repo_started = True
+    if _config.configured and not _config.read_only:
         sc = create_scanner()
         if sc is None:
             msg = 'Cannot create a scanner, aborting'
             _logger.critical(msg)
             raise RuntimeError(msg)
         sc.start(_config.options.always_recalc_hashes)
-    _repo_started = True
 
 
 def repo_status():
@@ -119,7 +237,9 @@ def repo_status():
                 'read_only': True if _config is None else _config.read_only}
     status_dict = {'started': True,
                    'first_run': _first_run,
-                   'read_only': _config.read_only}
+                   'read_only': _config.read_only,
+                   'setup_required': _config.setup_required,
+                   'mode': _config.mode}
     sc = get_scanner()
     if sc is None:
         status_dict['ready'] = True
@@ -130,14 +250,186 @@ def repo_status():
     return status_dict
 
 
+def get_repository_configuration() -> dict:
+    """Return the persistent settings together with environment-derived locations."""
+    with Session(_engine) as session:
+        settings = session.get(ApplicationSettings, 1) or ApplicationSettings()
+        model_types = session.exec(select(ModelTypeSetting)).all()
+        locations = session.exec(select(ModelLocationSetting)).all()
+        workflows = session.exec(select(WorkflowLocationSetting)).all()
+        by_type: dict[str, list[dict]] = {}
+        for location in locations:
+            by_type.setdefault(location.model_type, []).append({
+                'id': location.id,
+                'working_dir': location.working_dir,
+                'archive_dir': location.archive_dir,
+                'source': location.source,
+                'active': location.active,
+            })
+        return {
+            'mode': _config.mode,
+            'setup_complete': settings.setup_complete,
+            'options': {
+                'update_json_metadata': settings.update_json_metadata,
+                'ignore_unknown_types': settings.ignore_unknown_types,
+                'always_recalc_hashes': settings.always_recalc_hashes,
+            },
+            'model_types': [{
+                'name': item.name,
+                'display_name': item.display_name,
+                'extensions': list(item.extensions),
+                'locations': by_type.get(item.name, []),
+            } for item in model_types],
+            'workflow_locations': [{
+                'id': item.id,
+                'working_dir': item.working_dir,
+                'archive_dir': item.archive_dir,
+                'source': item.source,
+                'active': item.active,
+            } for item in workflows],
+        }
+
+
+def _normalized_location(value: str) -> str:
+    if not value.strip():
+        raise ValueError('folder paths cannot be empty')
+    return str(Path(value).expanduser().absolute())
+
+
+def update_repository_configuration(data: dict) -> dict:
+    """Validate and persist repository locations and behavioral options."""
+    model_types = data.get('model_types', [])
+    workflow_locations = data.get('workflow_locations', [])
+    if _config.mode == 'standalone' and any(
+            len(item.get('locations', [])) > 1 for item in model_types):
+        raise ValueError('standalone mode permits one working/archive pair per model type')
+    if _config.mode == 'standalone' and len(workflow_locations) > 1:
+        raise ValueError('standalone mode permits one workflow working/archive pair')
+
+    seen: set[str] = set()
+    for item in model_types:
+        if not item.get('name', '').strip() or not item.get('display_name', '').strip():
+            raise ValueError('model type names cannot be empty')
+        extensions = item.get('extensions', [])
+        if not extensions:
+            raise ValueError(f'model type {item["name"]} requires at least one extension')
+        for location in item.get('locations', []):
+            for key in ('working_dir', 'archive_dir'):
+                value = location.get(key)
+                if key == 'archive_dir' and not value and _config.mode == 'comfyui':
+                    continue
+                normalized = _normalized_location(value or '')
+                if normalized in seen:
+                    raise ValueError(f'folder is reused by more than one location: {normalized}')
+                seen.add(normalized)
+    for location in workflow_locations:
+        for key in ('working_dir', 'archive_dir'):
+            value = location.get(key)
+            if key == 'archive_dir' and not value and _config.mode == 'comfyui':
+                continue
+            normalized = _normalized_location(value or '')
+            if normalized in seen:
+                raise ValueError(f'folder is reused by more than one location: {normalized}')
+            seen.add(normalized)
+
+    with Session(_engine) as session:
+        settings = session.get(ApplicationSettings, 1) or ApplicationSettings()
+        options = data.get('options', {})
+        for name in ('update_json_metadata', 'ignore_unknown_types', 'always_recalc_hashes'):
+            if name in options:
+                setattr(settings, name, bool(options[name]))
+        session.add(settings)
+
+        if _config.mode == 'standalone':
+            for row in session.exec(select(ModelLocationSetting)).all():
+                session.delete(row)
+            for row in session.exec(select(WorkflowLocationSetting)).all():
+                session.delete(row)
+            for row in session.exec(select(ModelTypeSetting)).all():
+                session.delete(row)
+            session.flush()
+            for item in model_types:
+                session.add(ModelTypeSetting(
+                    name=item['name'].strip(), display_name=item['display_name'].strip(),
+                    extensions=sorted({f'.{value.lower().lstrip(".")}'
+                                       for value in item['extensions']})))
+                for location in item.get('locations', []):
+                    session.add(ModelLocationSetting(
+                        model_type=item['name'].strip(), source='standalone',
+                        working_dir=_normalized_location(location['working_dir']),
+                        archive_dir=_normalized_location(location['archive_dir'])))
+            for location in workflow_locations:
+                session.add(WorkflowLocationSetting(
+                    source='standalone',
+                    working_dir=_normalized_location(location['working_dir']),
+                    archive_dir=_normalized_location(location['archive_dir'])))
+        else:
+            stored_types = {row.name: row for row in session.exec(
+                select(ModelTypeSetting)).all()}
+            stored_models = {row.working_dir: row for row in session.exec(
+                select(ModelLocationSetting).where(ModelLocationSetting.source == 'comfyui')).all()}
+            for item in model_types:
+                type_row = stored_types.get(item['name'])
+                if type_row is not None:
+                    type_row.display_name = item['display_name'].strip()
+                    session.add(type_row)
+                for location in item.get('locations', []):
+                    working = _normalized_location(location['working_dir'])
+                    row = stored_models.get(working)
+                    if row is None or not row.active:
+                        raise ValueError(f'working folder is not supplied by ComfyUI: {working}')
+                    row.archive_dir = (_normalized_location(location['archive_dir'])
+                                       if location.get('archive_dir') else None)
+                    session.add(row)
+            stored_workflows = {row.working_dir: row for row in session.exec(
+                select(WorkflowLocationSetting).where(
+                    WorkflowLocationSetting.source == 'comfyui')).all()}
+            for location in workflow_locations:
+                working = _normalized_location(location['working_dir'])
+                row = stored_workflows.get(working)
+                if row is None or not row.active:
+                    raise ValueError(f'workflow folder is not supplied by ComfyUI: {working}')
+                row.archive_dir = (_normalized_location(location['archive_dir'])
+                                   if location.get('archive_dir') else None)
+                session.add(row)
+
+        mapped_models = all(location.get('archive_dir') for item in model_types
+                            for location in item.get('locations', []))
+        has_models = any(item.get('locations') for item in model_types)
+        mapped_workflows = bool(workflow_locations) and all(
+            location.get('archive_dir') for location in workflow_locations)
+        settings.setup_complete = bool(has_models and mapped_models and mapped_workflows)
+        session.add(settings)
+        session.commit()
+
+    load_repository_configuration(_config)
+    return get_repository_configuration()
+
+
+def update_model_configuration(data: dict) -> dict:
+    """Update only model settings while preserving workflow settings and options."""
+    current = get_repository_configuration()
+    current['model_types'] = data.get('model_types', [])
+    return update_repository_configuration(current)
+
+
+def update_workflow_configuration(data: dict) -> dict:
+    """Update only workflow settings while preserving model settings and options."""
+    current = get_repository_configuration()
+    current['workflow_locations'] = data.get('workflow_locations', [])
+    return update_repository_configuration(current)
+
+
 def repository_counts() -> dict[str, int]:
     """Return counts of the logical objects displayed by the application."""
     if not _repo_started:
-        return {'models': 0, 'workflows': 0, 'collections': 0}
+        return {'models': 0, 'workflows': 0, 'user_objects': 0, 'collections': 0}
     with Session(_engine) as session:
         return {
             'models': session.exec(select(func.count()).select_from(Model)).one(),
             'workflows': session.exec(select(func.count()).select_from(Workflow)).one(),
+            'user_objects': session.exec(
+                select(func.count()).select_from(UserDefinedObject)).one(),
             'collections': session.exec(select(func.count()).select_from(Collection)).one(),
         }
 
@@ -251,6 +543,75 @@ def scan_cleanup(scan_timestamp: str):
         for model in models:
             _logger.debug(f'deleting model {model.internal_name}')
             session.delete(model)
+        workflows = session.exec(select(Workflow).where(Workflow.touched != scan_timestamp))
+        for workflow in workflows:
+            _logger.debug(f'deleting workflow {workflow.internal_name}')
+            session.delete(workflow)
+        user_objects = session.exec(select(UserDefinedObject).where(
+            UserDefinedObject.touched != scan_timestamp))
+        for user_object in user_objects:
+            _logger.debug(f'deleting user-defined object {user_object.display_name}')
+            session.delete(user_object)
+        session.commit()
+
+
+def user_types_for_scan() -> list[dict]:
+    """Return detached type definitions needed by the filesystem scanner."""
+    with Session(_engine) as session:
+        return [item.representation() for item in session.exec(select(UserDefinedType)).all()]
+
+
+def retain_oversized_user_object(type_id: str, relative_path: str,
+                                 touched: str, observed_size: int) -> bool:
+    """Keep a known oversized object stale and read-only; ignore an unknown one."""
+    with Session(_engine) as session:
+        item = session.exec(select(UserDefinedObject).where(
+            UserDefinedObject.type_id == type_id,
+            UserDefinedObject.relative_path == relative_path)).one_or_none()
+        if item is None:
+            return False
+        item.touched = touched
+        item.size = max(item.size, observed_size)
+        if UserObjectError.OVER_SIZE_LIMIT.value not in item.errors:
+            item.errors = [*item.errors, UserObjectError.OVER_SIZE_LIMIT.value]
+        session.add(item)
+        session.commit()
+        return True
+
+
+def retain_unreadable_user_type_objects(type_id: str, touched: str) -> None:
+    """Prevent cleanup after a type root failed and mark its known objects read-only."""
+    with Session(_engine) as session:
+        items = session.exec(select(UserDefinedObject).where(
+            UserDefinedObject.type_id == type_id)).all()
+        for item in items:
+            item.touched = touched
+            if UserObjectError.UNREADABLE.value not in item.errors:
+                item.errors = [*item.errors, UserObjectError.UNREADABLE.value]
+            session.add(item)
+        session.commit()
+
+
+def save_scanned_user_object(scanned: UserDefinedObject) -> None:
+    """Insert a discovered UDP object or refresh its filesystem state and metadata."""
+    with Session(_engine) as session:
+        item = session.exec(select(UserDefinedObject).where(
+            UserDefinedObject.type_id == scanned.type_id,
+            UserDefinedObject.relative_path == scanned.relative_path).options(
+                selectinload(UserDefinedObject.sets))).one_or_none()
+        if item is None:
+            session.add(scanned)
+        else:
+            for object_set in list(item.sets):
+                session.delete(object_set)
+            session.flush()
+            item.deployment = scanned.deployment
+            item.size = scanned.size
+            item.modified_at_ns = scanned.modified_at_ns
+            item.touched = scanned.touched
+            item.errors = scanned.errors
+            item.sets = scanned.sets
+            session.add(item)
         session.commit()
 
 #-----------------------------------------------------------------------------------
@@ -1134,6 +1495,573 @@ def move_workflow(id: str, destination: DeploymentStatus,
 
 #-----------------------------------------------------------------------------------
 #
+# User-defined types and objects
+#
+#-----------------------------------------------------------------------------------
+
+SMALL_OBJECT_LIMIT = 1024 * 1024
+DEFAULT_OBJECT_LIMIT = 10 * 1024 * 1024
+
+
+def _normalized_extensions(values: object) -> list[str]:
+    if not isinstance(values, list):
+        raise ArcException(ArcException.Code.INVALID_USER_TYPE, 'extensions must be a list')
+    normalized = []
+    for value in values:
+        if not isinstance(value, str):
+            raise ArcException(ArcException.Code.INVALID_USER_TYPE,
+                               'extensions must contain strings')
+        extension = value.strip().lower().removeprefix('.')
+        if not extension or '/' in extension or '\\' in extension:
+            raise ArcException(ArcException.Code.INVALID_USER_TYPE,
+                               f'invalid extension {value!r}')
+        if extension not in normalized:
+            normalized.append(extension)
+    return normalized
+
+
+def _paths_overlap(first: Path, second: Path) -> bool:
+    try:
+        return first == second or first.is_relative_to(second) or second.is_relative_to(first)
+    except ValueError:
+        return False
+
+
+def _validate_user_type(data: dict, current: UserDefinedType | None = None,
+                        object_count: int = 0) -> dict:
+    name = data.get('name')
+    short_name = data.get('short_name')
+    purpose = data.get('purpose', '')
+    icon = data.get('icon')
+    object_class = data.get('object_class')
+    small = data.get('small', False)
+    size_limit = data.get('size_limit', SMALL_OBJECT_LIMIT if small else DEFAULT_OBJECT_LIMIT)
+    if not isinstance(name, str) or not name.strip():
+        raise ArcException(ArcException.Code.INVALID_USER_TYPE, 'name is required')
+    if (not isinstance(short_name, str) or not short_name.strip() or
+            len(short_name.strip()) > 8):
+        raise ArcException(ArcException.Code.INVALID_USER_TYPE,
+                           'short name is required and cannot exceed 8 characters')
+    if not isinstance(purpose, str) or not isinstance(icon, str) or not icon.strip():
+        raise ArcException(ArcException.Code.INVALID_USER_TYPE,
+                           'purpose and icon are invalid')
+    if object_class not in (UserObjectClass.FILE.value, UserObjectClass.FOLDER.value):
+        raise ArcException(ArcException.Code.INVALID_USER_TYPE, 'invalid object class')
+    if not isinstance(small, bool) or not isinstance(size_limit, int) or size_limit <= 0:
+        raise ArcException(ArcException.Code.INVALID_USER_TYPE, 'invalid size limit')
+    if small and size_limit > SMALL_OBJECT_LIMIT:
+        raise ArcException(ArcException.Code.INVALID_USER_TYPE,
+                           'small types cannot exceed 1 MiB')
+    extensions = _normalized_extensions(data.get('extensions', []))
+    if object_class == UserObjectClass.FILE.value and not extensions:
+        raise ArcException(ArcException.Code.INVALID_USER_TYPE,
+                           'file types require at least one extension')
+    if object_class == UserObjectClass.FOLDER.value and extensions:
+        raise ArcException(ArcException.Code.INVALID_USER_TYPE,
+                           'folder types cannot define extensions')
+    working_value = data.get('working_dir', '')
+    archive_value = data.get('archive_dir', '')
+    if not isinstance(working_value, str) or not working_value.strip() or not isinstance(
+            archive_value, str) or not archive_value.strip():
+        raise ArcException(ArcException.Code.INVALID_USER_TYPE, 'both locations are required')
+    try:
+        working_dir = Path(working_value).resolve(strict=False)
+        archive_dir = Path(archive_value).resolve(strict=False)
+    except OSError as error:
+        raise ArcException(ArcException.Code.INVALID_USER_TYPE, str(error)) from error
+    if _paths_overlap(working_dir, archive_dir):
+        raise ArcException(ArcException.Code.INVALID_USER_TYPE,
+                           'working and archive locations overlap')
+    if current is not None and object_count:
+        if object_class != current.object_class:
+            raise ArcException(ArcException.Code.USER_TYPE_IN_USE,
+                               'object class cannot change while objects exist')
+        if str(working_dir) != current.working_dir or str(archive_dir) != current.archive_dir:
+            raise ArcException(ArcException.Code.USER_TYPE_IN_USE,
+                               'locations cannot change while objects exist')
+    return {'name': name.strip(), 'short_name': short_name.strip(),
+            'purpose': purpose, 'icon': icon.strip(),
+            'object_class': object_class, 'small': small, 'size_limit': size_limit,
+            'extensions': extensions, 'working_dir': str(working_dir),
+            'archive_dir': str(archive_dir)}
+
+
+def _validate_user_type_roots(session: Session, values: dict,
+                              current_id: str | None = None) -> None:
+    candidates = [Path(values['working_dir']), Path(values['archive_dir'])]
+    configured = []
+    if _config is not None:
+        configured.extend(Path(path).resolve() for path in _config.all_working)
+        configured.extend(Path(path).resolve() for path in _config.all_archive)
+    existing = session.exec(select(UserDefinedType)).all()
+    configured.extend(Path(item.working_dir) for item in existing if item.id != current_id)
+    configured.extend(Path(item.archive_dir) for item in existing if item.id != current_id)
+    for candidate in candidates:
+        for managed in configured:
+            if _paths_overlap(candidate, managed):
+                raise ArcException(ArcException.Code.INVALID_USER_TYPE,
+                                   f'location overlaps managed root {managed}')
+        try:
+            candidate.mkdir(parents=True, exist_ok=True)
+            next(candidate.iterdir(), None)
+            if not os.access(candidate, os.R_OK | os.W_OK):
+                raise OSError('location is not readable and writable')
+        except OSError as error:
+            raise ArcException(ArcException.Code.INACCESSIBLE_FOLDER,
+                               f'{candidate}: {error}') from error
+
+
+def list_user_types() -> list[dict]:
+    with Session(_engine) as session:
+        statement = select(UserDefinedType).options(
+            selectinload(UserDefinedType.objects)).order_by(UserDefinedType.name)
+        return [item.summary() for item in session.exec(statement).all()]
+
+
+def get_user_type(id: str) -> dict:
+    with Session(_engine) as session:
+        item = session.exec(select(UserDefinedType).where(UserDefinedType.id == id).options(
+            selectinload(UserDefinedType.objects))).one_or_none()
+        if item is None:
+            raise ArcException(ArcException.Code.UNKNOWN_USER_TYPE, id)
+        return item.representation()
+
+
+def create_user_type(data: dict) -> dict:
+    if _config is not None and _config.read_only:
+        raise ArcException(ArcException.Code.READ_ONLY, 'Type creation is disabled')
+    values = _validate_user_type(data)
+    with Session(_engine) as session:
+        _validate_user_type_roots(session, values)
+        duplicate = session.exec(select(UserDefinedType).where(
+            func.lower(UserDefinedType.name) == values['name'].lower())).first()
+        if duplicate is not None:
+            raise ArcException(ArcException.Code.INVALID_USER_TYPE, 'name already exists')
+        item = UserDefinedType(**values)
+        session.add(item)
+        session.commit()
+        session.refresh(item)
+        return item.representation()
+
+
+def update_user_type(id: str, data: dict) -> dict:
+    if _config is not None and _config.read_only:
+        raise ArcException(ArcException.Code.READ_ONLY, 'Type updates are disabled')
+    with Session(_engine) as session:
+        item = session.exec(select(UserDefinedType).where(UserDefinedType.id == id).options(
+            selectinload(UserDefinedType.objects))).one_or_none()
+        if item is None:
+            raise ArcException(ArcException.Code.UNKNOWN_USER_TYPE, id)
+        values = _validate_user_type(data, item, len(item.objects))
+        _validate_user_type_roots(session, values, id)
+        duplicate = session.exec(select(UserDefinedType).where(
+            func.lower(UserDefinedType.name) == values['name'].lower(),
+            UserDefinedType.id != id)).first()
+        if duplicate is not None:
+            raise ArcException(ArcException.Code.INVALID_USER_TYPE, 'name already exists')
+        if values['size_limit'] < max((obj.size for obj in item.objects), default=0) and not data.get(
+                'confirm_oversized', False):
+            raise ArcException(ArcException.Code.CONFIRMATION_REQUIRED,
+                               'known objects exceed the new limit')
+        for field, value in values.items():
+            setattr(item, field, value)
+        for user_object in item.objects:
+            if user_object.size > values['size_limit'] and (
+                    UserObjectError.OVER_SIZE_LIMIT.value not in user_object.errors):
+                user_object.errors = [*user_object.errors,
+                                      UserObjectError.OVER_SIZE_LIMIT.value]
+                session.add(user_object)
+        session.add(item)
+        session.commit()
+        session.refresh(item)
+        return item.representation()
+
+
+def list_user_objects(type_id: str, search_criteria: dict | None = None) -> list[dict]:
+    with Session(_engine) as session:
+        if session.get(UserDefinedType, type_id) is None:
+            raise ArcException(ArcException.Code.UNKNOWN_USER_TYPE, type_id)
+        statement = select(UserDefinedObject).where(
+            UserDefinedObject.type_id == type_id).order_by(UserDefinedObject.display_name)
+        criteria = search_criteria or {}
+        for tag in criteria.get('required_tags', []):
+            statement = statement.where(UserDefinedObject.tags.any(Tag.tag == tag))
+        for tag in criteria.get('forbidden_tags', []):
+            statement = statement.where(~UserDefinedObject.tags.any(Tag.tag == tag))
+        name_prefix = criteria.get('name_prefix', '')
+        if name_prefix:
+            escaped_prefix = (name_prefix.replace('\\', '\\\\').replace('%', '\\%')
+                               .replace('_', '\\_'))
+            statement = statement.where(UserDefinedObject.display_name.ilike(
+                f'{escaped_prefix}%', escape='\\'))
+        return [item.summary() for item in session.exec(statement).all()]
+
+
+def user_object_operation_requires_lro(ids: list[str], transfer_bytes: int) -> bool:
+    """Classify a planned UDP operation using type class and aggregate bytes."""
+    if transfer_bytes > SMALL_OBJECT_LIMIT:
+        return True
+    with Session(_engine) as session:
+        objects = session.exec(select(UserDefinedObject).where(
+            UserDefinedObject.id.in_(set(ids))).options(
+                selectinload(UserDefinedObject.type))).all() if ids else []
+        if {item.id for item in objects} != set(ids):
+            missing = set(ids) - {item.id for item in objects}
+            raise ArcException(ArcException.Code.UNKNOWN_USER_OBJECT,
+                               ', '.join(sorted(missing)))
+        return any(not item.type.small for item in objects)
+
+
+def collection_operation_requires_lro(plan: dict) -> bool:
+    """Classify a validated collection plan using all transitive leaves."""
+    members = plan.get('members', [])
+    if any(member.get('object_type') == 'model' for member in members):
+        return True
+    user_members = [member for member in members
+                    if member.get('object_type') == 'user_object']
+    ids = [member['object_id'] for member in user_members]
+    transfer_bytes = sum(member.get('transfer_bytes', 0) for member in user_members)
+    return user_object_operation_requires_lro(ids, transfer_bytes) if ids else False
+
+
+def get_user_object(id: str) -> dict:
+    with Session(_engine) as session:
+        item = session.get(UserDefinedObject, id)
+        if item is None:
+            raise ArcException(ArcException.Code.UNKNOWN_USER_OBJECT, id)
+        return item.representation()
+
+
+def update_user_object(id: str, data: dict) -> dict:
+    if _config is not None and _config.read_only:
+        raise ArcException(ArcException.Code.READ_ONLY, 'Object updates are disabled')
+    with Session(_engine) as session:
+        item = session.get(UserDefinedObject, id)
+        if item is None:
+            raise ArcException(ArcException.Code.UNKNOWN_USER_OBJECT, id)
+        if item.read_only:
+            raise ArcException(ArcException.Code.READ_ONLY, 'User-defined object is read-only')
+        display_name = data.get('display_name')
+        purpose = data.get('purpose', '')
+        tags = data.get('tags', [])
+        if (not isinstance(display_name, str) or not display_name.strip() or
+                not isinstance(purpose, str) or not isinstance(tags, list) or
+                any(not isinstance(tag, str) for tag in tags)):
+            raise ArcException(ArcException.Code.INVALID_USER_TYPE,
+                               'invalid user-object metadata')
+        item.display_name = display_name.strip()
+        item.purpose = purpose
+        item.tags = resolve_tags(session, tags)
+        session.add(item)
+        session.commit()
+        session.refresh(item)
+        return item.representation()
+
+
+def _user_object_snapshot(path: Path, object_class: str,
+                          size_limit: int) -> tuple[dict[str, FileSnapshot], int]:
+    """Capture one UDP object, raising when it is missing, unreadable, or oversized."""
+    if object_class == UserObjectClass.FILE.value:
+        if not path.is_file() or path.is_symlink():
+            raise FileNotFoundError(path)
+        paths = [path]
+    else:
+        if not path.is_dir() or path.is_symlink():
+            raise FileNotFoundError(path)
+        paths = [path, *sorted(path.rglob('*'), key=str)]
+    snapshots = {}
+    total = 0
+    for entry in paths:
+        if entry.is_symlink():
+            continue
+        snapshot = FileSnapshot.capture(entry)
+        if not snapshot.exists:
+            raise OSError(f'unreadable filesystem entry: {entry}')
+        relative = '' if entry == path else entry.relative_to(path).as_posix()
+        snapshots[relative] = snapshot
+        if snapshot.entry_type == 'file':
+            with entry.open('rb') as stream:
+                stream.read(1)
+            total += snapshot.size or 0
+            if total > size_limit:
+                raise OverflowError(f'{path} exceeds the {size_limit}-byte size limit')
+    return snapshots, total
+
+
+def _user_object_paths(item: UserDefinedObject) -> tuple[Path, Path]:
+    return (Path(item.type.working_dir) / item.relative_path,
+            Path(item.type.archive_dir) / item.relative_path)
+
+
+def _add_exact_mirror_actions(plan: OperationPlan, source_root: Path,
+                              destination_root: Path,
+                              source: dict[str, FileSnapshot],
+                              destination: dict[str, FileSnapshot]) -> int:
+    """Append actions that make destination exactly match source."""
+    removals = []
+    creations = []
+    transfer_bytes = 0
+    for relative, destination_snapshot in destination.items():
+        source_snapshot = source.get(relative)
+        if source_snapshot is None or source_snapshot.entry_type != destination_snapshot.entry_type:
+            path = destination_root if relative == '' else destination_root / relative
+            action = 'rmdir' if destination_snapshot.entry_type == 'directory' else 'remove'
+            removals.append((relative.count('/'), FileAction(
+                action, None, str(path), None, destination_snapshot)))
+    for relative, source_snapshot in source.items():
+        destination_snapshot = destination.get(relative, FileSnapshot(False))
+        path = destination_root if relative == '' else destination_root / relative
+        source_path = source_root if relative == '' else source_root / relative
+        if source_snapshot.entry_type == 'directory':
+            if not destination_snapshot.exists or destination_snapshot.entry_type != 'directory':
+                creations.append((relative.count('/'), FileAction(
+                    'mkdir', None, str(path), None, FileSnapshot(False))))
+        elif (not destination_snapshot.exists or
+              destination_snapshot.entry_type != 'file' or
+              source_snapshot.size != destination_snapshot.size or
+              source_snapshot.modified_at_ns != destination_snapshot.modified_at_ns):
+            creations.append((relative.count('/'), FileAction(
+                'copy', str(source_path), str(path), source_snapshot,
+                FileSnapshot(False) if destination_snapshot.entry_type == 'directory'
+                else destination_snapshot)))
+            transfer_bytes += source_snapshot.size or 0
+    plan.actions.extend(action for _, action in sorted(removals, key=lambda value: -value[0]))
+    plan.actions.extend(action for _, action in sorted(creations, key=lambda value: value[0]))
+    return transfer_bytes
+
+
+def _refresh_user_object_state(session: Session, item: UserDefinedObject) -> None:
+    """Refresh a UDP object's sets after a completed filesystem operation."""
+    working_path, archive_path = _user_object_paths(item)
+    sets = []
+    selected_size = 0
+    selected_mtime = 0
+    present = []
+    for where, root, path in (('w', Path(item.type.working_dir), working_path),
+                              ('a', Path(item.type.archive_dir), archive_path)):
+        try:
+            snapshots, total = _user_object_snapshot(
+                path, item.type.object_class, item.type.size_limit)
+        except FileNotFoundError:
+            continue
+        entries = []
+        for relative, snapshot in snapshots.items():
+            absolute = path if relative == '' else path / relative
+            entries.append(UserObjectEntry(
+                relative_path=absolute.relative_to(root).as_posix(),
+                entry_type=snapshot.entry_type, size=snapshot.size or 0,
+                modified_at_ns=snapshot.modified_at_ns or 0))
+        modified = max((entry.modified_at_ns for entry in entries), default=0)
+        sets.append(UserObjectSet(where=where, size=total,
+                                  modified_at_ns=modified, entries=entries))
+        present.append(where)
+        if where == 'w' or not selected_size:
+            selected_size, selected_mtime = total, modified
+    item.sets.clear()
+    session.flush()
+    item.sets = sets
+    item.size = selected_size
+    item.modified_at_ns = selected_mtime
+    item.errors = []
+    item.deployment = str(DeploymentStatus.SYNCED if len(present) == 2 else
+                          DeploymentStatus.WORKING if present == ['w'] else
+                          DeploymentStatus.ARCHIVE)
+    item.touched = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
+    session.add(item)
+
+
+def _user_object_operation(id: str, operation: str, simulate: bool,
+                           destination: DeploymentStatus | None = None,
+                           progress: Callable[[dict], None] | None = None) -> dict:
+    plan = OperationPlan(operation, 'user_object', id, simulate)
+    with Session(_engine) as session:
+        item = session.exec(select(UserDefinedObject).where(
+            UserDefinedObject.id == id).options(
+                selectinload(UserDefinedObject.type),
+                selectinload(UserDefinedObject.sets))).one_or_none()
+        if item is None:
+            plan.reject('unknown_user_object', id)
+            return plan.to_dict()
+        if _config.read_only or item.read_only:
+            plan.reject('read_only', 'user-defined object is read-only')
+            return plan.to_dict()
+        working_path, archive_path = _user_object_paths(item)
+        if operation == 'synchronize':
+            source_path = working_path if working_path.exists() else archive_path
+            destination_path = archive_path if source_path == working_path else working_path
+            source_side = 'working' if source_path == working_path else 'archive'
+        else:
+            destination_side = ('w' if destination == DeploymentStatus.WORKING else 'a')
+            destination_path = working_path if destination_side == 'w' else archive_path
+            source_path = archive_path if destination_side == 'w' else working_path
+            source_side = 'archive' if destination_side == 'w' else 'working'
+            if not source_path.exists() and destination_path.exists():
+                if not simulate:
+                    _refresh_user_object_state(session, item)
+                    session.commit()
+                    plan.performed = True
+                return plan.to_dict()
+        plan.source_side = source_side
+        try:
+            source_snapshot, _ = _user_object_snapshot(
+                source_path, item.type.object_class, item.type.size_limit)
+        except OverflowError as error:
+            plan.reject('over_size_limit', str(error))
+            return plan.to_dict()
+        except (OSError, ValueError) as error:
+            plan.reject('missing_or_unreadable_source', str(error))
+            return plan.to_dict()
+        try:
+            destination_snapshot, _ = _user_object_snapshot(
+                destination_path, item.type.object_class, item.type.size_limit)
+        except FileNotFoundError:
+            destination_snapshot = {}
+        except OverflowError as error:
+            plan.reject('over_size_limit', str(error))
+            return plan.to_dict()
+        except (OSError, ValueError) as error:
+            plan.warnings.append(OperationIssue('unreadable_destination', str(error)))
+            return plan.to_dict()
+        transfer_bytes = _add_exact_mirror_actions(
+            plan, source_path, destination_path, source_snapshot, destination_snapshot)
+        mirror_action_count = len(plan.actions)
+        if operation == 'move':
+            for relative, snapshot in sorted(
+                    source_snapshot.items(), key=lambda value: -value[0].count('/')):
+                path = source_path if relative == '' else source_path / relative
+                action = 'rmdir' if snapshot.entry_type == 'directory' else 'remove'
+                plan.actions.append(FileAction(action, None, str(path), None, snapshot))
+        output = plan.to_dict()
+        output['transfer_bytes'] = transfer_bytes
+        if simulate:
+            return output
+
+        completed = 0
+        copied = 0
+        failures = False
+        total = len(plan.actions)
+        for index, action in enumerate(plan.actions):
+            if operation == 'move' and index >= mirror_action_count and failures:
+                break
+            try:
+                def report_bytes(count: int) -> None:
+                    nonlocal copied
+                    copied += count
+                execute_file_action(action, report_bytes)
+                completed += 1
+            except (OSError, RuntimeError, ValueError) as error:
+                failures = True
+                plan.warnings.append(OperationIssue('filesystem_error', str(error)))
+            if progress is not None:
+                progress({'phase': 'executing', 'files_total': total,
+                          'files_completed': completed, 'bytes_total': transfer_bytes,
+                          'bytes_completed': copied})
+        if not failures:
+            _refresh_user_object_state(session, item)
+            session.commit()
+            plan.performed = True
+        output = plan.to_dict()
+        output['transfer_bytes'] = transfer_bytes
+        return output
+
+
+def synchronize_user_object(id: str, simulate: bool = True,
+                            progress: Callable[[dict], None] | None = None) -> dict:
+    return _user_object_operation(id, 'synchronize', simulate, progress=progress)
+
+
+def move_user_object(id: str, destination: DeploymentStatus,
+                     simulate: bool = True,
+                     progress: Callable[[dict], None] | None = None) -> dict:
+    try:
+        destination = DeploymentStatus(destination)
+    except ValueError:
+        plan = OperationPlan('move', 'user_object', id, simulate)
+        plan.reject('invalid_destination', str(destination))
+        return plan.to_dict()
+    if destination not in (DeploymentStatus.WORKING, DeploymentStatus.ARCHIVE):
+        plan = OperationPlan('move', 'user_object', id, simulate)
+        plan.reject('invalid_destination', str(destination))
+        return plan.to_dict()
+    return _user_object_operation(id, 'move', simulate, destination, progress)
+
+
+def _user_type_deletion_state(session: Session, type_id: str) -> tuple:
+    object_ids = tuple(session.exec(select(UserDefinedObject.id).where(
+        UserDefinedObject.type_id == type_id)).all())
+    links = tuple(sorted((link.user_object_id, link.collection_id) for link in session.exec(
+        select(UserObjectCollectionLink).where(
+            UserObjectCollectionLink.user_object_id.in_(object_ids))).all())) if object_ids else ()
+    collection_ids = set(session.exec(select(Collection.id)).all())
+    live = {link.collection_id for link in session.exec(select(ModelCollectionLink)).all()}
+    live.update(link.collection_id for link in session.exec(select(WorkflowCollectionLink)).all())
+    live.update(link.collection_id for link in session.exec(select(UserObjectCollectionLink)).all()
+                if link.user_object_id not in object_ids)
+    child_links = session.exec(select(CollectionCollectionLink)).all()
+    changed = True
+    while changed:
+        changed = False
+        for link in child_links:
+            if link.child_id in live and link.parent_id not in live:
+                live.add(link.parent_id)
+                changed = True
+    emptied = tuple(sorted(collection_ids - live))
+    return object_ids, links, emptied
+
+
+def preview_user_type_deletion(id: str) -> dict:
+    with Session(_engine) as session:
+        item = session.get(UserDefinedType, id)
+        if item is None:
+            raise ArcException(ArcException.Code.UNKNOWN_USER_TYPE, id)
+        state = _user_type_deletion_state(session, id)
+        collection_ids = {collection_id for _, collection_id in state[1]} | set(state[2])
+        collections = session.exec(select(Collection).where(
+            Collection.id.in_(collection_ids))).all() if collection_ids else []
+        token = str(uuid4())
+        _user_type_deletion_previews[token] = (monotonic() + 300, id, state)
+        return {'confirmation_id': token, 'type': {'id': item.id, 'name': item.name},
+                'objects': len(state[0]), 'collection_memberships': len(state[1]),
+                'affected_collections': [collection.summary() for collection in collections],
+                'collections_deleted': [collection.summary() for collection in collections
+                                        if collection.id in state[2]],
+                'filesystem_changes': 0}
+
+
+def delete_user_type(id: str, confirmation_id: str) -> dict:
+    if _config is not None and _config.read_only:
+        raise ArcException(ArcException.Code.READ_ONLY, 'Type deletion is disabled')
+    preview = _user_type_deletion_previews.pop(confirmation_id, None)
+    if preview is None or preview[0] < monotonic() or preview[1] != id:
+        raise ArcException(ArcException.Code.INVALID_CONFIRMATION, confirmation_id)
+    with Session(_engine) as session:
+        item = session.exec(select(UserDefinedType).where(UserDefinedType.id == id).options(
+            selectinload(UserDefinedType.objects).selectinload(UserDefinedObject.collections),
+            selectinload(UserDefinedType.objects).selectinload(UserDefinedObject.tags),
+            selectinload(UserDefinedType.objects).selectinload(UserDefinedObject.sets),
+        )).one_or_none()
+        if item is None:
+            raise ArcException(ArcException.Code.UNKNOWN_USER_TYPE, id)
+        if _user_type_deletion_state(session, id) != preview[2]:
+            raise ArcException(ArcException.Code.INVALID_CONFIRMATION,
+                               'deletion impact changed')
+        impact = {'id': item.id, 'name': item.name, 'objects_deleted': len(item.objects),
+                  'collections_deleted': len(preview[2][2]), 'filesystem_changes': 0}
+        for user_object in list(item.objects):
+            user_object.collections = []
+            user_object.tags = []
+        session.flush()
+        for collection_id in preview[2][2]:
+            collection = session.get(Collection, collection_id)
+            if collection is not None:
+                session.delete(collection)
+        session.delete(item)
+        session.commit()
+        return impact
+
+
+#-----------------------------------------------------------------------------------
+#
 # Collections
 #
 #-----------------------------------------------------------------------------------
@@ -1164,7 +2092,8 @@ def create_collection(data: dict) -> dict:
     O(C + M + W) memory. Link queries are batched by graph depth, so query count
     is O(D), where D is the maximum selected collection depth.
     """
-    allowed_fields = {'name', 'purpose', 'tags', 'models', 'workflows', 'children'}
+    allowed_fields = {'name', 'purpose', 'tags', 'models', 'workflows', 'user_objects',
+                      'children'}
     if not isinstance(data, dict) or set(data) - allowed_fields:
         raise ArcException(ArcException.Code.INVALID_COLLECTION,
                            'payload contains unsupported fields')
@@ -1196,19 +2125,22 @@ def create_collection(data: dict) -> dict:
 
     model_ids = member_ids('models')
     workflow_ids = member_ids('workflows')
+    user_object_ids = member_ids('user_objects')
     child_ids = member_ids('children')
     tags = data.get('tags', [])
     if (not isinstance(tags, list) or
             any(not isinstance(tag, str) for tag in tags)):
         raise ArcException(ArcException.Code.INVALID_COLLECTION,
                            'tags must be a list of strings')
-    if not model_ids and not workflow_ids and not child_ids:
+    if not model_ids and not workflow_ids and not user_object_ids and not child_ids:
         raise ArcException(ArcException.Code.EMPTY_COLLECTION, name)
 
     with Session(_engine) as session:
         models = session.exec(select(Model).where(Model.id.in_(model_ids))).all() if model_ids else []
         workflows = (session.exec(select(Workflow).where(Workflow.id.in_(workflow_ids))).all()
                      if workflow_ids else [])
+        user_objects = (session.exec(select(UserDefinedObject).where(
+            UserDefinedObject.id.in_(user_object_ids))).all() if user_object_ids else [])
         children = (session.exec(select(Collection).where(Collection.id.in_(child_ids))).all()
                     if child_ids else [])
         if {model.id for model in models} != set(model_ids):
@@ -1217,6 +2149,9 @@ def create_collection(data: dict) -> dict:
         if {workflow.id for workflow in workflows} != set(workflow_ids):
             missing = set(workflow_ids) - {workflow.id for workflow in workflows}
             raise ArcException(ArcException.Code.UNKNOWN_WORKFLOW, ', '.join(sorted(missing)))
+        if {item.id for item in user_objects} != set(user_object_ids):
+            missing = set(user_object_ids) - {item.id for item in user_objects}
+            raise ArcException(ArcException.Code.UNKNOWN_USER_OBJECT, ', '.join(sorted(missing)))
         if {child.id for child in children} != set(child_ids):
             missing = set(child_ids) - {child.id for child in children}
             raise ArcException(ArcException.Code.UNKNOWN_COLLECTION, ', '.join(sorted(missing)))
@@ -1224,6 +2159,7 @@ def create_collection(data: dict) -> dict:
         child_edges: dict[str, list[str]] = {}
         nested_models: dict[str, list[str]] = {}
         nested_workflows: dict[str, list[str]] = {}
+        nested_user_objects: dict[str, list[str]] = {}
         discovered = set(child_ids)
         frontier = set(child_ids)
         while frontier:
@@ -1233,10 +2169,13 @@ def create_collection(data: dict) -> dict:
                 ModelCollectionLink.collection_id.in_(frontier))).all()
             workflow_links = session.exec(select(WorkflowCollectionLink).where(
                 WorkflowCollectionLink.collection_id.in_(frontier))).all()
+            user_object_links = session.exec(select(UserObjectCollectionLink).where(
+                UserObjectCollectionLink.collection_id.in_(frontier))).all()
             for collection_id in frontier:
                 child_edges.setdefault(collection_id, [])
                 nested_models.setdefault(collection_id, [])
                 nested_workflows.setdefault(collection_id, [])
+                nested_user_objects.setdefault(collection_id, [])
             next_frontier = set()
             for link in collection_links:
                 child_edges[link.parent_id].append(link.child_id)
@@ -1247,11 +2186,14 @@ def create_collection(data: dict) -> dict:
                 nested_models[link.collection_id].append(link.model_id)
             for link in workflow_links:
                 nested_workflows[link.collection_id].append(link.workflow_id)
+            for link in user_object_links:
+                nested_user_objects[link.collection_id].append(link.user_object_id)
             frontier = next_frontier
 
         visited_collections = set()
         leaf_members = {('model', model_id) for model_id in model_ids}
         leaf_members.update(('workflow', workflow_id) for workflow_id in workflow_ids)
+        leaf_members.update(('user_object', object_id) for object_id in user_object_ids)
 
         def visit(collection_id: str, active_path: set[str]) -> None:
             if collection_id in active_path:
@@ -1262,7 +2204,9 @@ def create_collection(data: dict) -> dict:
             visited_collections.add(collection_id)
             path = active_path | {collection_id}
             direct_leaves = ([('model', value) for value in nested_models[collection_id]] +
-                             [('workflow', value) for value in nested_workflows[collection_id]])
+                             [('workflow', value) for value in nested_workflows[collection_id]] +
+                             [('user_object', value)
+                              for value in nested_user_objects[collection_id]])
             if not direct_leaves and not child_edges[collection_id]:
                 raise ArcException(ArcException.Code.EMPTY_COLLECTION, collection_id)
             for member in direct_leaves:
@@ -1278,7 +2222,8 @@ def create_collection(data: dict) -> dict:
 
         resolved_tags = resolve_tags(session, tags)
         collection = Collection(name=name.strip(), purpose=purpose,
-                                models=models, workflows=workflows, children=children,
+                                models=models, workflows=workflows, user_objects=user_objects,
+                                children=children,
                                 tags=resolved_tags)
         session.add(collection)
         session.commit()
@@ -1291,6 +2236,7 @@ def validate_collection_roots(session: Session, root_ids: set[str]) -> dict[str,
     child_edges: dict[str, list[str]] = {}
     model_members: dict[str, list[str]] = {}
     workflow_members: dict[str, list[str]] = {}
+    user_object_members: dict[str, list[str]] = {}
     discovered = set(root_ids)
     frontier = set(root_ids)
     while frontier:
@@ -1300,10 +2246,13 @@ def validate_collection_roots(session: Session, root_ids: set[str]) -> dict[str,
             ModelCollectionLink.collection_id.in_(frontier))).all()
         workflow_links = session.exec(select(WorkflowCollectionLink).where(
             WorkflowCollectionLink.collection_id.in_(frontier))).all()
+        user_object_links = session.exec(select(UserObjectCollectionLink).where(
+            UserObjectCollectionLink.collection_id.in_(frontier))).all()
         for collection_id in frontier:
             child_edges.setdefault(collection_id, [])
             model_members.setdefault(collection_id, [])
             workflow_members.setdefault(collection_id, [])
+            user_object_members.setdefault(collection_id, [])
         next_frontier = set()
         for link in collection_links:
             child_edges[link.parent_id].append(link.child_id)
@@ -1314,6 +2263,8 @@ def validate_collection_roots(session: Session, root_ids: set[str]) -> dict[str,
             model_members[link.collection_id].append(link.model_id)
         for link in workflow_links:
             workflow_members[link.collection_id].append(link.workflow_id)
+        for link in user_object_links:
+            user_object_members[link.collection_id].append(link.user_object_id)
         frontier = next_frontier
 
     result = {}
@@ -1329,7 +2280,9 @@ def validate_collection_roots(session: Session, root_ids: set[str]) -> dict[str,
                                    f'collection {collection_id} is reachable more than once')
             visited.add(collection_id)
             direct_leaves = ([('model', value) for value in model_members[collection_id]] +
-                             [('workflow', value) for value in workflow_members[collection_id]])
+                             [('workflow', value) for value in workflow_members[collection_id]] +
+                             [('user_object', value)
+                              for value in user_object_members[collection_id]])
             if not direct_leaves and not child_edges[collection_id]:
                 raise ArcException(ArcException.Code.EMPTY_COLLECTION, collection_id)
             for member in direct_leaves:
@@ -1345,6 +2298,8 @@ def validate_collection_roots(session: Session, root_ids: set[str]) -> dict[str,
         result[root_id] = {
             'models': {value for member_type, value in leaves if member_type == 'model'},
             'workflows': {value for member_type, value in leaves if member_type == 'workflow'},
+            'user_objects': {value for member_type, value in leaves
+                             if member_type == 'user_object'},
         }
     return result
 
@@ -1356,7 +2311,8 @@ def update_collection(id: str, data: dict) -> dict:
     E its edges, and T_r is the reachable tree size for each affected root.
     Memory use is linear in the union of those reachable subgraphs.
     """
-    allowed_fields = {'id', 'name', 'purpose', 'tags', 'models', 'workflows', 'children'}
+    allowed_fields = {'id', 'name', 'purpose', 'tags', 'models', 'workflows',
+                      'user_objects', 'children'}
     if not isinstance(data, dict) or set(data) - allowed_fields:
         raise ArcException(ArcException.Code.INVALID_COLLECTION,
                            'payload contains unsupported fields')
@@ -1384,12 +2340,13 @@ def update_collection(id: str, data: dict) -> dict:
 
     model_ids = ids_for('models')
     workflow_ids = ids_for('workflows')
+    user_object_ids = ids_for('user_objects')
     child_ids = ids_for('children')
     tags = data.get('tags', [])
     if not isinstance(tags, list) or any(not isinstance(tag, str) for tag in tags):
         raise ArcException(ArcException.Code.INVALID_COLLECTION,
                            'tags must be a list of strings')
-    if not model_ids and not workflow_ids and not child_ids:
+    if not model_ids and not workflow_ids and not user_object_ids and not child_ids:
         raise ArcException(ArcException.Code.EMPTY_COLLECTION, id)
 
     with Session(_engine) as session:
@@ -1399,6 +2356,8 @@ def update_collection(id: str, data: dict) -> dict:
         models = session.exec(select(Model).where(Model.id.in_(model_ids))).all() if model_ids else []
         workflows = (session.exec(select(Workflow).where(Workflow.id.in_(workflow_ids))).all()
                      if workflow_ids else [])
+        user_objects = (session.exec(select(UserDefinedObject).where(
+            UserDefinedObject.id.in_(user_object_ids))).all() if user_object_ids else [])
         children = (session.exec(select(Collection).where(Collection.id.in_(child_ids))).all()
                     if child_ids else [])
         if {item.id for item in models} != set(model_ids):
@@ -1407,6 +2366,10 @@ def update_collection(id: str, data: dict) -> dict:
         if {item.id for item in workflows} != set(workflow_ids):
             raise ArcException(ArcException.Code.UNKNOWN_WORKFLOW,
                                ', '.join(sorted(set(workflow_ids) - {item.id for item in workflows})))
+        if {item.id for item in user_objects} != set(user_object_ids):
+            raise ArcException(ArcException.Code.UNKNOWN_USER_OBJECT,
+                               ', '.join(sorted(set(user_object_ids) -
+                                                {item.id for item in user_objects})))
         if {item.id for item in children} != set(child_ids):
             raise ArcException(ArcException.Code.UNKNOWN_COLLECTION,
                                ', '.join(sorted(set(child_ids) - {item.id for item in children})))
@@ -1415,6 +2378,7 @@ def update_collection(id: str, data: dict) -> dict:
         collection.purpose = purpose
         collection.models = models
         collection.workflows = workflows
+        collection.user_objects = user_objects
         collection.children = children
         collection.tags = resolve_tags(session, tags)
         session.add(collection)
@@ -1454,6 +2418,7 @@ def update_collection_models(id: str, model_ids: list[str], add: bool) -> dict:
         'tags': current['tags'],
         'models': models,
         'workflows': [workflow['id'] for workflow in current['workflows']],
+        'user_objects': [item['id'] for item in current['user_objects']],
         'children': [child['id'] for child in current['children']],
     })
 
@@ -1470,6 +2435,24 @@ def update_collection_workflows(id: str, workflow_ids: list[str], add: bool) -> 
         'tags': current['tags'],
         'models': [model['id'] for model in current['models']],
         'workflows': workflows,
+        'user_objects': [item['id'] for item in current['user_objects']],
+        'children': [child['id'] for child in current['children']],
+    })
+
+
+def update_collection_user_objects(id: str, user_object_ids: list[str], add: bool) -> dict:
+    """Add or remove direct user-object memberships in one validated update."""
+    current = get_collection(id)
+    selected = set(user_object_ids)
+    existing = [item['id'] for item in current['user_objects']]
+    user_objects = (existing + [item for item in user_object_ids if item not in existing]
+                    if add else [item for item in existing if item not in selected])
+    return update_collection(id, {
+        'id': id, 'name': current['name'], 'purpose': current['purpose'],
+        'tags': current['tags'],
+        'models': [model['id'] for model in current['models']],
+        'workflows': [workflow['id'] for workflow in current['workflows']],
+        'user_objects': user_objects,
         'children': [child['id'] for child in current['children']],
     })
 
@@ -1494,11 +2477,14 @@ def delete_collection(id: str) -> dict:
                 ModelCollectionLink.collection_id.in_(parent_ids))).all()
             parent_workflow_links = session.exec(select(WorkflowCollectionLink).where(
                 WorkflowCollectionLink.collection_id.in_(parent_ids))).all()
+            parent_user_object_links = session.exec(select(UserObjectCollectionLink).where(
+                UserObjectCollectionLink.collection_id.in_(parent_ids))).all()
             nonempty_parents = {
                 link.parent_id for link in parent_collection_links if link.child_id != id
             }
             nonempty_parents.update(link.collection_id for link in parent_model_links)
             nonempty_parents.update(link.collection_id for link in parent_workflow_links)
+            nonempty_parents.update(link.collection_id for link in parent_user_object_links)
             emptied_parents = parent_ids - nonempty_parents
             if emptied_parents:
                 raise ArcException(
@@ -1527,13 +2513,18 @@ def collection_operation(id: str, operation: str, simulate: bool = True,
             return plan.to_dict()
 
     members = ([('model', member_id) for member_id in sorted(leaves['models'])] +
-               [('workflow', member_id) for member_id in sorted(leaves['workflows'])])
+               [('workflow', member_id) for member_id in sorted(leaves['workflows'])] +
+               [('user_object', member_id) for member_id in sorted(leaves['user_objects'])])
 
     def run_member(member_type: str, member_id: str, member_simulate: bool) -> dict:
         if operation == 'synchronize':
-            function = synchronize_model if member_type == 'model' else synchronize_workflow
+            function = (synchronize_model if member_type == 'model' else
+                        synchronize_workflow if member_type == 'workflow' else
+                        synchronize_user_object)
             return function(member_id, member_simulate)
-        function = move_model if member_type == 'model' else move_workflow
+        function = (move_model if member_type == 'model' else
+                    move_workflow if member_type == 'workflow' else
+                    move_user_object)
         return function(member_id, destination, member_simulate)
 
     validation_results = [run_member(member_type, member_id, True)

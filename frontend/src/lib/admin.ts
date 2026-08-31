@@ -12,12 +12,14 @@ import {
 } from "$lib/api";
 import { type Operation } from '$lib/models';
 
-export type ActiveTab = 'models' | 'workflows' | 'collections' | null;
+export type ActiveTab = 'models' | 'workflows' | 'user' | 'collections' | null;
 
 export type ServerStatus = {
     started: boolean,
     ready: boolean,
     read_only: boolean,
+    setup_required?: boolean,
+    mode?: 'standalone' | 'comfyui',
     first_run?: boolean,
     scanning?: boolean
 }
@@ -27,6 +29,8 @@ function toServerStatus(json: any): ServerStatus {
         started: json.started,
         ready: json.ready,
         read_only: json.read_only,
+        ...('setup_required' in json ? {setup_required: json.setup_required} : {}),
+        ...('mode' in json ? {mode: json.mode} : {}),
         ...('first_run' in json ? {first_run: json.first_run} : {}),
         ...('scanning' in json ? {scanning: json.scanning} : {})
     }

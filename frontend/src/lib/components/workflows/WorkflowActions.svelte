@@ -5,13 +5,13 @@
  ! -------------------------------------------------->
 
 <script lang="ts">
-import filterIcon from '$icons/filter16.png';
-import filterOffIcon from '$icons/filter-off16.png';
-import adjustIcon from '$icons/adjust16.png';
-import confirmIcon from '$icons/confirm16.png';
-import cancelIcon from '$icons/cancel16.png';
-import resetIcon from '$icons/reset16.png';
-import openIcon from '$icons/open16.png';
+import filterIcon from '$icons/actions/filter16.png';
+import filterOffIcon from '$icons/actions/filter-off16.png';
+import adjustIcon from '$icons/actions/adjust16.png';
+import confirmIcon from '$icons/actions/confirm16.png';
+import cancelIcon from '$icons/actions/cancel16.png';
+import resetIcon from '$icons/actions/reset16.png';
+import openIcon from '$icons/actions/open16.png';
 import TagEditor from '$components/controls/TagEditor.svelte';
 import { type WorkflowSearchCriteria } from '$lib/workflows';
 

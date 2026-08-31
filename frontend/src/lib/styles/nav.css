@@ -35,6 +35,51 @@
     padding: 0 var(--gap-large);
 }
 
+.nav-user-type {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+}
+
+.nav-user-type .user-type-main {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.user-type-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    padding: 0;
+    background: var(--bg-accent);
+    border: var(--solid-border);
+    border-left: var(--solid-border);
+    border-radius: 0 var(--radius-mid) var(--radius-mid) 0;
+}
+
+.user-type-menu {
+    position: absolute;
+    z-index: var(--z-popup);
+    top: calc(100% + var(--gap-tiny));
+    left: 0;
+    min-width: 100%;
+    padding: var(--gap-tiny);
+    background: var(--bg-color);
+    border: var(--solid-border);
+    border-radius: var(--radius-mid);
+    box-shadow: var(--shadow-right);
+}
+
+.user-type-menu button {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: var(--gap-small);
+    white-space: nowrap;
+    text-align: left;
+}
+
 /* App title and image
  * ----------------------------------------------- */
 .app-title {

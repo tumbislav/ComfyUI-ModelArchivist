@@ -5,7 +5,9 @@
 # ---------------------------------------------------------------------------
 
 from backend.repository.tables import (Model, Component, ComponentSet, Workflow, ComponentType,
-                                       DeploymentStatus, WorkflowError, ModelError)
+                                       DeploymentStatus, WorkflowError, ModelError,
+                                       UserDefinedObject, UserObjectClass, UserObjectEntry,
+                                       UserObjectError, UserObjectSet)
 
 import logging
 from threading import Thread, Lock, Barrier
@@ -53,6 +55,17 @@ class WorkflowCandidate:
     purpose: str
     tags: list[str]
     errors: set[WorkflowError] = field(default_factory=set)
+
+
+@dataclass
+class UserObjectCandidate:
+    relative_path: str
+    where: str
+    size: int
+    modified_at_ns: int
+    entries: list[UserObjectEntry]
+    errors: set[UserObjectError] = field(default_factory=set)
+    oversized: bool = False
 
 
 def read_workflow_candidate(path: Path, root: Path, where: str) -> WorkflowCandidate | None:
@@ -103,6 +116,7 @@ class Scanner:
     finished: bool = False
     models_scanned: int = 0
     workflows_scanned: int = 0
+    user_objects_scanned: int = 0
     hashes_calculated: int = 0
     errors: list[str] = field(default_factory=list)
     lock: Lock = Lock()
@@ -128,6 +142,10 @@ class Scanner:
         if self.config.workflow_folders:
             threads.append(Thread(target=self.find_workflows, args=(self.config.workflow_folders,)))
 
+        user_types = repo.user_types_for_scan()
+        if user_types:
+            threads.append(Thread(target=self.find_user_objects, args=(user_types,)))
+
         threads.append(Thread(target=self.cleanup, args=tuple()))
         self.barrier = Barrier(len(threads))
 
@@ -136,10 +154,12 @@ class Scanner:
             thread.start()
         return self.timestamp
 
-    def report(self, models: int=0, workflows: int=0, hashes: int=0, error: str=''):
+    def report(self, models: int=0, workflows: int=0, user_objects: int=0,
+               hashes: int=0, error: str=''):
         with self.lock:
             self.models_scanned += models
             self.workflows_scanned += workflows
+            self.user_objects_scanned += user_objects
             self.hashes_calculated += hashes
             if error != '':
                 self.errors.append(error)
@@ -151,6 +171,7 @@ class Scanner:
                          'finished': self.finished,
                          'models_scanned': self.models_scanned,
                          'workflows_scanned': self.workflows_scanned,
+                         'user_objects_scanned': self.user_objects_scanned,
                          'hashes_calculated': self.hashes_calculated}
 
         if self.start_time is not None:
@@ -189,6 +210,8 @@ class Scanner:
         self.logger.debug(f'starting scan for {type_name} in {working_root} and {archive_root}')
         working_examples = working_root.parent / 'examples'
         archive_examples = archive_root.parent / 'examples'
+        extensions_by_type = getattr(self.config, 'model_extensions_by_type', {})
+        model_extensions = set(extensions_by_type.get(type_name, self.config.model_extensions))
 
 
         def get_metadata(model_filename: str, model_dir: Path) -> tuple[str, dict, bool, bool]:
@@ -305,7 +328,7 @@ class Scanner:
             for file_path, where in chain(((working_dir / fn, 'w') for fn in filenames),
                                           ((f.resolve(), 'a') for f in archive_dir.iterdir() if f.is_file())):
                 stem = model_component_stem(file_path)
-                c_type = (ComponentType.MODEL if file_path.suffix in self.config.model_extensions else
+                c_type = (ComponentType.MODEL if file_path.suffix.lower() in model_extensions else
                           ComponentType.METADATA if file_path.name.endswith(ARCHIVIST_METADATA_SUFFIX) else
                           ComponentType.EXTRA)
                 found.setdefault(stem, {}).setdefault(where, []).append((c_type, file_path.name))
@@ -439,6 +462,126 @@ class Scanner:
             self.report(workflows=1)
 
         self.logger.debug('workflow scan complete')
+        self.barrier.wait()
+
+    @staticmethod
+    def _matches_extension(path: Path, extensions: list[str]) -> bool:
+        name = path.name.casefold()
+        return any(name.endswith(f'.{extension.casefold().lstrip(".")}')
+                   for extension in extensions)
+
+    def _scan_user_object(self, path: Path, root: Path, where: str,
+                          size_limit: int) -> UserObjectCandidate:
+        """Build a bounded filesystem snapshot for one UDP object."""
+        relative_object = path.relative_to(root).as_posix()
+        entries = []
+        errors = set()
+        total_size = 0
+        latest_mtime = 0
+        paths = [path] if path.is_file() else [path, *sorted(path.rglob('*'), key=str)]
+        for entry_path in paths:
+            try:
+                if entry_path.is_symlink():
+                    self.logger.warning('ignoring symlink in user object: %s', entry_path)
+                    continue
+                stat = entry_path.stat()
+                if entry_path.is_dir():
+                    entry_type = 'directory'
+                    entry_size = 0
+                elif entry_path.is_file():
+                    entry_type = 'file'
+                    entry_size = stat.st_size
+                    with entry_path.open('rb') as stream:
+                        stream.read(1)
+                else:
+                    self.logger.warning('ignoring special filesystem entry: %s', entry_path)
+                    continue
+                total_size += entry_size
+                latest_mtime = max(latest_mtime, stat.st_mtime_ns)
+                entries.append(UserObjectEntry(
+                    relative_path=entry_path.relative_to(root).as_posix(),
+                    entry_type=entry_type, size=entry_size,
+                    modified_at_ns=stat.st_mtime_ns))
+                if total_size > size_limit:
+                    return UserObjectCandidate(relative_object, where, total_size,
+                                               latest_mtime, [], oversized=True)
+            except OSError as error:
+                errors.add(UserObjectError.UNREADABLE)
+                self.report(error=f'unreadable user object entry {entry_path}: {error}')
+        return UserObjectCandidate(relative_object, where, total_size, latest_mtime,
+                                   entries, errors)
+
+    def find_user_objects(self, user_types: list[dict]):
+        """Discover file- and folder-class objects for all database-defined types."""
+        for type_definition in user_types:
+            grouped: dict[str, dict[str, UserObjectCandidate]] = {}
+            root_failed = False
+            for where, root_value in (('w', type_definition['working_dir']),
+                                      ('a', type_definition['archive_dir'])):
+                root = Path(root_value)
+                try:
+                    if type_definition['object_class'] == UserObjectClass.FILE.value:
+                        paths = (path for path in sorted(root.rglob('*'), key=str)
+                                 if path.is_file() and not path.is_symlink() and
+                                 self._matches_extension(path, type_definition['extensions']))
+                    else:
+                        paths = (path for path in sorted(root.iterdir(), key=str)
+                                 if path.is_dir() and not path.is_symlink())
+                    for path in paths:
+                        candidate = self._scan_user_object(
+                            path, root, where, type_definition['size_limit'])
+                        grouped.setdefault(candidate.relative_path, {})[where] = candidate
+                except OSError as error:
+                    root_failed = True
+                    self.report(error=f'cannot scan user-defined type root {root}: {error}')
+
+            for relative_path, sides in grouped.items():
+                oversized = [side for side in sides.values() if side.oversized]
+                if oversized:
+                    with repo.lock:
+                        retained = repo.retain_oversized_user_object(
+                            type_definition['id'], relative_path, self.timestamp,
+                            max(side.size for side in oversized))
+                    if retained:
+                        self.report(user_objects=1)
+                    else:
+                        self.logger.warning('ignoring oversized new user object %s',
+                                            relative_path)
+                    continue
+                working = sides.get('w')
+                archive = sides.get('a')
+                errors = set().union(*(side.errors for side in sides.values()))
+                if working and archive:
+                    working_entries = {(entry.relative_path, entry.entry_type, entry.size,
+                                        entry.modified_at_ns if entry.entry_type == 'file' else 0)
+                                       for entry in working.entries}
+                    archive_entries = {(entry.relative_path, entry.entry_type, entry.size,
+                                        entry.modified_at_ns if entry.entry_type == 'file' else 0)
+                                       for entry in archive.entries}
+                    if working_entries != archive_entries:
+                        errors.add(UserObjectError.LOCATION_MISMATCH)
+                selected = working or archive
+                deployment = (DeploymentStatus.MISMATCH if UserObjectError.LOCATION_MISMATCH in errors
+                              else DeploymentStatus.SYNCED if working and archive
+                              else DeploymentStatus.WORKING if working
+                              else DeploymentStatus.ARCHIVE)
+                item = UserDefinedObject(
+                    type_id=type_definition['id'], relative_path=relative_path,
+                    display_name=Path(relative_path).name, deployment=str(deployment),
+                    size=selected.size, modified_at_ns=selected.modified_at_ns,
+                    touched=self.timestamp,
+                    errors=[error.value for error in UserObjectError if error in errors],
+                    sets=[UserObjectSet(where=side.where, size=side.size,
+                                        modified_at_ns=side.modified_at_ns,
+                                        entries=side.entries) for side in sides.values()])
+                with repo.lock:
+                    repo.save_scanned_user_object(item)
+                self.report(user_objects=1)
+            if root_failed:
+                with repo.lock:
+                    repo.retain_unreadable_user_type_objects(
+                        type_definition['id'], self.timestamp)
+        self.logger.debug('user-defined object scan complete')
         self.barrier.wait()
 
 def check_deployment(working_set: ComponentSet, archive_set: ComponentSet) -> DeploymentStatus:

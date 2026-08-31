@@ -1,66 +1,18 @@
 # ---------------------------------------------------------------------------
 # system: ModelArchivist
 # file: config.toml
-# purpose: Application config
+# purpose: Bootstrap configuration
 # ---------------------------------------------------------------------------
-
-[paths]
-comfy = "{$app}/test/data/ComfyUI"
-archive = "{$app}/test/data/archive"
-user = "{$app}/test/data"
 
 [database]
 database_file = "{$app}/test/model_archivist.db"
-dbms_prefix = "sqlite:///"
-
-[models]
-working = "{$comfy}/models"
-archive = "{$archive}/models"
-extensions = [".safetensors", ".sft", ".ckpt", ".pt", ".pth", ".gguf"]
-ignore = ["examples", "configs"]
-
-[models.types]
-checkpoints = "Checkpoint"
-clip = "CLIP"
-clip_vision = "CLIP Vision"
-controlnet = "Controlnet"
-diffusers = "Diffuser"
-diffusion_models = "Diffusion model"
-embeddings = "Embedding"
-gligen = "GLIGEN"
-hypernetworks = "Hypernetwork"
-latent_upscale_models = "Upscaler (latent)"
-loras = "LoRA"
-model_patches = "Model patch"
-photomaker = "PhotoMaker"
-style_models = "Style"
-text_encoders = "Text encoder"
-unet = "U-Net"
-upscale_models = "Upscaler"
-vae = "VAE"
-vae_approx = "Tiny AutoEncoder"
-
-[[models.extras]]
-yaml = "{$comfy}/extra_models_1.yaml"
-archive = "{$archive}/extra_1"
-
-[workflows]
-
-[[workflows.folders]]
-working = "{$user}/workflows"
-archive = "{$archive}/workflows"
 
 [web]
 host = "127.0.0.1"
 port = 5173
 static_html = "{$app}/frontend/build"
 
-[options]
-update_json_metadata = true     # update metadata when values change - has consequences for LoraManager
-ignore_unknown_types = false    # ignore models not in the model_types list
-always_recalc_hashes = false
-
 [logging]
 level = "DEBUG"
 sql_level = "WARNING"
-file = "{$app}archivist.log"
+file = "{$app}/archivist.log"

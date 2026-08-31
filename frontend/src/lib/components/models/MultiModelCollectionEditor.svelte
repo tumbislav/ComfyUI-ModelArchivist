@@ -5,10 +5,10 @@
  ! -------------------------------------------------->
 
 <script lang="ts">
-import addIcon from '$icons/add16.png';
-import removeIcon from '$icons/remove16.png';
-import cancelIcon from '$icons/cancel16.png';
-import confirmIcon from '$icons/confirm16.png';
+import addIcon from '$icons/actions/add16.png';
+import removeIcon from '$icons/actions/remove16.png';
+import cancelIcon from '$icons/actions/cancel16.png';
+import confirmIcon from '$icons/actions/confirm16.png';
 
 import { confirmBox, sideDialogPosition } from '$lib/confirm.svelte';
 import { createCollection, getCollections, updateCollectionModels } from '$lib/collections';

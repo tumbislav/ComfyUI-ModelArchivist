@@ -28,6 +28,7 @@ export type CollectionInput = {
     tags: string[];
     models: string[];
     workflows: string[];
+    user_objects?: string[];
     children: string[];
 };
 
@@ -81,6 +82,7 @@ function collectionInput(collection: Collection): CollectionInput {
         tags: [...collection.tags],
         models: collection.models.map((model) => model.id),
         workflows: collection.workflows.map((workflow) => workflow.id),
+        user_objects: collection.user_objects.map((item) => item.id),
         children: collection.children.map((child) => child.id)
     };
 }

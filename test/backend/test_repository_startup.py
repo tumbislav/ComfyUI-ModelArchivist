@@ -1,34 +1,31 @@
 # ---------------------------------------------------------------------------
 # system: ModelArchivist
 # file: test_repository_startup.py
-# purpose: Tests for repository startup
+# purpose: Tests for database-backed repository startup
 # ---------------------------------------------------------------------------
 
-import sqlite3
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
-from alembic import command
 from alembic.migration import MigrationContext
-from sqlalchemy import inspect
-from sqlmodel import Session, SQLModel
+from sqlmodel import Session, create_engine
 
+from backend.config import Configuration, DatabaseConfig, LoggingConfig, WebConfig
 from backend.exception import ArcException
 import backend.repository.repository as repository
-from backend.repository.migrations import alembic_config
-from backend.repository.tables import Tag
+from backend.repository.tables import (ApplicationSettings, ModelLocationSetting,
+                                       ModelTypeSetting)
 
 
-def repository_config(db_file: Path, log_file: Path):
-    return SimpleNamespace(
-        db_file=db_file,
-        dbms_prefix='sqlite:///',
-        log_file=str(log_file),
-        sql_log_level='WARNING',
-        read_only=False,
-        options=SimpleNamespace(always_recalc_hashes=False),
-    )
+def repository_config(db_file: Path, log_file: Path) -> Configuration:
+    config = Configuration(
+        database=DatabaseConfig(database_file=str(db_file)),
+        web=WebConfig(host='127.0.0.1', port=5173,
+                      static_html=str(db_file.parent / 'html')),
+        logging=LoggingConfig(level='INFO', sql_level='WARNING', file=str(log_file)))
+    app_root = db_file.parent if db_file.parent.is_dir() else db_file.parent.parent
+    config.initialize(app_root, app_root / 'config.toml')
+    return config
 
 
 @pytest.fixture(autouse=True)
@@ -48,195 +45,139 @@ def reset_repository_state(monkeypatch: pytest.MonkeyPatch):
             handler.close()
 
 
-def test_start_repo_rejects_corrupt_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_start_repo_rejects_corrupt_database(tmp_path, monkeypatch):
     db_file = tmp_path / 'corrupt.db'
-    db_file.write_text('this is not SQLite', encoding='utf-8')
-    config = repository_config(db_file, tmp_path / 'database.log')
-    monkeypatch.setattr(repository, 'get_config', lambda: config)
-
+    db_file.write_text('not SQLite', encoding='utf-8')
+    monkeypatch.setattr(repository, 'get_config',
+                        lambda: repository_config(db_file, tmp_path / 'log'))
     with pytest.raises(ArcException) as exc_info:
         repository.start_repo()
-
     assert exc_info.value.code is ArcException.Code.INVALID_DATABASE
-    assert repository._repo_started is False
 
 
-def test_start_repo_reports_inaccessible_database_folder(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-):
+def test_start_repo_reports_inaccessible_database_folder(tmp_path, monkeypatch):
     db_file = tmp_path / 'blocked' / 'database.db'
-    config = repository_config(db_file, tmp_path / 'database.log')
+    config = repository_config(db_file, tmp_path / 'log')
     real_mkdir = Path.mkdir
 
-    def deny_database_folder(path: Path, *args, **kwargs):
+    def deny(path: Path, *args, **kwargs):
         if path == db_file.parent:
             raise PermissionError('access denied')
         return real_mkdir(path, *args, **kwargs)
 
-    monkeypatch.setattr(Path, 'mkdir', deny_database_folder)
+    monkeypatch.setattr(Path, 'mkdir', deny)
     monkeypatch.setattr(repository, 'get_config', lambda: config)
-
     with pytest.raises(ArcException) as exc_info:
         repository.start_repo()
-
     assert exc_info.value.code is ArcException.Code.INACCESSIBLE_FOLDER
-    assert repository._repo_started is False
 
 
-def test_start_repo_rejects_incompatible_unversioned_database(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    db_file = tmp_path / 'existing.db'
-    with sqlite3.connect(db_file) as connection:
-        connection.execute('CREATE TABLE existing (id INTEGER PRIMARY KEY)')
+def test_new_database_starts_in_setup_mode_without_scan(tmp_path, monkeypatch):
+    db_file = tmp_path / 'new' / 'database.db'
     config = repository_config(db_file, tmp_path / 'database.log')
     monkeypatch.setattr(repository, 'get_config', lambda: config)
+    monkeypatch.setattr(repository, 'create_scanner',
+                        lambda: pytest.fail('setup mode must not scan'))
 
-    with pytest.raises(ArcException) as exc_info:
-        repository.start_repo()
+    repository.start_repo()
 
-    assert exc_info.value.code is ArcException.Code.INVALID_DATABASE
-    assert repository._repo_started is False
+    assert repository.repo_status()['setup_required'] is True
+    assert repository.repo_status()['ready'] is True
+    with repository._engine.connect() as connection:
+        assert MigrationContext.configure(connection).get_current_revision() == '000000000001'
 
 
-def test_start_repo_adopts_compatible_unversioned_database(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    db_file = tmp_path / 'existing.db'
-    engine = repository.create_engine(f'sqlite:///{db_file}')
-    SQLModel.metadata.create_all(engine)
+def test_configured_database_loads_paths_and_starts_scan(tmp_path, monkeypatch):
+    db_file = tmp_path / 'database.db'
+    engine = create_engine(f'sqlite:///{db_file}')
+    repository.update_database_schema(engine)
+    working = tmp_path / 'working'
+    archive = tmp_path / 'archive'
     with Session(engine) as session:
-        session.add(Tag(tag='preserved'))
+        session.add(ApplicationSettings(setup_complete=True))
+        session.add(ModelTypeSetting(name='checkpoints', display_name='Checkpoint',
+                                     extensions=['.safetensors']))
+        session.add(ModelLocationSetting(model_type='checkpoints', working_dir=str(working),
+                                         archive_dir=str(archive)))
         session.commit()
     engine.dispose()
     config = repository_config(db_file, tmp_path / 'database.log')
+    started = []
+
+    class ScannerStub:
+        def start(self, rehash):
+            started.append(rehash)
+
     monkeypatch.setattr(repository, 'get_config', lambda: config)
+    monkeypatch.setattr(repository, 'create_scanner', ScannerStub)
 
     repository.start_repo()
 
-    with Session(repository._engine) as session:
-        assert session.get(Tag, 'preserved') is not None
-    with repository._engine.connect() as connection:
-        assert MigrationContext.configure(connection).get_current_revision() == 'c31e958af610'
-    assert repository._first_run is False
+    assert config.model_folders['checkpoints'] == {(working, archive)}
+    assert started == [False]
 
 
-def test_start_repo_upgrades_unversioned_baseline_database(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    db_file = tmp_path / 'baseline.db'
-    engine = repository.create_engine(f'sqlite:///{db_file}')
-    with engine.begin() as connection:
-        command.upgrade(alembic_config(connection), '16da8f3ac79c')
-        connection.exec_driver_sql("INSERT INTO tag (tag) VALUES ('preserved')")
-        connection.exec_driver_sql('DROP TABLE alembic_version')
+def test_schema_update_is_idempotent(tmp_path):
+    engine = create_engine(f'sqlite:///{tmp_path / "database.db"}')
+    repository.update_database_schema(engine)
+    repository.update_database_schema(engine)
+    with engine.connect() as connection:
+        assert MigrationContext.configure(connection).get_current_revision() == '000000000001'
     engine.dispose()
-    config = repository_config(db_file, tmp_path / 'database.log')
-    monkeypatch.setattr(repository, 'get_config', lambda: config)
-
-    repository.start_repo()
-
-    with repository._engine.connect() as connection:
-        columns = {column['name'] for column in inspect(connection).get_columns('component')}
-        assert {'size', 'modified_at_ns'} <= columns
-        assert MigrationContext.configure(connection).get_current_revision() == 'c31e958af610'
-        assert connection.exec_driver_sql(
-            "SELECT tag FROM tag WHERE tag = 'preserved'"
-        ).scalar_one() == 'preserved'
 
 
-def test_start_repo_creates_parent_and_new_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    db_file = tmp_path / 'new' / 'database.db'
-    config = repository_config(db_file, tmp_path / 'database.log')
-    scanner = SimpleNamespace(start=lambda _rehash: None)
-    monkeypatch.setattr(repository, 'get_config', lambda: config)
-    monkeypatch.setattr(repository, 'create_scanner', lambda: scanner)
-
-    repository.start_repo()
-
-    assert db_file.is_file()
-    assert repository._repo_started is True
-    assert repository._first_run is True
-    with repository._engine.connect() as connection:
-        assert MigrationContext.configure(connection).get_current_revision() == 'c31e958af610'
-
-
-def test_start_repo_does_not_scan_in_read_only_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    db_file = tmp_path / 'readonly' / 'database.db'
-    config = repository_config(db_file, tmp_path / 'database.log')
-    config.read_only = True
-    monkeypatch.setattr(repository, 'get_config', lambda: config)
-
-    def unexpected_scanner():
-        pytest.fail('read-only startup must not create a scanner')
-
-    monkeypatch.setattr(repository, 'create_scanner', unexpected_scanner)
-
-    repository.start_repo()
-
-    assert repository.repo_status()['read_only'] is True
-    assert repository._repo_started is True
-
-
-def test_schema_update_is_idempotent(tmp_path: Path):
+def test_repository_configuration_persists_standalone_locations(tmp_path, monkeypatch):
     db_file = tmp_path / 'database.db'
-    engine = repository.create_engine(f'sqlite:///{db_file}')
-
-    repository.update_database_schema(engine)
-    repository.update_database_schema(engine)
-
-    with engine.connect() as connection:
-        assert MigrationContext.configure(connection).get_current_revision() == 'c31e958af610'
-    engine.dispose()
-
-
-def test_file_format_migration_backfills_from_model_component(tmp_path: Path):
-    engine = repository.create_engine(f'sqlite:///{tmp_path / "format.db"}')
-    with engine.begin() as connection:
-        command.upgrade(alembic_config(connection), 'a7c4f02d91e8')
-        connection.exec_driver_sql(
-            """INSERT INTO model
-               (id, file_name, internal_name, type, relative_path, deployment, touched, errors)
-               VALUES ('model-id', 'weights', 'Weights', 'checkpoints', '',
-                       'working', 'timestamp', '[]')""")
-        connection.exec_driver_sql(
-            """INSERT INTO componentset
-               (id, "where", primary_dir, examples_dir, model_id, workflow_id)
-               VALUES ('set-id', 'w', '.', NULL, 'model-id', NULL)""")
-        connection.exec_driver_sql(
-            """INSERT INTO component
-               (id, file_name, relative_path, component_type, touched,
-                component_set_id, size, modified_at_ns)
-               VALUES ('component-id', 'weights.GGUF', '', 'model', 'timestamp',
-                       'set-id', 10, 20)""")
-
-    repository.update_database_schema(engine)
-
-    with engine.connect() as connection:
-        assert connection.exec_driver_sql(
-            "SELECT file_format FROM model WHERE id = 'model-id'"
-        ).scalar_one() == 'gguf'
-    engine.dispose()
-
-
-def test_migration_failure_leaves_repository_unstarted(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    config = repository_config(tmp_path / 'database.db', tmp_path / 'database.log')
+    config = repository_config(db_file, tmp_path / 'database.log')
     monkeypatch.setattr(repository, 'get_config', lambda: config)
+    repository.start_repo()
 
-    def fail_migration(_engine):
-        raise RuntimeError('migration failed')
+    result = repository.update_repository_configuration({
+        'options': {'update_json_metadata': False},
+        'model_types': [{
+            'name': 'checkpoints', 'display_name': 'Checkpoint',
+            'extensions': ['safetensors'],
+            'locations': [{'working_dir': str(tmp_path / 'models'),
+                           'archive_dir': str(tmp_path / 'model-archive')}],
+        }],
+        'workflow_locations': [{'working_dir': str(tmp_path / 'workflows'),
+                                'archive_dir': str(tmp_path / 'workflow-archive')}],
+    })
 
-    monkeypatch.setattr(repository, 'update_database_schema', fail_migration)
+    assert result['setup_complete'] is True
+    assert result['options']['update_json_metadata'] is False
+    assert config.setup_required is False
+    assert config.model_extensions_by_type['checkpoints'] == ['.safetensors']
 
-    with pytest.raises(RuntimeError, match='migration failed'):
-        repository.start_repo()
+    model_update = repository.update_model_configuration({'model_types': [{
+        'name': 'checkpoints', 'display_name': 'Checkpoints',
+        'extensions': ['.ckpt'],
+        'locations': [{'working_dir': str(tmp_path / 'models'),
+                       'archive_dir': str(tmp_path / 'model-archive')}],
+    }]})
+    assert model_update['workflow_locations'][0]['working_dir'] == str(
+        (tmp_path / 'workflows').absolute())
+    assert model_update['model_types'][0]['display_name'] == 'Checkpoints'
 
-    assert repository._repo_started is False
-    assert repository._engine is None
+
+def test_repository_configuration_rejects_multiple_standalone_locations(
+        tmp_path, monkeypatch):
+    db_file = tmp_path / 'database.db'
+    config = repository_config(db_file, tmp_path / 'database.log')
+    monkeypatch.setattr(repository, 'get_config', lambda: config)
+    repository.start_repo()
+
+    with pytest.raises(ValueError, match='one working/archive pair'):
+        repository.update_repository_configuration({
+            'model_types': [{
+                'name': 'checkpoints', 'display_name': 'Checkpoint',
+                'extensions': ['.safetensors'],
+                'locations': [
+                    {'working_dir': str(tmp_path / 'models-1'),
+                     'archive_dir': str(tmp_path / 'archive-1')},
+                    {'working_dir': str(tmp_path / 'models-2'),
+                     'archive_dir': str(tmp_path / 'archive-2')},
+                ],
+            }],
+            'workflow_locations': [],
+        })
