@@ -5,10 +5,20 @@
 # ---------------------------------------------------------------------------
 
 import logging.config
+import sys
+from pathlib import Path
+
+# ComfyUI imports custom nodes by file location without placing each custom-node
+# directory on sys.path. The standalone application intentionally uses `backend`
+# as its top-level package, so expose this repository root before importing it.
+_plugin_root = str(Path(__file__).resolve().parent)
+if _plugin_root not in sys.path:
+    sys.path.insert(0, _plugin_root)
 
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 WEB_DIRECTORY = './web'
+__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', 'WEB_DIRECTORY']
 _launch_url = 'http://127.0.0.1:5173'
 
 try:

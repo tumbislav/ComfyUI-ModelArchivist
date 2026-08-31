@@ -3,6 +3,7 @@
 
 /archivist.db
 /test/temp/
+/test/data/
 /model_archivist.log
 
 # Front end
@@ -29,3 +30,4 @@
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
