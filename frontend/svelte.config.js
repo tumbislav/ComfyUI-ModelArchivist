@@ -4,6 +4,9 @@ import {vitePreprocess} from '@sveltejs/vite-plugin-svelte';
 const config = {
     preprocess: vitePreprocess(),
     kit: {
+        paths: {
+            base: '/model-archivist'
+        },
         adapter: adapter({
             pages: 'build',
             assets: 'build',

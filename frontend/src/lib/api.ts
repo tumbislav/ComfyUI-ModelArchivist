@@ -8,10 +8,11 @@
 /* Calling APIs
  * ---------------------------------------------------------------------------*/
 
-const base_url = "http://127.0.0.1:5173";
+const API_PREFIX = '/model-archivist/api';
 
 export function getUrl(resource: string): URL {
-    return new URL(resource, base_url);
+    const origin = typeof window === 'undefined' ? 'http://127.0.0.1' : window.location.origin;
+    return new URL(`${API_PREFIX}${resource.startsWith('/') ? resource : `/${resource}`}`, origin);
 }
 
 /* Response handling

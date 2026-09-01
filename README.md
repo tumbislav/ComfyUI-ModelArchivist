@@ -19,8 +19,9 @@ When installed as a ComfyUI custom node, Archivist discovers model working direc
 and accepted extensions through ComfyUI's live `folder_paths` registry, including extra
 model paths, and discovers workflows below the ComfyUI user directory. Those working
 paths remain owned by ComfyUI; Archivist stores only their archive mappings and its own
-display settings. A ComfyUI menu button opens the same Archivist web application served
-on its own configured port. No ComfyUI execution nodes are registered.
+display settings. A ComfyUI action-bar button opens `/model-archivist/` on the ComfyUI
+origin. ComfyUI proxies that path to Archivist's internal FastAPI server, so browser
+traffic uses the same host and port as ComfyUI. No ComfyUI execution nodes are registered.
 
 # Assumptions
 

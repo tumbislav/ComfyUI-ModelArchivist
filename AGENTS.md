@@ -10,8 +10,9 @@ purpose: Repository guidance for contributors and coding agents
 
 Model Archivist is a single-user SQLite application with a Python backend and a
 Svelte frontend. It runs either as a standalone application or as a ComfyUI custom
-node that launches the same web application on Archivist's configured port. It does
-not register ComfyUI execution nodes.
+node. In ComfyUI mode, the public `/model-archivist/` subtree is proxied from ComfyUI's
+origin to Archivist's internal FastAPI server. It does not register ComfyUI execution
+nodes.
 
 The principal directories are:
 

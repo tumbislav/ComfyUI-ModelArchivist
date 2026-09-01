@@ -20,6 +20,8 @@ from .routers import (admin, collections, configuration, health, models, operati
                       user_types, workflows)
 
 app = FastAPI(title='Model Archivist API', version='1.0.0')
+APP_PREFIX = '/model-archivist'
+API_PREFIX = f'{APP_PREFIX}/api'
 
 config = get_config()
 
@@ -31,15 +33,15 @@ app.add_middleware(
     allow_headers=['*']
 )
 
-app.include_router(models.router)
-app.include_router(workflows.router)
-app.include_router(user_types.router)
-app.include_router(collections.router)
-app.include_router(tags.router)
-app.include_router(health.router)
-app.include_router(admin.router)
-app.include_router(operations.router)
-app.include_router(configuration.router)
+app.include_router(models.router, prefix=API_PREFIX)
+app.include_router(workflows.router, prefix=API_PREFIX)
+app.include_router(user_types.router, prefix=API_PREFIX)
+app.include_router(collections.router, prefix=API_PREFIX)
+app.include_router(tags.router, prefix=API_PREFIX)
+app.include_router(health.router, prefix=API_PREFIX)
+app.include_router(admin.router, prefix=API_PREFIX)
+app.include_router(operations.router, prefix=API_PREFIX)
+app.include_router(configuration.router, prefix=API_PREFIX)
 
 
 class AppFiles(StaticFiles):
@@ -72,13 +74,14 @@ _mounted = False
 def start_ui(open_browser: bool = True, block: bool = True):
     global _mounted
     if not _mounted:
-        app.mount('/', app=AppFiles(directory=config.static_html, html=True), name='static')
+        app.mount(APP_PREFIX, app=AppFiles(directory=config.static_html, html=True),
+                  name='static')
         _mounted = True
     server_thread = Thread(target=run_server, daemon=True)
     server_thread.start()
     if await_port(0.1, 10):
         if open_browser:
-            webbrowser.open(f'{config.full_url}')
+            webbrowser.open(f'{config.full_url}{APP_PREFIX}/')
     else:
         raise RuntimeError('Server not ready in time.')
     if block:
