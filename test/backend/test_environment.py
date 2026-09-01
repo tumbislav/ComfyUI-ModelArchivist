@@ -26,6 +26,7 @@ def test_standalone_environment_has_no_discovered_locations():
     assert provider.mode == 'standalone'
     assert provider.model_locations() == []
     assert provider.workflow_locations() == []
+    assert provider.runtime_data_directory() is None
 
 
 def test_comfy_environment_reads_registered_model_and_workflow_locations():
@@ -38,3 +39,5 @@ def test_comfy_environment_reads_registered_model_and_workflow_locations():
     assert all(item.extensions == ('.ckpt', '.safetensors') for item in models)
     assert provider.workflow_locations() == [
         (Path('comfy-user') / 'workflows').absolute()]
+    assert provider.runtime_data_directory() == (
+        Path('comfy-user') / '_archivist').absolute()

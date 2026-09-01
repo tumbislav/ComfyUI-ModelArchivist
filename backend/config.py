@@ -17,6 +17,7 @@ class ConfigError(StrEnum):
     INVALID_APP_ROOT = 'Application root not accessible'
     DUPLICATE_FOLDER = 'Duplicate path'
     MULTIPLE_PATHS_PER_TYPE = 'Multiple standalone paths per type are not supported'
+    RUNTIME_DIRECTORY_UNREADABLE = 'Runtime data directory not accessible'
 
 
 class ConfigException(Exception):
@@ -92,6 +93,21 @@ class Configuration:
         self.app_root = app_root
         self.cfg_file = cfg_file
         self.mode = mode
+
+    def use_runtime_data_directory(self, directory: Path) -> None:
+        """Place mutable bootstrap files in an environment-owned directory."""
+        directory = Path(directory).absolute()
+        try:
+            directory.mkdir(exist_ok=True, parents=True)
+            next(directory.iterdir(), None)
+            if not os.access(directory, os.R_OK | os.W_OK):
+                raise PermissionError('directory is not readable and writable')
+        except OSError as error:
+            raise ConfigException(
+                ConfigError.RUNTIME_DIRECTORY_UNREADABLE,
+                f'{directory}: {error}') from error
+        self.database.database_file = str(directory / 'model_archivist.db')
+        self.logging.file = str(directory / 'archivist.log')
 
     def path_from_string(self, value: str) -> Path:
         if value.startswith('{$app}'):

@@ -114,3 +114,29 @@ def test_comfy_mode_allows_multiple_locations_for_one_type(tmp_path: Path):
     config.add_model_locations('checkpoints', tmp_path / 'working-2',
                                tmp_path / 'archive-2')
     assert len(config.model_folders['checkpoints']) == 2
+
+
+def test_runtime_data_directory_relocates_database_and_log(tmp_path: Path):
+    config = make_configuration(tmp_path, 'comfyui')
+    runtime_directory = tmp_path / 'comfy-user' / '_archivist'
+
+    config.use_runtime_data_directory(runtime_directory)
+
+    assert runtime_directory.is_dir()
+    assert config.db_file == runtime_directory / 'model_archivist.db'
+    assert config.log_file == str(runtime_directory / 'archivist.log')
+
+
+def test_runtime_data_directory_reports_inaccessible_path(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    config = make_configuration(tmp_path, 'comfyui')
+    runtime_directory = tmp_path / '_archivist'
+
+    def deny_creation(*_args, **_kwargs):
+        raise PermissionError('access denied')
+
+    monkeypatch.setattr(Path, 'mkdir', deny_creation)
+    with pytest.raises(ConfigException) as exc_info:
+        config.use_runtime_data_directory(runtime_directory)
+
+    assert exc_info.value.code is ConfigError.RUNTIME_DIRECTORY_UNREADABLE

@@ -62,13 +62,19 @@ try:
 
     def _start_archivist() -> None:
         global _internal_url
-        set_environment_provider(ComfyEnvironmentProvider(folder_paths))
+        environment = ComfyEnvironmentProvider(folder_paths)
+        set_environment_provider(environment)
         config = load_config(mode='comfyui')
+        runtime_directory = environment.runtime_data_directory()
+        if runtime_directory is not None:
+            config.use_runtime_data_directory(runtime_directory)
         _internal_url = config.full_url
         logging.config.dictConfig(config.log_config)
         start_repo()
         from backend.server.gui import start_ui
-        start_ui(open_browser=False, block=False)
+        _server_thread, internal_port = start_ui(
+            open_browser=False, block=False, port=0)
+        _internal_url = f'http://{config.host}:{internal_port}'
 
     _start_archivist()
 except ModuleNotFoundError as exc:

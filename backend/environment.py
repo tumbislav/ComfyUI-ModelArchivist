@@ -21,6 +21,7 @@ class EnvironmentProvider(Protocol):
 
     def model_locations(self) -> list[DiscoveredModelLocation]: ...
     def workflow_locations(self) -> list[Path]: ...
+    def runtime_data_directory(self) -> Path | None: ...
 
 
 class StandaloneEnvironmentProvider:
@@ -31,6 +32,9 @@ class StandaloneEnvironmentProvider:
 
     def workflow_locations(self) -> list[Path]:
         return []
+
+    def runtime_data_directory(self) -> Path | None:
+        return None
 
 
 class ComfyEnvironmentProvider:
@@ -64,6 +68,12 @@ class ComfyEnvironmentProvider:
         if not callable(get_user_directory):
             return []
         return [(Path(get_user_directory()) / 'workflows').absolute()]
+
+    def runtime_data_directory(self) -> Path | None:
+        get_user_directory = getattr(self.folder_paths, 'get_user_directory', None)
+        if not callable(get_user_directory):
+            return None
+        return (Path(get_user_directory()) / '_archivist').absolute()
 
 
 _provider: EnvironmentProvider = StandaloneEnvironmentProvider()

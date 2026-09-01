@@ -37,6 +37,8 @@ SQLite.
   Working paths supplied by ComfyUI are not editable by Archivist. Each discovered
   working path may have an Archivist-managed archive mapping.
 - A new database starts in setup mode and must not scan before required mappings exist.
+- ComfyUI mode stores its SQLite database and log in the ComfyUI user root's
+  `_archivist` directory. Standalone mode honors the bootstrap paths in `config.toml`.
 - Filesystem inaccessibility makes the application read-only and prevents scanning or
   file operations.
 

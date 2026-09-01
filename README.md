@@ -22,6 +22,9 @@ paths remain owned by ComfyUI; Archivist stores only their archive mappings and 
 display settings. A ComfyUI action-bar button opens `/model-archivist/` on the ComfyUI
 origin. ComfyUI proxies that path to Archivist's internal FastAPI server, so browser
 traffic uses the same host and port as ComfyUI. No ComfyUI execution nodes are registered.
+Mutable embedded runtime data is kept outside the installed custom-node directory, in
+`<ComfyUI user directory>/_archivist/`. This directory contains the SQLite database and
+log file. Standalone mode continues to use the paths specified in `config.toml`.
 
 # Assumptions
 
