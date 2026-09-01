@@ -5,8 +5,14 @@
 # ---------------------------------------------------------------------------
 
 from dataclasses import dataclass
+import logging
+import os
 from pathlib import Path
 from typing import Any, Protocol
+
+
+_logger = logging.getLogger('archivist.root')
+_COMFY_MODEL_TYPE_ALIASES = {'unet': 'diffusion_models', 'clip': 'text_encoders'}
 
 
 @dataclass(frozen=True)
@@ -45,7 +51,7 @@ class ComfyEnvironmentProvider:
         self.folder_paths = folder_paths
 
     def model_locations(self) -> list[DiscoveredModelLocation]:
-        discovered = []
+        discovered: dict[str, DiscoveredModelLocation] = {}
         registry = getattr(self.folder_paths, 'folder_names_and_paths', {})
         for model_type, definition in registry.items():
             if not isinstance(definition, tuple) or len(definition) < 2:
@@ -53,15 +59,30 @@ class ComfyEnvironmentProvider:
             paths, extensions = definition[0], definition[1]
             if isinstance(paths, (str, Path)):
                 paths = [paths]
-            normalized_extensions = tuple(sorted({
+            canonical_type = _COMFY_MODEL_TYPE_ALIASES.get(
+                str(model_type), str(model_type))
+            normalized_extensions = {
                 str(extension).lower()
                 if str(extension).startswith('.') else f'.{str(extension).lower()}'
                 for extension in extensions
-            }))
+            }
             for path in paths:
-                discovered.append(DiscoveredModelLocation(
-                    str(model_type), Path(path).absolute(), normalized_extensions))
-        return discovered
+                working_dir = Path(path).resolve(strict=False)
+                path_key = os.path.normcase(str(working_dir))
+                existing = discovered.get(path_key)
+                if existing is None:
+                    discovered[path_key] = DiscoveredModelLocation(
+                        canonical_type, working_dir, tuple(sorted(normalized_extensions)))
+                elif existing.model_type == canonical_type:
+                    discovered[path_key] = DiscoveredModelLocation(
+                        canonical_type, working_dir,
+                        tuple(sorted(set(existing.extensions) | normalized_extensions)))
+                else:
+                    _logger.warning(
+                        'Ignoring duplicate ComfyUI model location %s registered as %s; '
+                        'it is already registered as %s',
+                        working_dir, canonical_type, existing.model_type)
+        return list(discovered.values())
 
     def workflow_locations(self) -> list[Path]:
         get_user_directory = getattr(self.folder_paths, 'get_user_directory', None)

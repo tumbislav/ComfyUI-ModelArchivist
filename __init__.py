@@ -19,7 +19,7 @@ NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 WEB_DIRECTORY = './web'
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', 'WEB_DIRECTORY']
-_internal_url = 'http://127.0.0.1:5173'
+_internal_url: str | None = None
 _hop_by_hop_headers = frozenset({
     'connection', 'content-length', 'keep-alive', 'proxy-authenticate',
     'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade'
@@ -38,6 +38,11 @@ try:
     @PromptServer.instance.routes.route('*', '/model-archivist/{tail:.*}')
     async def archivist_proxy(request):
         """Expose the internal FastAPI service through ComfyUI's public origin."""
+        if _internal_url is None:
+            return aiohttp_web.json_response(
+                {'error': 'Model Archivist backend is unavailable',
+                 'detail': 'Embedded backend initialization did not complete'},
+                status=503)
         target = f'{_internal_url}{request.rel_url}'
         request_headers = {
             name: value for name, value in request.headers.items()
@@ -68,7 +73,6 @@ try:
         runtime_directory = environment.runtime_data_directory()
         if runtime_directory is not None:
             config.use_runtime_data_directory(runtime_directory)
-        _internal_url = config.full_url
         logging.config.dictConfig(config.log_config)
         start_repo()
         from backend.server.gui import start_ui
