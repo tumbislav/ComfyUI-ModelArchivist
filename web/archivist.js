@@ -6,18 +6,26 @@
 
 import { app } from '../../scripts/app.js';
 
+const BUTTON_TOOLTIP = 'Launch Model Archivist';
+
+async function openArchivist() {
+    try {
+        const response = await fetch('/model-archivist/launch-url');
+        if (!response.ok) {
+            throw new Error(`launch URL request failed with status ${response.status}`);
+        }
+        const { url } = await response.json();
+        window.open(url, '_blank', 'noopener');
+    } catch (error) {
+        console.error('Model Archivist: cannot open application', error);
+    }
+}
+
 app.registerExtension({
     name: 'ModelArchivist.Launcher',
-    async setup() {
-        const button = document.createElement('button');
-        button.textContent = 'Model Archivist';
-        button.title = 'Launch Model Archivist';
-        button.addEventListener('click', async () => {
-            const response = await fetch('/model-archivist/launch-url');
-            const { url } = await response.json();
-            window.open(url, '_blank', 'noopener');
-        });
-        const menu = document.querySelector('.comfy-menu');
-        if (menu) menu.append(button);
-    }
+    actionBarButtons: [{
+        icon: 'icon-[lucide--archive] size-4',
+        tooltip: BUTTON_TOOLTIP,
+        onClick: openArchivist
+    }]
 });
