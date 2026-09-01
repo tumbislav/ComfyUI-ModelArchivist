@@ -54,15 +54,18 @@ class AppFiles(StaticFiles):
 
 
 def await_port(interval: float, timeout: float) -> bool:
+    """Wait without busy-spinning while the background server binds its socket."""
     cutoff = time.time() + timeout
+    interval = max(0.01, min(interval, 0.5))
     while time.time() < cutoff:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as the_socket:
             the_socket.settimeout(interval)
             try:
                 the_socket.connect((config.host, config.http_port))
                 return True
-            except OSError as e:
-                interval *= 2.0
+            except OSError:
+                time.sleep(interval)
+                interval = min(interval * 2.0, 0.5)
     return False
 
 def run_server():
@@ -77,13 +80,24 @@ def start_ui(open_browser: bool = True, block: bool = True):
         app.mount(APP_PREFIX, app=AppFiles(directory=config.static_html, html=True),
                   name='static')
         _mounted = True
-    server_thread = Thread(target=run_server, daemon=True)
+    startup_errors: list[BaseException] = []
+
+    def server_target() -> None:
+        try:
+            run_server()
+        except BaseException as error:
+            startup_errors.append(error)
+
+    server_thread = Thread(target=server_target, daemon=True)
     server_thread.start()
     if await_port(0.1, 10):
         if open_browser:
             webbrowser.open(f'{config.full_url}{APP_PREFIX}/')
     else:
-        raise RuntimeError('Server not ready in time.')
+        if startup_errors:
+            raise RuntimeError(
+                f'Archivist web server failed to start: {startup_errors[0]}') from startup_errors[0]
+        raise RuntimeError('Archivist web server was not ready within 10 seconds.')
     if block:
         server_thread.join()
     return server_thread
