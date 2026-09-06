@@ -12,6 +12,7 @@ import saveIcon from '$icons/actions/save16.png';
 import moveUpIcon from '$icons/actions/move-up16.png';
 import moveDownIcon from '$icons/actions/move-down16.png';
 import syncIcon from '$icons/actions/move-up-down16.png';
+import closeIcon from '$icons/actions/close8.png';
 import { type Workflow } from '$lib/objects';
 import { getWorkflow, moveWorkflows, syncWorkflows, updateWorkflowTags,
     type WorkflowDestination } from '$lib/workflows';
@@ -44,17 +45,54 @@ async function run(destination: WorkflowDestination | null) {
 }
 </script>
 
-<div class="content-modal-backdrop"><div class="multi-model-editor" role="dialog" data-workflow-details aria-modal="true" aria-label="Edit selected workflows">
-    <div class="dialog-section spaced-horizontally"><p class="annotation">{workflowIds.length} workflows selected</p><button class="round" disabled={busy} onclick={onClose}>×</button></div>
-    <div class="multi-model-list dialog-section">{#each workflows as workflow (workflow.id)}<p class="text-compact">{workflow.internal_name}</p>{/each}</div>
-    {#if error}<p class="error-message">{error}</p>{/if}
-    <div class="dialog-section"><TagEditor title="Add tags" tags={addTags} disabled={busy} editable={true} onChanged={tags => addTags = tags} /></div>
-    <div class="dialog-section"><TagEditor title="Remove tags" tags={removeTags} disabled={busy} editable={false} availableTags={removableTags} onChanged={tags => removeTags = tags} /></div>
-    <div class="dialog-section spaced-horizontally"><div></div><button class="button-with-text" disabled={busy || (!addTags.length && !removeTags.length)} onclick={saveTags}><img class="action-icon" alt="save" src={saveIcon} /><span>Apply tags</span></button></div>
-    <div class="dialog-section multi-model-deployment-actions">
-        <button class="button-with-text" disabled={busy} onclick={() => run('working')}><img class="action-icon" alt="working" src={moveUpIcon} /><span>To working set</span></button>
-        <button class="button-with-text" disabled={busy} onclick={() => run(null)}><img class="action-icon" alt="sync" src={syncIcon} /><span>Sync</span></button>
-        <button class="button-with-text" disabled={busy} onclick={() => run('archive')}><img class="action-icon" alt="archive" src={moveDownIcon} /><span>To archive</span></button>
+<div class="content-modal-backdrop">
+    <div class="multi-model-editor" role="dialog" data-workflow-details aria-modal="true" aria-label="Edit selected workflows">
+        <div class="space-below spaced-horizontally">
+            <p class="annotation">{workflowIds.length} workflows selected</p>
+            <button class="round" aria-label="Close workflow editor"
+                    disabled={busy} onclick={onClose}>
+                <img class="action-icon" alt="" src={closeIcon} />
+            </button>
+        </div>
+        <div class="multi-model-list space-below">
+        {#each workflows as workflow (workflow.id)}
+            <p>{workflow.internal_name}</p>
+        {/each}</div>
+        {#if error}
+            <p class="error-message">{error}</p>
+        {/if}
+        <div class="space-below">
+            <TagEditor title="Add tags" tags={addTags} disabled={busy} editable={true}
+                       onChanged={tags => addTags = tags} />
+        </div>
+        <div class="space-below">
+            <TagEditor title="Remove tags" tags={removeTags} disabled={busy} editable={false}
+                       availableTags={removableTags} onChanged={tags => removeTags = tags} />
+        </div>
+        <div class="space-below spaced-horizontally">
+            <div></div>
+            <button class="button-with-text" disabled={busy || (!addTags.length && !removeTags.length)}
+                    onclick={saveTags}>
+                <img class="action-icon" alt="save" src={saveIcon} />
+                <span>Apply tags</span>
+            </button>
+        </div>
+        <div class="space-below multi-model-deployment-actions">
+            <button class="button-with-text" disabled={busy} onclick={() => run('working')}>
+                <img class="action-icon" alt="working" src={moveUpIcon} />
+                <span>To working set</span>
+            </button>
+            <button class="button-with-text" disabled={busy} onclick={() => run(null)}>
+                <img class="action-icon" alt="sync" src={syncIcon} />
+                <span>Sync</span>
+            </button>
+            <button class="button-with-text" disabled={busy} onclick={() => run('archive')}>
+                <img class="action-icon" alt="archive" src={moveDownIcon} />
+                <span>To archive</span>
+            </button>
+        </div>
+        {#if workflows.length}
+            <MultiWorkflowCollectionEditor {workflows} onChanged={refresh} />
+        {/if}
     </div>
-    {#if workflows.length}<MultiWorkflowCollectionEditor {workflows} onChanged={refresh} />{/if}
-</div></div>
+</div>

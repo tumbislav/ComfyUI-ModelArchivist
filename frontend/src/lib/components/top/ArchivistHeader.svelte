@@ -19,7 +19,7 @@ import { onMount } from 'svelte';
 import { statusMonitor } from '$lib/status.svelte';
 import { userTypeIcon, userTypeState } from '$lib/user-types.svelte';
 
-import { type ActiveTab } from '$lib/admin';
+import { startScan, type ActiveTab } from '$lib/admin';
 let {
     current_tab = $bindable(),
     navigationLocked = false
@@ -31,6 +31,10 @@ let {
 let theme = $state<'light' | 'dark'>('light');
 let typeMenuOpen = $state(false);
 let settingsOpen = $state(false);
+let scanSubmitting = $state(false);
+let scanBusy = $derived(scanSubmitting ||
+    statusMonitor.operation?.state === 'pending' ||
+    statusMonitor.operation?.state === 'running');
 let settingsInitialTab = $state<SettingsTab>('general');
 let activeTypeIcon = $derived(userTypeState.active
     ? userTypeIcon(userTypeState.active.icon, 24) ?? userDefinedIcon
@@ -66,6 +70,20 @@ function openUserType(): void {
     else current_tab = 'user';
 }
 
+async function scanRepository(): Promise<void> {
+    if (scanBusy) return;
+    scanSubmitting = true;
+    try {
+        const result = await startScan();
+        if (result.ok) statusMonitor.track(result.data);
+        else statusMonitor.error = result.message ?? 'Cannot start scan';
+    } catch (error) {
+        statusMonitor.error = error instanceof Error ? error.message : 'Cannot start scan';
+    } finally {
+        scanSubmitting = false;
+    }
+}
+
 function openSettings(tab: SettingsTab): void {
     settingsInitialTab = tab;
     settingsOpen = true;
@@ -96,7 +114,8 @@ $effect(() => {
             disabled={navigationLocked}
             aria-checked={current_tab === 'models'}
             onclick={() => current_tab = 'models'} >
-            <img class="action-icon" alt="model" src={modelIcon} /><span>Models</span>
+            <img class="action-icon" alt="model" src={modelIcon} />
+            <span class="large-button-label">Models</span>
         </button>
         
         <button class="nav-button"
@@ -104,7 +123,8 @@ $effect(() => {
             disabled={navigationLocked}
             aria-checked={current_tab === 'workflows'}
             onclick={() => current_tab = 'workflows'}>
-            <img class="action-icon" alt="workflows" src={workflowIcon} /><span>Workflows</span>
+            <img class="action-icon" alt="workflows" src={workflowIcon} />
+            <span class="large-button-label">Workflows</span>
         </button>
 
         <div class="nav-user-type" aria-checked={current_tab === 'user'}>
@@ -113,7 +133,7 @@ $effect(() => {
                     aria-checked={current_tab === 'user'}
                     onclick={openUserType}>
                 <img class="action-icon" alt="" src={activeTypeIcon} />
-                <span>{userTypeState.active?.short_name ?? 'User'}</span>
+                <span class="large-button-label">{userTypeState.active?.short_name ?? 'User types'}</span>
             </button>
             <button class="user-type-trigger" type="button" disabled={navigationLocked}
                     aria-label="Select user-defined type" aria-haspopup="menu"
@@ -145,12 +165,21 @@ $effect(() => {
             disabled={navigationLocked}
             aria-checked={current_tab === 'collections'}
             onclick={() => current_tab = 'collections'} >
-            <img class="action-icon" alt="collections" src={collectionIcon} /><span>Collections</span>
+            <img class="action-icon" alt="collections" src={collectionIcon} />
+            <span class="large-button-label">Collections</span>
         </button>
     </div>
 
     <div class="option-set">
-        <div class="status-box">
+        <div class="status-box" role="button" tabindex="0"
+             aria-label="Scan repository" aria-disabled={scanBusy}
+             onclick={scanRepository}
+             onkeydown={(event) => {
+                 if (event.key === 'Enter' || event.key === ' ') {
+                     event.preventDefault();
+                     void scanRepository();
+                 }
+             }}>
             <div class="status-summary">
                 <table class="summary-table">
                     <tbody>

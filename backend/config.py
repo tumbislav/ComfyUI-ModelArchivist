@@ -228,7 +228,8 @@ class Configuration:
             }.items()
         }
         handlers = {name: {'formatter': name, 'class': 'logging.FileHandler',
-                           'filename': filename} for name in formatters}
+                           'filename': filename, 'encoding': 'utf-8',
+                           'errors': 'backslashreplace'} for name in formatters}
         loggers = {'archivist': {'handlers': ['default'], 'level': self.logging.level,
                                  'propagate': False}}
         for name in ('database', 'files', 'core'):

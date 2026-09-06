@@ -12,6 +12,7 @@ import saveIcon from '$icons/actions/save16.png';
 import moveUpIcon from '$icons/actions/move-up16.png';
 import moveDownIcon from '$icons/actions/move-down16.png';
 import syncIcon from '$icons/actions/move-up-down16.png';
+import closeIcon from '$icons/actions/close8.png';
 import { type Model } from '$lib/objects';
 import {
     getModel,
@@ -97,29 +98,32 @@ async function runOperation(destination: ModelDestination | null) {
 <div class="content-modal-backdrop">
     <div class="multi-model-editor" role="dialog" data-model-details
              aria-modal="true" aria-label="Edit selected models">
-        <div class="dialog-section spaced-horizontally">
+        <div class="space-below spaced-horizontally">
             <p class="annotation">{modelIds.length} models selected</p>
-            <button type="button" class="round" disabled={busy} onclick={onClose}>×</button>
+            <button type="button" class="round" aria-label="Close model editor"
+                    disabled={busy} onclick={onClose}>
+                <img class="action-icon" alt="" src={closeIcon} />
+            </button>
         </div>
 
-        <div class="multi-model-list dialog-section">
+        <div class="multi-model-list space-below">
             {#each models as model (model.id)}
-                <p class="text-compact">{model.internal_name}</p>
+                <p>{model.internal_name}</p>
             {/each}
         </div>
 
         {#if error}<p class="error-message">{error}</p>{/if}
 
-        <div class="dialog-section">
+        <div class="space-below">
             <TagEditor title="Add tags" tags={addTags} disabled={busy} editable={true}
                        onChanged={tags => addTags = tags} />
         </div>
-        <div class="dialog-section">
+        <div class="space-below">
             <TagEditor title="Remove tags" tags={removeTags} disabled={busy} editable={false}
                        availableTags={removableTags}
                        onChanged={tags => removeTags = tags} />
         </div>
-        <div class="dialog-section spaced-horizontally">
+        <div class="space-below spaced-horizontally">
             <div></div>
             <button class="button-with-text"
                     disabled={busy || (addTags.length === 0 && removeTags.length === 0)}
@@ -128,7 +132,7 @@ async function runOperation(destination: ModelDestination | null) {
             </button>
         </div>
 
-        <div class="dialog-section multi-model-deployment-actions">
+        <div class="space-below multi-model-deployment-actions">
             <button class="button-with-text" disabled={busy} onclick={() => runOperation('working')}>
                 <img class="action-icon" alt="to working set" src={moveUpIcon} /><span>To working set</span>
             </button>

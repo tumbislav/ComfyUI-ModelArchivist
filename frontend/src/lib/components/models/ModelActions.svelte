@@ -147,33 +147,27 @@
             </div>
             <div class="filter-summary">
                 {#if filterCount === 0}
-                    <span class="text-compact">No filters</span>
+                    <span>No filters</span>
                 {:else}
                     {#if !filterActive}
-                        <span class="text-compact">(filter off)</span>
+                        <span>(filter off)</span>
                     {/if}
                     {#if applied.name_prefix}
-                        <span class="actions-label">Name:</span>
-                        <span class="text-compact">{applied.name_prefix}</span>
+                        <span class="labeled"><span>Name:</span>{applied.name_prefix}</span>
                     {/if}
                     {#if applied.file_formats.length > 0}
-                        <span class="actions-label">Formats:</span>
-                        <span class="text-compact">{applied.file_formats.join(', ')}</span>
+                        <span class="labeled"><span>Formats:</span>{applied.file_formats.join(', ')}</span>
                     {/if}
                     {#if applied.types.length > 0}
-                        <span class="actions-label">Types:</span>
-                        <span class="text-compact">
+                        <span class="labeled"><span>Types:</span>
                             {applied.types.map((type) =>
-                             modelTypeOptions.find(o => o.value === type)?.label ?? type).join(', ')}
-                        </span>
+                             modelTypeOptions.find(o => o.value === type)?.label ?? type).join(', ')}</span>
                     {/if}
                     {#if applied.required_tags.length > 0}
-                        <span class="actions-label">Include tags:</span>
-                        <span class="text-compact">{applied.required_tags.join(', ')}</span>
+                        <span class="labeled"><span>Include tags:</span>{applied.required_tags.join(', ')}</span>
                     {/if}
                     {#if applied.forbidden_tags.length > 0}
-                        <span class="actions-label">Exclude tags:</span>
-                        <span class="text-compact">{applied.forbidden_tags.join(', ')}</span>
+                        <span class="labeled"><span>Exclude tags:</span>{applied.forbidden_tags.join(', ')}</span>
                     {/if}
                 {/if}
             </div>
@@ -201,7 +195,7 @@
             </div>
 
             <div class="filter-box">
-                <p class="dialog-label">Name prefix</p>
+                <h2>Name prefix</h2>
                 <input class="text-input full-width" type="text"
                        bind:value={draft.name_prefix} />
             </div>

@@ -23,10 +23,10 @@ let unpacked = $derived((set?.components ?? []).reduce<Record<string, string[]>>
 
 </script>
 
-<div class="dialog-section raised-section">
-    <p class="section-label">Files in {name}</p>
+<div class="dialog-segment space-below">
+    <h2 class="tight-vertical">Files in {name}</h2>
     {#if path}
-        <p class="path-preview" title={path}>{path}</p>
+        <p class="path-preview fine-print rule-under no-top-margin" title={path}>{path}</p>
     {/if}
     {#if unpacked.model}
         <p class="labeled"><span>Model:</span>{unpacked.model[0]}</p>
@@ -41,7 +41,7 @@ let unpacked = $derived((set?.components ?? []).reduce<Record<string, string[]>>
         <p class="labeled"><span>Others:</span>{unpacked.extra.join(', ')}</p>
     {/if}
     {#if unpacked.example && unpacked.example.length}
-        <p class="path-preview" title={set?.examples_dir}>{set?.examples_dir}</p>
+        <p class="path-preview fine-print rule-under" title={set?.examples_dir}>{set?.examples_dir}</p>
         <p class="labeled"><span>Samples:</span>{unpacked.example.join(', ')}</p>
     {/if}
 </div>

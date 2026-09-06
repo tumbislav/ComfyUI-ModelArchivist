@@ -1,10 +1,13 @@
 # Back end
 # Testing and developent artefacts
 
-/archivist.db
 /test/temp/
 /test/data/
 /model_archivist.log
+/model-archivist.db
+/model-archivist.db-wal
+/model-archivist.db-shm
+/model-archivist.db-journal
 
 # Front end
 /frontend/node_modules

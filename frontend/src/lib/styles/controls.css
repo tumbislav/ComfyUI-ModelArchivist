@@ -48,11 +48,7 @@ button:disabled {
     padding: var(--gap-tiny) var(--gap-small);
     height: var(--button-height);
     min-width: var(--button-width);
-    font-size: var(--medium-font-size);
     border-radius: var(--radius-small);
-    color: inherit;
-    font-size: var(--medium-font-size);
-    font-weight: 600;
 }
 
 .image-button {
@@ -98,6 +94,9 @@ button:disabled {
     filter: var(--mode-filter);
 }
 
+button:disabled img.action-icon {
+    filter: var(--mode-filter-dim);
+}
 /* Checkboxes
  * ------------------------------------------------*/
 
@@ -166,8 +165,8 @@ button.round {
     align-items: center;
     justify-content: center;
     border-radius: var(--pill-radius);
-    border: 1px solid var(--border-color);
-    background: var(--bg-intense);
+    border: 1px solid var(--border-strong);
+    background: var(--bg-color);
     color: var(--text-color);
     height: var(--pill-height);
     width: var(--pill-height);
@@ -176,10 +175,36 @@ button.round {
 }
 
 button.round:hover {
-    border: 1px solid var(--border-color);
-    background: var(--bg-accent);
+    border: 1px solid var(--border-strong-highlight);
+    background: var(--bg-intense);
     transform: none;
     box-shadow: none;
+}
+
+.help-control {
+    position: relative;
+}
+
+button.help-button {
+    margin-left: var(--gap-small);
+    font-weight: 700;
+}
+
+.help-tooltip {
+    position: absolute;
+    z-index: var(--z-popup);
+    top: calc(100% + var(--gap-tiny));
+    right: 0;
+    width: max-content;
+    max-width: 20rem;
+    padding: var(--gap-small);
+    background: var(--bg-color);
+    color: var(--text-color);
+    border: var(--solid-border);
+    border-radius: var(--radius-small);
+    box-shadow: var(--shadow-right);
+    font-size: var(--small-font-size);
+    font-weight: 400;
 }
 
 
@@ -189,41 +214,83 @@ button.round:hover {
     padding-left: var(--gap-small);
     box-shadow: var(--shadow-right);
     font-size: var(--medium-font-size);
+    font-weight: 400;
     border-radius: var(--radius-small);
-    font-weight: 600;
     background: var(--bg-color);
     color: var(--text-color);
+    border-color: var(--border-color);
 }
 
 .text-input:focus-visible {
     outline: 0;
     border: var(--solid-border);
     box-shadow: var(--shadow-right);
+    border-color: var(--border-highlight);
 }
 
 .text-input:disabled {
+    color: var(--text-color-dim);
     background: var(--bg-disabled);
-    border-color: var(--bg-disabled);
 }
 
 .full-width {
     width: 100%;
 }
 
-/* Pills
+/* Multi select and tag editor
  * ------------------------------------------------*/
- 
+
+.multi-select {
+    position: relative;
+}
+
+.multi-select-list {
+    border: var(--solid-border);
+    border-radius: var(--radius-mid);
+    display: flex;
+    flex-flow: row wrap;
+    gap: var(--gap-tiny);
+    padding: var(--gap-small);
+
+    min-height: var(--button-height);
+    max-height: 6rem;
+    overflow-y: auto;
+    line-height: 1.4;
+}
+
+.multi-select-dropdown {
+    border: var(--solid-border);
+    border-radius: var(--radius-mid);
+    display: flex;
+    flex-flow: row wrap;
+    padding: var(--gap-small);
+    gap: var(--gap-tiny);
+
+    position: absolute;
+    z-index: var(--z-popup);
+    top: calc(100% + var(--gap-tiny));
+    left: 0;
+    right: 0;
+    background: var(--bg-accent);
+}
+
+
 .pill-container {
     display: flex;
     align-items: center;
     border-radius: var(--pill-radius);
     border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-right);
     background: var(--bg-color);
     margin: 0;
     height: var(--pill-height);
     font-size: var(--small-font-size);
     white-space: nowrap;
     overflow: hidden;
+}
+
+.pill-container:focus-within {
+    border-color: var(--border-highlight);
 }
 
 .pill-content {
@@ -238,6 +305,7 @@ button.round:hover {
     margin: 0 var(--gap-small);
     box-sizing: border-box;
 }
+
 
 .pill-input:focus-visible {
     outline: 0;

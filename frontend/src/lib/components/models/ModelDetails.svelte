@@ -14,6 +14,7 @@ import moveDownIcon from '$icons/actions/move-down16.png';
 import moveUpIcon from '$icons/actions/move-up16.png';
 import moveUpDownIcon from '$icons/actions/move-up-down16.png';
 import saveIcon from '$icons/actions/save16.png';
+import closeIcon from '$icons/actions/close8.png';
 
 import {
     type Model,
@@ -60,14 +61,17 @@ async function handleEnter(event: KeyboardEvent) {
 
 </script>
 
-<div class="dialog-section spaced-horizontally">
+<div class="space-below spaced-horizontally">
     <div></div>
     <button type="button"
             class="round"
-            onclick={() => onClose()}>×</button>
+            aria-label="Close model details"
+            onclick={() => onClose()}>
+        <img class="action-icon" alt="" src={closeIcon} />
+    </button>
 </div>
 
-<div class="dialog-section spaced-horizontally">
+<div class="space-below spaced-horizontally">
     <div>
         <p class="labeled"><span>Type:</span>{model.type}</p>
     </div>
@@ -85,67 +89,75 @@ async function handleEnter(event: KeyboardEvent) {
     <p class="error-message">{operationError}</p>
 {/if}
 
-<div class="dialog-section">
-    <p class="dialog-label">File name</p>
-    <input class="text-input full-width"
-           onkeydown={handleEnter}
-           disabled={model.deployment === 'mismatch'}
-           bind:value={model.file_name} />
-    
-    <p class="annotation-right">{model.id}</p>
-    
-    <p class="dialog-label">Internal name</p>
-    <input class="text-input full-width"
-           onkeydown={handleEnter}
-           disabled={model.deployment === 'mismatch'}
-           bind:value={model.internal_name} />
+<div class="space-below dialog-section">
+    <div class="space-below">
+        <label class="dialog-label">
+            File name
+            <input class="text-input full-width"
+                   onkeydown={handleEnter}
+                   disabled={model.deployment === 'mismatch'}
+                   bind:value={model.file_name} />
+        </label>
+        <p class="annotation-right">{model.id}</p>
+
+        <label class="dialog-label">
+            Internal name
+            <input class="text-input full-width"
+                   onkeydown={handleEnter}
+                   disabled={model.deployment === 'mismatch'}
+                   bind:value={model.internal_name} />
+        </label>
+     </div>
+
+    <div class="space-below">
+        <TagEditor {tags}
+            onChanged={(updated: string[]) => { tags = [...updated]; model.tags = [...updated]; }}
+            disabled={model.deployment === 'mismatch'}
+            title={'Tags'}
+            editable={true} />
+    </div>
+
+    <div class="spaced-horizontally">
+        <div></div>
+        <button class="button-with-text"
+                disabled={!changed || saving || model.deployment === 'mismatch'}
+                onclick={() => onSave()} >
+            <img class="action-icon" alt="save" src={saveIcon} />
+            <span  class="button-label">Save</span>
+        </button>
+    </div>
 </div>
 
-<div class="dialog-section">
-    <TagEditor {tags}
-        onChanged={(updated: string[]) => { tags = [...updated]; model.tags = [...updated]; }}
-        disabled={model.deployment === 'mismatch'}
-        title={'Tags'}
-        editable={true} />
+<div class="space-below dialog-section">
+    <FileSet set={working_set} path={model.working_path} name="working set" />
+
+    <FileSet set={archive_set} path={model.archive_path} name="archive" />
+
+    <div class="spaced-horizontally">
+        <button class="button-with-text"
+                disabled={operating || !['archive', 'synced'].includes(model.deployment)}
+                onclick={() => onMove('working')}>
+            <img class="action-icon" alt="move up" src={moveUpIcon} />
+            <span class="button-label">To working set</span>
+        </button>
+        <button class="button-with-text"
+                disabled={operating || model.deployment === 'synced'}
+                onclick={() => onSync()}>
+            <img class="action-icon" alt="move up down" src={moveUpDownIcon} />
+            <span class="button-label">Sync</span>
+        </button>
+        <button class="button-with-text"
+                disabled={operating || !['working', 'synced'].includes(model.deployment)}
+                onclick={() => onMove('archive')}>
+            <img class="action-icon" alt="move down" src={moveDownIcon} />
+            <span class="button-label">To archive</span>
+        </button>
+    </div>
 </div>
 
-<div class="dialog-section spaced-horizontally">
-    <div></div>
-    <button class="button-with-text"
-            disabled={!changed || saving || model.deployment === 'mismatch'}
-            onclick={() => onSave()} >
-        <img class="action-icon" alt="save" src={saveIcon} />
-        <span>Save</span>
-    </button>
+<div class="space-below dialog-section">
+    <ModelCollectionEditor {model} onChanged={onCollectionsChanged} />
 </div>
-
-<FileSet set={working_set} path={model.working_path} name="working set" />
-
-<div class="dialog-section spaced-horizontally">
-    <button class="button-with-text"
-            disabled={operating || !['archive', 'synced'].includes(model.deployment)}
-            onclick={() => onMove('working')}>
-        <img class="action-icon" alt="move up" src={moveUpIcon} />
-        <span>To working set</span>
-    </button>
-    <button class="button-with-text"
-            disabled={operating || model.deployment === 'synced'}
-            onclick={() => onSync()}>
-        <img class="action-icon" alt="move up down" src={moveUpDownIcon} />
-        <span>Sync</span>
-    </button>
-    <button class="button-with-text"
-            disabled={operating || !['working', 'synced'].includes(model.deployment)}
-            onclick={() => onMove('archive')}>
-        <img class="action-icon" alt="move down" src={moveDownIcon} />
-        <span>To archive</span>
-    </button>
-</div>
-
-<FileSet set={archive_set} path={model.archive_path} name="archive" />
-
-
-<ModelCollectionEditor {model} onChanged={onCollectionsChanged} />
 
 <style>
 </style>

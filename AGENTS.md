@@ -74,6 +74,9 @@ visual contract in multiple Svelte components. Component-local CSS is appropriat
 for genuinely private layout. Preserve keyboard access, labels, focus behavior, modal
 boundaries, and narrow-screen wrapping when changing controls.
 
+Place contextual help buttons at the top-right of the section they explain. Help for an
+individual control belongs at the right edge of that control's row.
+
 Browser-persistent preferences, such as theme and future language selection, belong in
 frontend storage. Repository configuration belongs in the backend database.
 

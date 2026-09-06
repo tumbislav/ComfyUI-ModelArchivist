@@ -19,6 +19,7 @@ export type ModelTypeSetting = {
     display_name: string;
     extensions: string[];
     locations: RepositoryLocation[];
+    _new?: boolean;
 };
 
 export type RepositorySettings = {
@@ -49,3 +50,14 @@ export const saveModelSettings = (model_types: ModelTypeSetting[]) =>
 
 export const saveWorkflowSettings = (workflow_locations: RepositoryLocation[]) =>
     request<RepositorySettings>('/config/workflows', 'PUT', {workflow_locations});
+
+export const pickDirectory = (initial_path: string) =>
+    request<{path: string | null}>('/config/pick-directory', 'POST', {initial_path});
+
+export const getModelMappingRoots = () =>
+    request<string[]>('/config/model-mapping-roots');
+
+export const previewModelMappings = (working_root: string, archive_root: string,
+                                     extensions: string[]) =>
+    request<ModelTypeSetting[]>('/config/model-mapping-preview', 'POST',
+        {working_root, archive_root, extensions});

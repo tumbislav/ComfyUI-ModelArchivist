@@ -4,6 +4,7 @@
 # purpose: Tests for bootstrap and runtime configuration
 # ---------------------------------------------------------------------------
 
+import logging.config
 from pathlib import Path
 
 import pytest
@@ -21,6 +22,23 @@ def make_configuration(tmp_path: Path, mode: str = 'standalone') -> Configuratio
                               file=str(tmp_path / 'archivist.log')))
     config.initialize(tmp_path, tmp_path / 'config.toml', mode)
     return config
+
+
+@pytest.mark.parametrize('handler_name', ['default', 'database', 'files', 'core'])
+def test_log_handlers_preserve_unicode_and_escape_invalid_surrogates(tmp_path, handler_name):
+    config = make_configuration(tmp_path)
+    definition = config.log_config['handlers'][handler_name].copy()
+    definition.pop('formatter')
+    handler = logging.config.DictConfigurator({'version': 1}).configure_handler(definition)
+    message = 'Model \u8272\u60c5\u5927\u5e2b \U0001f7e1 invalid: \ud800'
+    try:
+        handler.handle(logging.LogRecord('archivist', logging.DEBUG, __file__, 0,
+                                         message, (), None))
+        handler.flush()
+    finally:
+        handler.close()
+    assert Path(config.log_file).read_text(encoding='utf-8') == (
+        'Model \u8272\u60c5\u5927\u5e2b \U0001f7e1 invalid: \\ud800\n')
 
 
 def test_load_config_reports_missing_file(tmp_path: Path):

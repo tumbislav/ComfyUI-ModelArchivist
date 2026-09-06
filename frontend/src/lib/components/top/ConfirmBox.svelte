@@ -20,9 +20,9 @@
         <div class="modal-dialog" style={confirmState.position}>
             <h2>{confirmState.title}</h2>
             
-            <p class="text-compact">{confirmState.message}</p>
+            <p>{confirmState.message}</p>
             
-            <div class="dialog-section spaced-horizontally">
+            <div class="space-below spaced-horizontally">
                 <button class="button-with-text"
                         onclick={() => close(true)} >
                     <img class="action-icon" alt="confirm" src={confirmIcon} />

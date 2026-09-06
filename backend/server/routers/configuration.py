@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from backend.config import get_config
+from backend.directory_picker import DirectoryPickerUnavailable, pick_directory
 import backend.repository.repository as repo
 
 router = APIRouter()
@@ -43,6 +44,38 @@ class ModelConfigurationInput(BaseModel):
 
 class WorkflowConfigurationInput(BaseModel):
     workflow_locations: list[LocationInput] = Field(default_factory=list)
+
+
+class DirectoryPickerInput(BaseModel):
+    initial_path: str | None = None
+
+
+class ModelMappingInput(BaseModel):
+    working_root: str
+    archive_root: str
+    extensions: list[str] = Field(default_factory=list)
+
+
+@router.post('/config/pick-directory')
+def open_directory_picker(data: DirectoryPickerInput) -> dict[str, str | None]:
+    try:
+        return {'path': pick_directory(data.initial_path)}
+    except DirectoryPickerUnavailable as error:
+        raise HTTPException(503, str(error)) from error
+
+
+@router.get('/config/model-mapping-roots')
+def get_model_mapping_roots() -> list[str]:
+    return repo.model_mapping_roots()
+
+
+@router.post('/config/model-mapping-preview')
+def preview_model_mappings(data: ModelMappingInput) -> list[dict]:
+    try:
+        return repo.propose_model_mappings(
+            data.working_root, data.archive_root, data.extensions)
+    except ValueError as error:
+        raise HTTPException(400, str(error)) from error
 
 
 @router.get('/config/file_formats')

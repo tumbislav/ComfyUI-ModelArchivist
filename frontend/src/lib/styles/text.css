@@ -17,9 +17,10 @@
     font: inherit;
     font-family: OpenSans;
     color: var(--text-color);
+    font-size: var(--medium-font-size);
 }
 
-/* Headings
+/* Standard headings and paragraphs
  * ----------------------------------------------- */
 
 h1 {
@@ -40,18 +41,12 @@ h3 {
     font-weight: 600;
 }
 
-h1:has(+ p.subtitle),
-h2:has(+ p.subtitle),
-h3:has(+ p.subtitle) {
-    margin-bottom: 0;
+p {
+    margin: var(--gap-mid) 0;
 }
 
-.subtitle {
-    font-size: var(--medium-font-size);
-    color: var(--text-color);
-    font-weight: 400;
-    margin-top: 0;
-}
+/* General text
+ * ----------------------------------------------- */
 
 /* Small note */
 .annotation {
@@ -68,25 +63,38 @@ h3:has(+ p.subtitle) {
     text-align: right;
 }
 
+/* left-clipped text */
+.path-preview {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 
-/* Various display styles
- * ----------------------------------------------- */
-p.section-label {
-    font-size: var(--medium-font-size);
-    color: var(--text-color);
-    font-weight: 600;
-    margin-top: 0;
+    direction: rtl;
+    text-align: left;
 }
+
+.button-label {
+    font-size: var(--medium-font-size);
+    color: inherit;
+    font-weight: 550;
+}
+
+.large-button-label {
+    font-size: var(--large-font-size);
+    color: inherit;
+    font-weight: 550;
+}
+
+/* labelled paragraph
+ * ----------------------------------------------- */
 
 .dialog-label {
     font-size: var(--medium-font-size);
     color: var(--text-color);
     font-weight: 600;
-    margin-bottom: 1px;
-    margin-top: 1px;
 }
 
-p.labeled {
+.labeled {
     font-size: var(--small-font-size);
     color: var(--text-dim);
     font-weight: 400;
@@ -96,25 +104,14 @@ p.labeled {
     margin-bottom: 0;
 }
 
-p.labeled :first-child {
+.labeled :first-child {
     color: var(--text-color);
     font-weight: 600;
     margin-right: var(--gap-tiny);
 }
 
-.path-preview {
-    font-size: var(--small-font-size);
-    color: var(--text-dim);
-    font-weight: 400;
-    font-style: italic;
-    border-bottom: var(--solid-border);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    
-    direction: rtl;
-    text-align: left;
-}
+/* Errors and warnings
+ * ----------------------------------------------- */
 
 .warning-message {
     color: var(--text-error);
@@ -133,29 +130,24 @@ p.labeled :first-child {
     font-weight: bold;
 }
 
-.text-compact {
-    font-size: var(--medium-font-size);
+/* Plugin styles
+ * ----------------------------------------------- */
+
+.no-top-margin {
+    margin-top: 0;
 }
 
 .text-small {
     font-size: var(--small-font-size);
 }
 
-/* To be reviewed
- * ----------------------------------------------- */
-
-.display-string {
-    font-size: var(--medium-font-size);
+.fine-print {
+    font-size: var(--small-font-size);
     color: var(--text-dim);
+    font-weight: 400;
+    font-style: italic;
 }
 
-.actions-label {
-    font-size: var(--medium-font-size);
-    font-weight: 600;
-}
-
-.actions-label-dim {
-    font-size: var(--medium-font-size);
-    font-weight: 600;
-    color: var(--text-dim);
+.rule-under {
+    border-bottom: var(--solid-border);
 }

@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 
 [database]
-database_file = "{$app}/test/model_archivist.db"
+database_file = "{$app}/model_archivist.db"
 
 [web]
 host = "127.0.0.1"

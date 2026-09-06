@@ -218,7 +218,8 @@ def start_repo():
         _config = None
         raise
     sql_logger = logging.getLogger('sqlalchemy.engine')
-    sql_logger.addHandler(logging.FileHandler(_config.log_file))
+    sql_logger.addHandler(logging.FileHandler(
+        _config.log_file, encoding='utf-8', errors='backslashreplace'))
     sql_logger.setLevel(_config.sql_log_level)
     _repo_started = True
     if _config.configured and not _config.read_only:
@@ -413,6 +414,65 @@ def update_model_configuration(data: dict) -> dict:
     return update_repository_configuration(current)
 
 
+def model_mapping_roots() -> list[str]:
+    """Return inferred working roots available to the bulk mapping assistant."""
+    if _config.mode != 'comfyui':
+        return []
+    roots = {str(item.working_dir.parent) for item in get_environment_provider().model_locations()}
+    return sorted(roots, key=str.casefold)
+
+
+def propose_model_mappings(working_root_value: str, archive_root_value: str,
+                           extensions: list[str]) -> list[dict]:
+    """Discover non-persistent model mappings beneath a pair of top-level roots."""
+    working_root = Path(_normalized_location(working_root_value))
+    archive_root = Path(_normalized_location(archive_root_value))
+    normalized_extensions = {f'.{value.lower().lstrip(".")}' for value in extensions if value}
+    if not normalized_extensions:
+        raise ValueError('at least one model extension is required')
+    try:
+        if not working_root.is_dir():
+            raise ValueError(f'working root is not a directory: {working_root}')
+        existing = get_repository_configuration()['model_types']
+        existing_by_name = {item['name']: item for item in existing}
+        candidates: dict[str, dict] = {}
+        if _config.mode == 'standalone':
+            for child in sorted((item for item in working_root.iterdir() if item.is_dir()),
+                                key=lambda item: item.name.casefold()):
+                if child.name in existing_by_name:
+                    continue
+                found = sorted({item.suffix.lower() for item in child.rglob('*')
+                                if item.is_file() and item.suffix.lower() in normalized_extensions})
+                if found:
+                    candidates[child.name] = {
+                        'name': child.name, 'display_name': child.name, 'extensions': found,
+                        'locations': [{'working_dir': str(child),
+                                       'archive_dir': str(archive_root / child.name)}]}
+        else:
+            for item in get_environment_provider().model_locations():
+                try:
+                    relative = item.working_dir.relative_to(working_root)
+                except ValueError:
+                    continue
+                current = existing_by_name.get(item.model_type)
+                stored = next((location for location in current['locations']
+                               if Path(location['working_dir']).resolve(strict=False)
+                               == item.working_dir.resolve(strict=False)), None) if current else None
+                if stored is not None and stored.get('archive_dir'):
+                    continue
+                candidate = candidates.setdefault(item.model_type, {
+                    'name': item.model_type,
+                    'display_name': current['display_name'] if current else item.model_type,
+                    'extensions': list(current['extensions'] if current else item.extensions),
+                    'locations': []})
+                candidate['locations'].append({
+                    'working_dir': str(item.working_dir),
+                    'archive_dir': str(archive_root / relative)})
+        return list(candidates.values())
+    except OSError as error:
+        raise ValueError(f'cannot inspect working root {working_root}: {error}') from error
+
+
 def update_workflow_configuration(data: dict) -> dict:
     """Update only workflow settings while preserving model settings and options."""
     current = get_repository_configuration()
@@ -487,23 +547,30 @@ def save_scanned_model(model: Model, tag_names: list[str]) -> None:
                     merged_errors.add(ModelError.LOCATION_MISMATCH.value)
                 old_model.errors = [error.value for error in ModelError if error.value in merged_errors]
                 existing_by_side = {item.where: item for item in old_model.component_sets}
-                for scanned_set in model.component_sets:
+                incoming_sets = list(model.component_sets)
+                model.component_sets.clear()
+                for scanned_set in incoming_sets:
                     existing_set = existing_by_side.get(scanned_set.where)
                     if existing_set is None:
                         old_model.component_sets.append(scanned_set)
                         existing_by_side[scanned_set.where] = scanned_set
                     elif Path(existing_set.primary_dir).resolve() == Path(
                             scanned_set.primary_dir).resolve():
-                        existing_set.components.extend(scanned_set.components)
+                        incoming_components = list(scanned_set.components)
+                        scanned_set.components.clear()
+                        existing_set.components.extend(incoming_components)
                 session.add(old_model)
                 session.commit()
                 return
-            for component_set in list(old_model.component_sets):
-                session.delete(component_set)
+            # Remove relationships before flushing orphan deletion, so deleted
+            # snapshots cannot be reached by a later save-update cascade.
+            old_model.component_sets.clear()
             session.flush()
             old_model.update_from(model)
             old_model.tags = resolve_tags(session, tag_names)
-            old_model.component_sets = model.component_sets
+            incoming_sets = list(model.component_sets)
+            model.component_sets.clear()
+            old_model.component_sets = incoming_sets
             session.add(old_model)
             session.commit()
 
@@ -528,12 +595,13 @@ def save_scanned_workflow(workflow: Workflow, tag_names: list[str]) -> None:
             if old_workflow.touched == workflow.touched:
                 raise ArcException(ArcException.Code.DUPLICATE_MODEL,
                                    f'{workflow.internal_name} {workflow.id}, {old_workflow.touched}')
-            for component_set in list(old_workflow.component_sets):
-                session.delete(component_set)
+            old_workflow.component_sets.clear()
             session.flush()
             old_workflow.update_from(workflow)
             old_workflow.tags = resolve_tags(session, tag_names)
-            old_workflow.component_sets = workflow.component_sets
+            incoming_sets = list(workflow.component_sets)
+            workflow.component_sets.clear()
+            old_workflow.component_sets = incoming_sets
             session.add(old_workflow)
             session.commit()
 
@@ -602,15 +670,16 @@ def save_scanned_user_object(scanned: UserDefinedObject) -> None:
         if item is None:
             session.add(scanned)
         else:
-            for object_set in list(item.sets):
-                session.delete(object_set)
+            item.sets.clear()
             session.flush()
             item.deployment = scanned.deployment
             item.size = scanned.size
             item.modified_at_ns = scanned.modified_at_ns
             item.touched = scanned.touched
             item.errors = scanned.errors
-            item.sets = scanned.sets
+            incoming_sets = list(scanned.sets)
+            scanned.sets.clear()
+            item.sets = incoming_sets
             session.add(item)
         session.commit()
 

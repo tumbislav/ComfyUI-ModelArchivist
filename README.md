@@ -71,3 +71,45 @@ has a maximum size of 1 MiB, and operations on an individual small object are sy
 Type definitions may be deleted after two explicit confirmations; their objects are
 removed from every collection, but files and directories on disk remain untouched.
 Changing a populated type between file and folder class is prohibited.
+
+# Pre-release testing
+
+Before publishing Model Archivist:
+
+- Set up a Linux virtual machine and perform thorough end-to-end user testing,
+  including standalone operation, filesystem permissions, network shares, directory
+  selection, scanning, synchronization, and moves.
+- Determine a practical macOS testing strategy. Automated tests can cover much of the
+  backend, but the native directory picker and full user workflow still require testing
+  on actual macOS hardware or a legitimately hosted macOS environment.
+
+# Deferred work
+
+Items deliberately postponed during the current implementation pass:
+
+- Expand the status box into a detailed repository and long-running-operation monitor,
+  including useful progress while model hashes are calculated.
+- Finish Settings usability, validation, explanatory help text, and the Collections tab.
+- Add editing of the global model-extension allowlist to the General settings tab.
+- Present model, workflow, and user-defined-object error states clearly in the UI.
+- Revisit table columns, grouping, sorting, and possible accordion-style sections.
+- Persist filter definitions and sorting preferences in browser storage.
+- Consider server-sent events if polling proves inadequate for operation monitoring.
+- Add internationalization and localization support once interface text stabilizes.
+- Complete visual/CSS cleanup and final icon coverage.
+- Rebuild the Alembic baseline after the pre-release database schema stabilizes.
+
+# Roadmap V2
+
+Optional, unconfirmed extensions to be considered for V2:
+
+* Support for models packaged as a Huggingface directory rather than a single file
+* Separate workspaces per user
+* Extend model metadata
+  * Retrieve metadata from Civitai and Huggingface
+  * Retrieve metadata from LoraManager and/or rgthree sidecars
+* Project-type collections that set up the entire user's environment:
+  * collection defines the object types that it cares about
+  * when brought to working set, it archives all objects that are not part of it
+  * automatically adds new working set objects that match pre-defined criteria, e.g. a regexp
+  * runs a set-up script (???)

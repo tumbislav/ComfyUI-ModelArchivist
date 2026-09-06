@@ -10,6 +10,7 @@
     flex-direction: row;
     padding: 0;
     background: var(--bg-color);
+    margin-bottom: var(--gap-small);
 }
 
 .filter-buttons {
@@ -17,10 +18,9 @@
     display: flex;
     gap: var(--gap-small);
     flex-direction: row;
-    padding: var(--gap-small) 0;
+    padding: var(--gap-small) var(--gap-small) var(--gap-small) var(--gap-mid);
     background: var(--bg-color);
 }
-
 
 .filter-editor {
     flex: 1 1 100%;

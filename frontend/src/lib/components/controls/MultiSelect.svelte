@@ -5,6 +5,7 @@
  ! -------------------------------------------------->
 
 <script lang="ts">
+    import closeIcon from '$icons/actions/close8.png';
     import { type ConfigOption } from '$lib/configuration';
 
     let {
@@ -55,15 +56,20 @@
     }
 </script>
 
-{#if title}<p class="dialog-label">{title}</p>{/if}
+{#if title}
+    <h2>{title}</h2>
+{/if}
 
 <div class="multi-select">
-    <div class="tag-list">
+    <div class="multi-select-list">
         {#each selectedOptions as option (option.value)}
             <div class="pill-container">
                 <span class="pill-content">{option.label}</span>
                 <button type="button" class="round"
-                        onclick={() => remove(option.value)} disabled={disabled}>×</button>
+                        aria-label={`Remove ${option.label}`}
+                        onclick={() => remove(option.value)} disabled={disabled}>
+                    <img class="action-icon" alt="" src={closeIcon} />
+                </button>
             </div>
         {/each}
         <div class="pill-container">
@@ -73,7 +79,7 @@
     </div>
 
     {#if query.trim() && suggestions.length > 0}
-        <div class="tag-dropdown">
+        <div class="multi-select-dropdown">
             {#each suggestions as option (option.value)}
                 <button type="button" class="pill-container"
                         onclick={() => add(option.value)}>{option.label}</button>
@@ -83,32 +89,4 @@
 </div>
 
 <style>
-    .multi-select {
-        position: relative;
-    }
-
-    .tag-list {
-        background: var(--bg-accent);
-        border: var(--solid-border);
-        border-radius: var(--radius-mid);
-        min-height: var(--button-height);
-        max-height: 6rem;
-        display: flex;
-        flex-flow: row wrap;
-        overflow-y: auto;
-        padding: var(--gap-tiny);
-        gap: var(--gap-tiny);
-    }
-
-    .tag-dropdown {
-        position: absolute;
-        z-index: var(--z-popup);
-        top: calc(100% + var(--gap-tiny));
-        left: 0;
-        right: 0;
-        padding: var(--gap-tiny);
-        background: var(--bg-accent);
-        border: var(--solid-border);
-        border-radius: var(--radius-small);
-    }
 </style>

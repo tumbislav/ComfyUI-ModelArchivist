@@ -47,7 +47,6 @@ function toggleAllVisible() {
     </div>
 {:else}
 
-<!--    <p class="subtitle">Showing { models.length } models.</p> -->
     <table class="main-table">
         <thead>
         <tr class="table-head table-section">

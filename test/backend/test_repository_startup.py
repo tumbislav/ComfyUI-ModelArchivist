@@ -87,6 +87,23 @@ def test_new_database_starts_in_setup_mode_without_scan(tmp_path, monkeypatch):
         assert MigrationContext.configure(connection).get_current_revision() == '000000000001'
 
 
+def test_sql_log_handler_preserves_unicode(tmp_path, monkeypatch):
+    config = repository_config(tmp_path / 'database.db', tmp_path / 'database.log')
+    monkeypatch.setattr(repository, 'get_config', lambda: config)
+    sql_logger = repository.logging.getLogger('sqlalchemy.engine')
+    previous_handlers = list(sql_logger.handlers)
+
+    repository.start_repo()
+
+    handler, = [item for item in sql_logger.handlers if item not in previous_handlers]
+    message = 'Model \u8272\u60c5\u5927\u5e2b \U0001f7e1 invalid: \ud800'
+    handler.handle(repository.logging.LogRecord(
+        'sqlalchemy.engine', repository.logging.WARNING, __file__, 0, message, (), None))
+    handler.flush()
+    assert 'Model \u8272\u60c5\u5927\u5e2b \U0001f7e1 invalid: \\ud800' in Path(
+        config.log_file).read_text(encoding='utf-8')
+
+
 def test_configured_database_loads_paths_and_starts_scan(tmp_path, monkeypatch):
     db_file = tmp_path / 'database.db'
     engine = create_engine(f'sqlite:///{db_file}')
@@ -181,3 +198,25 @@ def test_repository_configuration_rejects_multiple_standalone_locations(
             }],
             'workflow_locations': [],
         })
+
+
+def test_standalone_bulk_mapping_discovers_only_model_directories(tmp_path, monkeypatch):
+    config = repository_config(tmp_path / 'database.db', tmp_path / 'database.log')
+    monkeypatch.setattr(repository, 'get_config', lambda: config)
+    repository.start_repo()
+    working = tmp_path / 'models'
+    (working / 'checkpoints' / 'nested').mkdir(parents=True)
+    (working / 'checkpoints' / 'nested' / 'model.SAFETENSORS').write_bytes(b'model')
+    (working / 'recipes').mkdir()
+    (working / 'recipes' / 'recipe.json').write_text('{}', encoding='utf-8')
+
+    result = repository.propose_model_mappings(
+        str(working), str(tmp_path / 'archive'), ['.safetensors', '.ckpt'])
+
+    assert result == [{
+        'name': 'checkpoints', 'display_name': 'checkpoints',
+        'extensions': ['.safetensors'],
+        'locations': [{
+            'working_dir': str(working / 'checkpoints'),
+            'archive_dir': str(tmp_path / 'archive' / 'checkpoints')}],
+    }]

@@ -66,24 +66,52 @@ async function apply() {
             </button>
         </div>
         <div class="filter-summary">
-            {#if filterCount === 0}<span class="text-compact">No filters</span>{:else}
-                {#if !filterActive}<span class="text-compact">(filter off)</span>{/if}
-                {#if applied.name_prefix}<span class="actions-label">Name:</span><span>{applied.name_prefix}</span>{/if}
-                {#if applied.required_tags.length}<span class="actions-label">Include tags:</span><span>{applied.required_tags.join(', ')}</span>{/if}
-                {#if applied.forbidden_tags.length}<span class="actions-label">Exclude tags:</span><span>{applied.forbidden_tags.join(', ')}</span>{/if}
+            {#if filterCount === 0}
+                <span>No filters</span>
+            {:else}
+                {#if !filterActive}
+                    <span>(filter off)</span>
+                {/if}
+                {#if applied.name_prefix}
+                    <span class="labeled"><span>Name:</span>{applied.name_prefix}</span>
+                {/if}
+                {#if applied.required_tags.length}
+                    <span class="labeled"><span>Include tags:</span>{applied.required_tags.join(', ')}</span>
+                {/if}
+                {#if applied.forbidden_tags.length}
+                    <span class="labeled"><span>Exclude tags:</span>{applied.forbidden_tags.join(', ')}</span>
+                {/if}
             {/if}
         </div>
     {:else}
         <div class="filter-buttons">
-            <button class="image-button" onclick={apply}><img class="action-icon" alt="confirm" src={confirmIcon} /></button>
-            <button class="image-button" onclick={cancel}><img class="action-icon" alt="cancel" src={cancelIcon} /></button>
-            <button class="image-button" onclick={clear}><img class="action-icon" alt="clear" src={resetIcon} /></button>
+            <button class="image-button" onclick={apply}>
+                <img class="action-icon" alt="confirm" src={confirmIcon} />
+            </button>
+            <button class="image-button" onclick={cancel}>
+                <img class="action-icon" alt="cancel" src={cancelIcon} />
+            </button>
+            <button class="image-button" onclick={clear}>
+                <img class="action-icon" alt="clear" src={resetIcon} />
+            </button>
         </div>
-        <div class="filter-box"><p class="dialog-label">Name prefix</p>
-            <input class="text-input full-width" bind:value={draft.name_prefix} /></div>
-        <div class="filter-box"><TagEditor title="Include tags" tags={draft.required_tags}
-            disabled={false} editable={false} onChanged={tags => draft.required_tags = tags} /></div>
-        <div class="filter-box"><TagEditor title="Exclude tags" tags={draft.forbidden_tags}
-            disabled={false} editable={false} onChanged={tags => draft.forbidden_tags = tags} /></div>
+        <div class="filter-box">
+            <h2>Name prefix</h2>
+            <input class="text-input full-width" bind:value={draft.name_prefix} />
+        </div>
+        <div class="filter-box">
+            <TagEditor title="Include tags"
+                       tags={draft.required_tags}
+                       disabled={false}
+                       editable={false}
+                       onChanged={tags => draft.required_tags = tags} />
+        </div>
+        <div class="filter-box">
+            <TagEditor title="Exclude tags"
+                       tags={draft.forbidden_tags}
+                       disabled={false}
+                       editable={false}
+                       onChanged={tags => draft.forbidden_tags = tags} />
+        </div>
     {/if}
 </section>

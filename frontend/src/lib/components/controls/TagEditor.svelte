@@ -5,6 +5,7 @@
  ! -------------------------------------------------->
 
 <script lang="ts">
+    import closeIcon from '$icons/actions/close8.png';
     import { getTagsContext } from '$lib/tags';
     
     const global_tags = getTagsContext();
@@ -105,18 +106,21 @@
 </script>
 
 {#if title}
-<p class="dialog-label">{title}</p>
+<h2>{title}</h2>
 {/if}
 
-<div class="tag-editor">
-    <div class="tag-list">
+<div class="multi-select">
+    <div class="multi-select-list">
         {#each draft_tags as tag}
             <div class="pill-container">
                 <span class="pill-content">{tag}</span>
                 <button type="button"
                         class="round"
                         onclick={() => removeTag(tag)}
-                        disabled={disabled}>×</button>
+                        aria-label={`Remove ${tag}`}
+                        disabled={disabled}>
+                    <img class="action-icon" alt="" src={closeIcon} />
+                </button>
             </div>
         {/each}
         
@@ -133,19 +137,19 @@
     </div>
 
 {#if query.trim()}
-    <div class="tag-dropdown"
+    <div class="multi-select-dropdown"
          style:--dropdown-top={dropdownTop}
          style:--dropdown-left={dropdownLeft}
          style:--dropdown-width={dropdownWidth}>
     {#if suggestions.length > 0}
         {#each suggestions as tag}
             <button type="button" class="pill-container" onclick={() => addTag(tag)} >
-                {tag}
+                <span class="pill-content">{tag}</span>
             </button>
         {/each}
     {:else if canAddNew}
             <button type="button" class="pill-container"  onclick={() => addTag(query)} >
-            + '{query.trim()}'
+                <span class="pill-content">+ '{query.trim()}'</span>
             </button>
     {/if}
     </div>
@@ -153,33 +157,4 @@
 </div>
 
 <style>
-
-/* List of selected tags with editing functions */
-.tag-list {
-    background: var(--bg-accent);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-mid);
-    min-height: 32px;
-    max-height: 6rem;
-    display: flex;
-    flex-direction: row;
-    flex-flow: wrap;
-    overflow-x: hidden;
-    overflow-y: auto;
-    padding: var(--gap-tiny);
-    gap: var(--gap-tiny);
-}
-
-
-.tag-dropdown {
-    position: fixed;
-    z-index: var(--z-popup);
-    background: var(--bg-color);
-    border: 1px solid var(--border-color);
-    background: var(--bg-accent);
-
-    top: var(--dropdown-top);
-    left: var(--dropdown-left);
-    width: var(--dropdown-width);
-}
 </style>

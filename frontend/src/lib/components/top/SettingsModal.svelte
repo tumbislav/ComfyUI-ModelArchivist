@@ -10,7 +10,17 @@ import modelIcon from '$icons/nav/model16.png';
 import workflowIcon from '$icons/nav/workflow16.png';
 import userTypeIcon16 from '$icons/nav/user-defined16.png';
 import collectionIcon from '$icons/nav/collection16.png';
-import { getRepositorySettings, saveModelSettings, saveWorkflowSettings,
+import addIcon from '$icons/actions/add16.png';
+import cancelIcon from '$icons/actions/cancel16.png';
+import removeIcon from '$icons/actions/remove16.png';
+import resetIcon from '$icons/actions/reset16.png';
+import saveIcon from '$icons/actions/save16.png';
+import closeIcon from '$icons/actions/close8.png';
+import PathInput from '$components/controls/PathInput.svelte';
+import HelpButton from '$components/controls/HelpButton.svelte';
+import IconPicker from '$components/controls/IconPicker.svelte';
+import { getModelMappingRoots, getRepositorySettings, previewModelMappings,
+    saveModelSettings, saveWorkflowSettings,
     type ModelTypeSetting, type RepositoryLocation,
     type RepositorySettings } from '$lib/settings';
 import { createUserType, deleteUserType, getUserType, updateUserType, userTypeState } from '$lib/user-types.svelte';
@@ -24,7 +34,7 @@ const tabs: {id: SettingsTab; label: string; icon: string}[] = [
     {id: 'general', label: 'General', icon: generalIcon},
     {id: 'models', label: 'Models', icon: modelIcon},
     {id: 'workflows', label: 'Workflows', icon: workflowIcon},
-    {id: 'user-types', label: 'User-defined types', icon: userTypeIcon16},
+    {id: 'user-types', label: 'User types', icon: userTypeIcon16},
     {id: 'collections', label: 'Collections', icon: collectionIcon}
 ];
 const iconNames = ['any', 'dataset', 'file', 'folder-images', 'folder-sound', 'folder-speech',
@@ -44,6 +54,10 @@ let loading = $state(true);
 let saving = $state(false);
 let error = $state<string | null>(null);
 let guardTarget = $state<SettingsTab | 'close' | null>(null);
+let modelMappingRoots = $state<string[]>([]);
+let mappingWorkingRoot = $state('');
+let mappingArchiveRoot = $state('');
+let mappingExtensions = $state('.safetensors, .ckpt, .pt, .pth, .bin, .gguf');
 let modelsDirty = $derived(settings !== null && !same(settings.model_types, savedModels));
 let workflowsDirty = $derived(settings !== null && !same(settings.workflow_locations, savedWorkflows));
 let userTypesDirty = $derived(deletedUserTypeIds.length > 0 || !same(userTypes, savedUserTypes));
@@ -59,6 +73,11 @@ onMount(async () => {
     settings = clone(repositoryResult.data);
     savedModels = clone(repositoryResult.data.model_types);
     savedWorkflows = clone(repositoryResult.data.workflow_locations);
+    const rootsResult = await getModelMappingRoots();
+    if (rootsResult.ok) {
+        modelMappingRoots = rootsResult.data;
+        mappingWorkingRoot = rootsResult.data[0] ?? '';
+    }
     await userTypeState.load();
     const details = await Promise.all(userTypeState.types.map(type => getUserType(type.id)));
     userTypes = details.map((result, index) => result.ok ? result.data : userTypeState.types[index]);
@@ -121,11 +140,34 @@ async function save(): Promise<boolean> {
 async function saveAndContinue(): Promise<void> { if (await save()) continueGuard(); }
 function discardAndContinue(): void { undo(); continueGuard(); }
 function addModelType(): void {
-    settings?.model_types.push({name: '', display_name: '', extensions: [],
-        locations: [{working_dir: '', archive_dir: ''}]});
+    settings?.model_types.unshift({name: '', display_name: '', extensions: [],
+        locations: [{working_dir: '', archive_dir: ''}], _new: true});
+}
+async function addModelMappings(): Promise<void> {
+    if (!settings) return;
+    error = null;
+    const extensions = mappingExtensions.split(',').map(item => item.trim()).filter(Boolean);
+    const result = await previewModelMappings(
+        mappingWorkingRoot, mappingArchiveRoot, extensions);
+    if (!result.ok) {
+        error = result.message ?? 'Cannot discover model mappings';
+        return;
+    }
+    const newTypes: ModelTypeSetting[] = [];
+    for (const candidate of result.data) {
+        const existing = settings.model_types.find(item => item.name === candidate.name);
+        if (existing === undefined) {
+            newTypes.push({...candidate, _new: true});
+            continue;
+        }
+        const knownPaths = new Set(existing.locations.map(item => item.working_dir.toLowerCase()));
+        existing.locations.push(...candidate.locations.filter(
+            item => !knownPaths.has(item.working_dir.toLowerCase())));
+    }
+    settings.model_types.unshift(...newTypes);
 }
 function addUserType(): void {
-    userTypes.push({id: '', name: '', short_name: '', object_class: 'folder', extensions: [],
+    userTypes.unshift({id: '', name: '', short_name: '', object_class: 'folder', extensions: [],
         icon: 'folder', purpose: '', size_limit: 10 * 1024 * 1024, small: false,
         object_count: 0, working_dir: '', archive_dir: ''});
 }
@@ -139,82 +181,296 @@ function removeUserType(type: UserDefinedType, index: number): void {
 
 <div class="modal-backdrop" role="presentation">
     <div class="modal-dialog settings-dialog" role="dialog" aria-modal="true" aria-label="Settings">
-        <header class="spaced-horizontally"><h2>Settings</h2>
-            <button type="button" class="round" aria-label="Close settings" onclick={requestClose}>×</button></header>
+        <header class="spaced-horizontally">
+            <h2>Settings</h2>
+            <button type="button" class="round" aria-label="Close settings" onclick={requestClose}>
+                <img class="action-icon" alt="" src={closeIcon} />
+            </button>
+        </header>
         <div class="settings-layout">
             <nav class="settings-tabs" aria-label="Settings sections">
                 {#each tabs as tab}
                     <button type="button" class:active={activeTab === tab.id} onclick={() => requestTab(tab.id)}>
-                        <img class="action-icon-small" src={tab.icon} alt="" />{tab.label}
-                        {#if (tab.id === 'models' && modelsDirty) || (tab.id === 'workflows' && workflowsDirty) ||
-                              (tab.id === 'user-types' && userTypesDirty)}<span aria-label="Unsaved">•</span>{/if}
+                        <img class="action-icon-small" src={tab.icon} alt="" />
+                        <span class="button-label">
+                            {tab.label}
+                            {#if (tab.id === 'models' && modelsDirty) ||
+                                 (tab.id === 'workflows' && workflowsDirty) ||
+                                 (tab.id === 'user-types' && userTypesDirty)}
+                                <span aria-label="Unsaved">•</span>
+                            {/if}
+                        </span>
                     </button>
                 {/each}
             </nav>
-            <section class="settings-content">
-                {#if loading}<p>Loading settings…</p>
-                {:else if activeTab === 'general'}<h3>General</h3><p>No general settings are currently available.</p>
+            <section class="settings-content"
+                     class:structured-settings-content={activeTab === 'models' ||
+                         activeTab === 'workflows' || activeTab === 'user-types'}>
+                {#if loading}
+                    <p>Loading settings…</p>
+                {:else if activeTab === 'general'}
+                    <h3>General</h3>
+                    <p>No general settings are currently available.</p>
                 {:else if activeTab === 'models' && settings}
-                    <div class="settings-heading"><h3>Models</h3>{#if settings.mode === 'standalone'}
-                        <button class="button-with-text" onclick={addModelType}>Add type</button>{/if}</div>
-                    <p class="class-annotation">{settings.mode === 'comfyui'
-                        ? 'Working folders and extensions are supplied by ComfyUI.'
-                        : 'Each model type has one working/archive location pair.'}</p>
-                    {#each settings.model_types as type, typeIndex}
-                        <details open><summary>{type.display_name || type.name || 'New model type'}</summary>
-                            <div class="settings-form">
-                                <label>Type key<input class="text-input" bind:value={type.name} disabled={settings.mode === 'comfyui'} /></label>
-                                <label>Display name<input class="text-input" bind:value={type.display_name} /></label>
-                                <label>Extensions<input class="text-input" value={type.extensions.join(', ')} disabled={settings.mode === 'comfyui'}
-                                    oninput={event => type.extensions = event.currentTarget.value.split(',').map(x => x.trim()).filter(Boolean)} /></label>
-                                {#each type.locations as location}
-                                    <label>Working folder<input class="text-input" bind:value={location.working_dir} disabled={settings.mode === 'comfyui'} /></label>
-                                    <label>Archive folder<input class="text-input" bind:value={location.archive_dir} /></label>
-                                {/each}
-                                {#if settings.mode === 'standalone'}<button class="button-with-text danger"
-                                    onclick={() => settings?.model_types.splice(typeIndex, 1)}>Remove type</button>{/if}
-                            </div>
-                        </details>
-                    {/each}
-                {:else if activeTab === 'workflows' && settings}
-                    <div class="settings-heading"><h3>Workflows</h3>
-                        {#if settings.mode === 'standalone' && settings.workflow_locations.length === 0}
-                            <button class="button-with-text" onclick={() => settings?.workflow_locations.push({working_dir: '', archive_dir: ''})}>Add location</button>
-                        {/if}
-                    </div>
-                    {#each settings.workflow_locations as location}
-                        <div class="settings-form raised-section">
-                            <label>Working folder<input class="text-input" bind:value={location.working_dir} disabled={settings.mode === 'comfyui'} /></label>
-                            <label>Archive folder<input class="text-input" bind:value={location.archive_dir} /></label>
+                    <section class="dialog-section model-mapping-assistant">
+                        <div class="spaced-horizontally">
+                            <h4 class="tight-vertical">Map model directories</h4>
+                            <HelpButton text={settings.mode === 'comfyui'
+                                ? 'Working folders and extensions are supplied by ComfyUI.'
+                                : 'Each model type has one working/archive location pair.'} />
                         </div>
-                    {:else}<p>No workflow location is configured.</p>{/each}
+                        <div class="settings-form model-settings-form">
+                            <label class="dialog-label">
+                                Working root
+                                {#if settings.mode === 'comfyui'}
+                                    <select class="text-input" bind:value={mappingWorkingRoot}>
+                                        {#each modelMappingRoots as root}
+                                            <option value={root}>{root}</option>
+                                        {/each}
+                                    </select>
+                                {:else}
+                                    <PathInput bind:value={mappingWorkingRoot}
+                                               onError={message => error = message} />
+                                {/if}
+                            </label>
+                            <label class="dialog-label">
+                                Archive root
+                                <PathInput bind:value={mappingArchiveRoot}
+                                           onError={message => error = message} />
+                            </label>
+                            {#if settings.mode === 'standalone'}
+                                <label class="dialog-label">
+                                    Model extensions
+                                    <input class="text-input" bind:value={mappingExtensions} />
+                                </label>
+                            {/if}
+                        </div>
+                        <div class="spaced-horizontally">
+                            <div></div>
+                            <div>
+                                <button class="button-with-text"
+                                        disabled={!mappingWorkingRoot || !mappingArchiveRoot}
+                                        onclick={addModelMappings}>
+                                    <img class="action-icon" alt="add" src={addIcon} />
+                                    <span class="button-label">Add mappings</span>
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                    <div class="spaced-horizontally model-settings-actions">
+                        <div>
+                            {#if settings.mode === 'standalone'}
+                                <button class="button-with-text" onclick={addModelType}>
+                                    <img class="action-icon" alt="add" src={addIcon} />
+                                    <span class="button-label">Add type</span>
+                                </button>
+                            {/if}
+                        </div>
+                        <div class="settings-actions">
+                            <button class="button-with-text" disabled={!activeDirty || saving}
+                                    onclick={undo}>
+                                <img class="action-icon" alt="undo" src={resetIcon} />
+                                <span class="button-label">Undo</span>
+                            </button>
+                            <button class="button-with-text" disabled={!activeDirty || saving}
+                                    onclick={save}>
+                                <img class="action-icon" alt="save" src={saveIcon} />
+                                <span class="button-label">{saving ? 'Saving…' : 'Save'}</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="model-type-list">
+                        {#each settings.model_types as type, typeIndex}
+                            <details class:unsaved={type._new === true} open={type._new === true}>
+                                <summary>{type.display_name || type.name || 'New model type'}</summary>
+                                <div class="settings-form model-settings-form">
+                                <label class="dialog-label">
+                                    Type key
+                                    <input class="text-input" bind:value={type.name}
+                                           disabled={settings.mode === 'comfyui'} />
+                                </label>
+                                <label class="dialog-label">
+                                    Display name
+                                    <input class="text-input" bind:value={type.display_name} />
+                                </label>
+                                <label class="dialog-label">
+                                    Extensions
+                                    <input class="text-input" value={type.extensions.join(', ')}
+                                           disabled={settings.mode === 'comfyui'}
+                                           oninput={event => type.extensions = event.currentTarget.value
+                                               .split(',').map(x => x.trim()).filter(Boolean)} />
+                                </label>
+                                {#each type.locations as location}
+                                    <label class="dialog-label">
+                                        Working folder
+                                        <PathInput bind:value={location.working_dir}
+                                                   disabled={settings.mode === 'comfyui'}
+                                                   onError={message => error = message} />
+                                    </label>
+                                    <label class="dialog-label">
+                                        Archive folder
+                                        <PathInput bind:value={location.archive_dir}
+                                                   onError={message => error = message} />
+                                    </label>
+                                {/each}
+                                </div>
+                                {#if settings.mode === 'standalone'}
+                                    <div class="spaced-horizontally model-type-actions">
+                                        <div></div>
+                                        <button class="button-with-text danger"
+                                                onclick={() => settings?.model_types.splice(typeIndex, 1)}>
+                                            <img class="action-icon" alt="remove" src={removeIcon} />
+                                            <span class="button-label">Remove type</span>
+                                        </button>
+                                    </div>
+                                {/if}
+                            </details>
+                        {/each}
+                    </div>
+                {:else if activeTab === 'workflows' && settings}
+                    <div class="spaced-horizontally settings-tab-actions">
+                        <div>
+                            {#if settings.mode === 'standalone' &&
+                                 settings.workflow_locations.length === 0}
+                                <button class="button-with-text"
+                                        onclick={() => settings?.workflow_locations.unshift(
+                                            {working_dir: '', archive_dir: ''})}>
+                                    <img class="action-icon" alt="add" src={addIcon} />
+                                    <span class="button-label">Add location</span>
+                                </button>
+                            {/if}
+                        </div>
+                        <div class="settings-actions">
+                            <button class="button-with-text" disabled={!activeDirty || saving}
+                                    onclick={undo}>
+                                <img class="action-icon" alt="undo" src={resetIcon} />
+                                <span class="button-label">Undo</span>
+                            </button>
+                            <button class="button-with-text" disabled={!activeDirty || saving}
+                                    onclick={save}>
+                                <img class="action-icon" alt="save" src={saveIcon} />
+                                <span class="button-label">{saving ? 'Saving…' : 'Save'}</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="settings-item-list">
+                        {#each settings.workflow_locations as location}
+                            <div class="settings-form aligned-settings-form dialog-section">
+                                <label class="dialog-label">
+                                    Working folder
+                                    <PathInput bind:value={location.working_dir}
+                                               disabled={settings.mode === 'comfyui'}
+                                               onError={message => error = message} />
+                                </label>
+                                <label class="dialog-label">
+                                    Archive folder
+                                    <PathInput bind:value={location.archive_dir}
+                                               onError={message => error = message} />
+                                </label>
+                            </div>
+                        {:else}
+                            <p>No workflow location is configured.</p>
+                        {/each}
+                    </div>
                 {:else if activeTab === 'user-types'}
-                    <div class="settings-heading"><h3>User-defined types</h3>
-                        <button class="button-with-text" onclick={addUserType}>Add type</button></div>
+                    <div class="spaced-horizontally settings-tab-actions">
+                        <div>
+                            <button class="button-with-text" onclick={addUserType}>
+                                <img class="action-icon" alt="add" src={addIcon} />
+                                <span class="button-label">Add type</span>
+                            </button>
+                        </div>
+                        <div class="settings-actions">
+                            <button class="button-with-text" disabled={!activeDirty || saving}
+                                    onclick={undo}>
+                                <img class="action-icon" alt="undo" src={resetIcon} />
+                                <span class="button-label">Undo</span>
+                            </button>
+                            <button class="button-with-text" disabled={!activeDirty || saving}
+                                    onclick={save}>
+                                <img class="action-icon" alt="save" src={saveIcon} />
+                                <span class="button-label">{saving ? 'Saving…' : 'Save'}</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="settings-item-list">
                     {#each userTypes as type, typeIndex}
-                        <details><summary>{type.name || 'New user-defined type'}</summary>
-                            <div class="settings-form">
-                                <label>Name<input class="text-input" bind:value={type.name} /></label>
-                                <label>Short name<input class="text-input" maxlength="8" bind:value={type.short_name} /></label>
-                                <label>Icon<select class="text-input" bind:value={type.icon}>{#each iconNames as icon}<option value={icon}>{icon}</option>{/each}</select></label>
-                                <label>Purpose<textarea class="text-input" bind:value={type.purpose}></textarea></label>
-                                <label>Content<select class="text-input" bind:value={type.object_class} disabled={type.object_count > 0}>
-                                    <option value="file">Single file</option><option value="folder">Directory tree</option></select></label>
-                                {#if type.object_class === 'file'}<label>Extensions<input class="text-input" value={type.extensions.join(', ')}
-                                    oninput={event => type.extensions = event.currentTarget.value.split(',').map(x => x.trim()).filter(Boolean)} /></label>{/if}
-                                <label>Working folder<input class="text-input" bind:value={type.working_dir} /></label>
-                                <label>Archive folder<input class="text-input" bind:value={type.archive_dir} /></label>
-                                <label>Size limit (bytes)<input class="text-input" type="number" min="1" bind:value={type.size_limit} /></label>
-                                <label class="checkbox-label"><input type="checkbox" bind:checked={type.small} /> Small-object type</label>
-                                <button class="button-with-text danger" onclick={() => removeUserType(type, typeIndex)}>Delete type</button>
+                        <details class:unsaved={!type.id} open={!type.id}>
+                            <summary>{type.name || 'New user-defined type'}</summary>
+                            <div class="user-type-help">
+                                <HelpButton text="" />
+                            </div>
+                            <div class="settings-form aligned-settings-form">
+                                <label class="dialog-label">
+                                    Name
+                                    <input class="text-input" bind:value={type.name} />
+                                </label>
+                                <label class="dialog-label">
+                                    Short name
+                                    <input class="text-input" maxlength="8" bind:value={type.short_name} />
+                                </label>
+                                <label class="dialog-label">
+                                    Icon
+                                    <IconPicker bind:value={type.icon} options={iconNames} />
+                                </label>
+                                <label class="dialog-label">
+                                    Purpose
+                                    <textarea class="text-input" bind:value={type.purpose}></textarea>
+                                </label>
+                                <label class="dialog-label">
+                                    Content
+                                    <select class="text-input" bind:value={type.object_class}
+                                            disabled={type.object_count > 0}>
+                                        <option value="file">Single file</option>
+                                        <option value="folder">Directory tree</option>
+                                    </select>
+                                </label>
+                                {#if type.object_class === 'file'}
+                                    <label class="dialog-label">
+                                        Extensions
+                                        <input class="text-input" value={type.extensions.join(', ')}
+                                               oninput={event => type.extensions = event.currentTarget.value
+                                                   .split(',').map(x => x.trim()).filter(Boolean)} />
+                                    </label>
+                                {/if}
+                                <label class="dialog-label">
+                                    Working folder
+                                    <PathInput bind:value={type.working_dir}
+                                               onError={message => error = message} />
+                                </label>
+                                <label class="dialog-label">
+                                    Archive folder
+                                    <PathInput bind:value={type.archive_dir}
+                                               onError={message => error = message} />
+                                </label>
+                                <label class="dialog-label">
+                                    Size limit (bytes)
+                                    <input class="text-input" type="number" min="1"
+                                           disabled={type.small}
+                                           bind:value={type.size_limit} />
+                                </label>
+                                <label class="dialog-label checkbox-label">
+                                    Small-object type
+                                    <input type="checkbox" bind:checked={type.small} />
+                                </label>
+                            </div>
+                            <div class="spaced-horizontally settings-item-actions">
+                                <div></div>
+                                <button class="button-with-text danger"
+                                        onclick={() => removeUserType(type, typeIndex)}>
+                                    <img class="action-icon" alt="remove" src={removeIcon} />
+                                    <span class="button-label">Delete type</span>
+                                </button>
                             </div>
                         </details>
                     {/each}
-                {:else if activeTab === 'collections'}<h3>Collections</h3><p>Collection settings will be added later.</p>{/if}
-                {#if error}<p class="error-message">{error}</p>{/if}
-                {#if activeTab === 'models' || activeTab === 'workflows' || activeTab === 'user-types'}
-                    <footer class="settings-actions"><button class="button-with-text" disabled={!activeDirty || saving} onclick={undo}>Undo</button>
-                        <button class="button-with-text" disabled={!activeDirty || saving} onclick={save}>{saving ? 'Saving…' : 'Save'}</button></footer>
+                    </div>
+                {:else if activeTab === 'collections'}
+                    <h3>Collections</h3>
+                    <p>Collection settings will be added later.</p>
+                {/if}
+                {#if error}
+                    <p class="error-message">{error}</p>
                 {/if}
             </section>
         </div>
@@ -222,10 +478,22 @@ function removeUserType(type: UserDefinedType, index: number): void {
     {#if guardTarget !== null}
         <div class="modal-backdrop nested-settings-guard" role="presentation">
             <div class="modal-dialog settings-guard" role="alertdialog" aria-modal="true" aria-label="Unsaved settings">
-                <h3>Unsaved changes</h3><p>Save changes to this tab before continuing?</p>
-                <div class="settings-actions"><button class="button-with-text" onclick={() => guardTarget = null}>Cancel</button>
-                    <button class="button-with-text" onclick={discardAndContinue}>Discard</button>
-                    <button class="button-with-text" disabled={saving} onclick={saveAndContinue}>Save</button></div>
+                <h3>Unsaved changes</h3>
+                <p>Save changes to this tab before continuing?</p>
+                <div class="settings-actions">
+                    <button class="button-with-text" onclick={() => guardTarget = null}>
+                        <img class="action-icon" alt="cancel" src={cancelIcon} />
+                        <span class="button-label">Cancel</span>
+                    </button>
+                    <button class="button-with-text" onclick={discardAndContinue}>
+                        <img class="action-icon" alt="discard" src={resetIcon} />
+                        <span class="button-label">Discard</span>
+                    </button>
+                    <button class="button-with-text" disabled={saving} onclick={saveAndContinue}>
+                        <img class="action-icon" alt="save" src={saveIcon} />
+                        <span class="button-label">Save</span>
+                    </button>
+                </div>
             </div>
         </div>
     {/if}

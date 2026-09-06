@@ -9,6 +9,7 @@ import addIcon from '$icons/actions/add16.png';
 import removeIcon from '$icons/actions/remove16.png';
 import cancelIcon from '$icons/actions/cancel16.png';
 import confirmIcon from '$icons/actions/confirm16.png';
+import closeIcon from '$icons/actions/close8.png';
 
 import { confirmBox, sideDialogPosition } from '$lib/confirm.svelte';
 import {
@@ -31,7 +32,6 @@ let section: HTMLElement;
 let selected = $state<Set<string>>(new Set());
 let collections = $state<CollectionSummary[]>([]);
 let popupOpen = $state(false);
-let creating = $state(false);
 let busy = $state(false);
 let error = $state<string | null>(null);
 let popupPosition = $state('');
@@ -39,6 +39,7 @@ let newName = $state('');
 let newPurpose = $state('');
 
 let memberIds = $derived(new Set(model.collections.map((collection) => collection.id)));
+let newCollectionDirty = $derived(newName !== '' || newPurpose !== '');
 
 function toggleSelected(id: string) {
     const next = new Set(selected);
@@ -56,15 +57,24 @@ async function openAdd() {
     collections = envelope.data;
     popupPosition = sideDialogPosition(section);
     popupOpen = true;
-    creating = false;
+    newName = '';
+    newPurpose = '';
 }
 
-function closePopup() {
+function closePopupNow() {
     popupOpen = false;
-    creating = false;
     newName = '';
     newPurpose = '';
     error = null;
+}
+
+async function closePopup() {
+    if (newCollectionDirty && !await confirmBox({
+        title: 'Discard new collection?',
+        message: 'Discard the unsaved new collection?',
+        anchor: section
+    })) return;
+    closePopupNow();
 }
 
 async function addTo(collectionId: string) {
@@ -77,7 +87,7 @@ async function addTo(collectionId: string) {
             return;
         }
         await onChanged();
-        closePopup();
+        closePopupNow();
     } finally {
         busy = false;
     }
@@ -101,7 +111,7 @@ async function createNew() {
             return;
         }
         await onChanged();
-        closePopup();
+        closePopupNow();
     } finally {
         busy = false;
     }
@@ -138,8 +148,8 @@ async function removeSelected() {
 }
 </script>
 
-<div class="dialog-section" bind:this={section}>
-    <p class="dialog-label">Collections</p>
+<div class="space-below" bind:this={section}>
+    <h2 class="tight-vertical">Collections</h2>
     <div class="collection-members">
         {#each model.collections as collection (collection.id)}
             <label>
@@ -147,7 +157,7 @@ async function removeSelected() {
                        checked={selected.has(collection.id)}
                        disabled={busy}
                        onchange={() => toggleSelected(collection.id)} />
-                <span class="text-compact">{collection.name}</span>
+                <span>{collection.name}</span>
             </label>
         {:else}
             <p class="annotation">Not in a collection.</p>
@@ -161,13 +171,13 @@ async function removeSelected() {
     <div class="spaced-horizontally">
         <button class="button-with-text" disabled={busy} onclick={openAdd}>
             <img class="action-icon" alt="add" src={addIcon} />
-            <span>Add</span>
+            <span class="button-label">Add</span>
         </button>
         <button class="button-with-text"
                 disabled={busy || selected.size === 0}
                 onclick={removeSelected}>
             <img class="action-icon" alt="remove" src={removeIcon} />
-            <span>Remove from</span>
+            <span class="button-label">Remove from</span>
         </button>
     </div>
 </div>
@@ -179,10 +189,25 @@ async function removeSelected() {
                 <p class="error-message">{error}</p>
             {/if}
 
-            <fieldset class="nested-modal-parent" disabled={creating || busy}>
+            <fieldset disabled={busy}>
                 <div class="spaced-horizontally">
-                    <h2>Add to collection</h2>
-                    <button type="button" class="round" onclick={closePopup}>×</button>
+                    <h2 class="tight-vertical">Add to collection</h2>
+                    <button type="button" class="round" aria-label="Close collection picker"
+                            onclick={() => void closePopup()}>
+                        <img class="action-icon" alt="" src={closeIcon} />
+                    </button>
+                </div>
+
+                <div class="dialog-section collection-create">
+                    <h3>New collection</h3>
+                    <label class="dialog-label" for="new-collection-name">Name</label>
+                    <input id="new-collection-name" class="text-input full-width" bind:value={newName} />
+                    <label class="dialog-label" for="new-collection-purpose">Purpose</label>
+                    <textarea id="new-collection-purpose" class="text-input full-width" bind:value={newPurpose}></textarea>
+                    <button class="button-with-text" disabled={!newName.trim()} onclick={createNew}>
+                        <img class="action-icon" alt="create" src={confirmIcon} />
+                        <span class="button-label">Create and close</span>
+                    </button>
                 </div>
 
                 <div class="collection-options">
@@ -192,45 +217,14 @@ async function removeSelected() {
                                 onclick={() => addTo(collection.id)}>
                             {collection.name}
                         </button>
-                    {:else}
-                        <p class="annotation">No collections exist yet.</p>
                     {/each}
                 </div>
 
-                {#if !creating}
-                    <div class="spaced-horizontally">
-                        <button class="button-with-text" onclick={() => creating = true}>
-                            <img class="action-icon" alt="add" src={addIcon} />
-                            <span>New collection</span>
-                        </button>
-                        <button class="button-with-text" onclick={closePopup}>
-                            <img class="action-icon" alt="cancel" src={cancelIcon} />
-                            <span>Cancel</span>
-                        </button>
-                    </div>
-                {/if}
+                <button class="button-with-text" onclick={() => void closePopup()}>
+                    <img class="action-icon" alt="cancel" src={cancelIcon} />
+                    <span class="button-label">Cancel</span>
+                </button>
             </fieldset>
-
-            {#if creating}
-                <div class="raised-section collection-create">
-                    <label class="dialog-label" for="new-collection-name">Name</label>
-                    <input id="new-collection-name" class="text-input full-width" bind:value={newName} />
-                    <label class="dialog-label" for="new-collection-purpose">Purpose</label>
-                    <textarea id="new-collection-purpose" class="text-input full-width" bind:value={newPurpose}></textarea>
-                    <div class="spaced-horizontally">
-                        <button class="button-with-text"
-                                disabled={busy || !newName.trim()}
-                                onclick={createNew}>
-                            <img class="action-icon" alt="create" src={confirmIcon} />
-                            <span>Create and close</span>
-                        </button>
-                        <button class="button-with-text" disabled={busy} onclick={() => creating = false}>
-                            <img class="action-icon" alt="cancel" src={cancelIcon} />
-                            <span>Cancel</span>
-                        </button>
-                    </div>
-                </div>
-            {/if}
         </div>
     </div>
 {/if}
