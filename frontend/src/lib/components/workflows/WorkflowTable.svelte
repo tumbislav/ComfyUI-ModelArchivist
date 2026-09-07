@@ -6,6 +6,10 @@
 
 <script lang="ts">
 import { type WorkflowSummary } from '$lib/objects';
+import tagIcon from '$icons/indicators/tag16.png';
+import noTagIcon from '$icons/indicators/no-tag16.png';
+import collectionIcon from '$icons/indicators/collection16.png';
+import noCollectionIcon from '$icons/indicators/no-collection16.png';
 let { workflows, error, selected_id=$bindable(), selected_ids=$bindable() }: {
     workflows: WorkflowSummary[]; error: string | null; selected_id: string | null;
     selected_ids: Set<string>;
@@ -29,7 +33,19 @@ function toggleAllVisible() {
     <thead><tr class="table-head table-section">
         <th class="clear"><input type="checkbox" checked={allVisibleSelected}
             onclick={event => event.stopPropagation()} onchange={toggleAllVisible} /></th>
-        <th>Name</th><th>Purpose</th><th>Working</th><th>Archive</th>
+        <th>Name</th>
+        <th>Purpose</th>
+        <th>Relative path</th>
+        <th class="indicator-column">
+            <img class="indicator-icon action-icon" src={tagIcon}
+                 alt="Does the workflow have tags?">
+        </th>
+        <th class="indicator-column">
+            <img class="indicator-icon action-icon" src={collectionIcon}
+                 alt="Is the workflow in collection(s)?">
+        </th>
+        <th>Location</th>
+        <th class="error-column">E</th>
     </tr></thead>
     <tbody>{#each workflows as workflow (workflow.id)}
         <tr class="table-clickable" aria-selected={selected_id === workflow.id}
@@ -38,8 +54,21 @@ function toggleAllVisible() {
                 onclick={event => event.stopPropagation()} onchange={() => toggleSelected(workflow.id)} /></td>
             <td>{workflow.internal_name}</td>
             <td class="workflow-purpose" title={workflow.purpose}>{workflow.purpose}</td>
-            <td>{['working', 'synced'].includes(workflow.deployment) ? 'yes' : ''}</td>
-            <td>{['archive', 'synced'].includes(workflow.deployment) ? 'yes' : ''}</td>
+            <td class="workflow-path" title={workflow.relative_path}>{workflow.relative_path}</td>
+            <td class="indicator-column">
+                <img class="indicator-icon action-icon"
+                     src={workflow.has_tags ? tagIcon : noTagIcon}
+                     alt={workflow.has_tags ? 'Has tags' : 'No tags'}>
+            </td>
+            <td class="indicator-column">
+                <img class="indicator-icon action-icon"
+                     src={workflow.has_collections ? collectionIcon : noCollectionIcon}
+                     alt={workflow.has_collections ? 'In collections' : 'Not in a collection'}>
+            </td>
+            <td>{workflow.deployment}</td>
+            <td class="error-column">
+                {#if workflow.read_only}<span class="error-message">E</span>{/if}
+            </td>
         </tr>
     {/each}</tbody>
 </table>

@@ -13,7 +13,7 @@ import WorkflowDetails from '$components/workflows/WorkflowDetails.svelte';
 import MultiWorkflowEditor from '$components/workflows/MultiWorkflowEditor.svelte';
 import { sidebar_in_out } from '$lib/common';
 import { confirmBox } from '$lib/confirm.svelte';
-import { type Workflow, type WorkflowSummary, toWorkflowSummary } from '$lib/objects';
+import { type Workflow, type WorkflowSummary } from '$lib/objects';
 import { getWorkflow, getWorkflows, moveWorkflow, searchWorkflows, syncWorkflow,
     updateWorkflow, type WorkflowDestination, type WorkflowSearchCriteria } from '$lib/workflows';
 
@@ -62,7 +62,7 @@ async function save() {
     const result = await updateWorkflow(active); saving = false;
     if (!result.ok) { operationError = result.message ?? 'Cannot save workflow'; return; }
     active = result.data; snapshot = makeSnapshot(result.data);
-    workflows = workflows.map(item => item.id === result.data.id ? toWorkflowSummary(result.data) : item);
+    await refreshWorkflows();
 }
 async function runOperation(destination: WorkflowDestination | null) {
     if (!active) return; operating = true; operationError = null;

@@ -7,6 +7,7 @@
 <script lang="ts">
 import { onMount } from 'svelte';
 import TagEditor from '$components/controls/TagEditor.svelte';
+import BaseModelEditor from '$components/controls/BaseModelEditor.svelte';
 import MultiModelCollectionEditor from '$components/models/MultiModelCollectionEditor.svelte';
 import saveIcon from '$icons/actions/save16.png';
 import moveUpIcon from '$icons/actions/move-up16.png';
@@ -18,6 +19,7 @@ import {
     getModel,
     moveModels,
     syncModels,
+    updateModelBaseModels,
     updateModelTags,
     type ModelDestination
 } from '$lib/models';
@@ -36,9 +38,12 @@ let {
 let models = $state<Model[]>([]);
 let addTags = $state<string[]>([]);
 let removeTags = $state<string[]>([]);
+let baseModel = $state('');
+let baseModelInitialized = $state(false);
 let busy = $state(false);
 let error = $state<string | null>(null);
 let removableTags = $derived([...new Set(models.flatMap(model => model.tags))].sort());
+let hasObjectErrors = $derived(models.some(model => model.read_only));
 
 async function loadModels() {
     const responses = await Promise.all(modelIds.map(getModel));
@@ -48,6 +53,11 @@ async function loadModels() {
         return;
     }
     models = responses.flatMap(response => response.ok ? [response.data] : []);
+    if (!baseModelInitialized && models.length > 0) {
+        const first = models[0].base_model;
+        baseModel = models.every(model => model.base_model === first) ? first : '';
+        baseModelInitialized = true;
+    }
     error = null;
 }
 
@@ -69,6 +79,18 @@ async function saveTags() {
     }
     addTags = [];
     removeTags = [];
+    await refresh();
+}
+
+async function saveBaseModel() {
+    busy = true;
+    const response = await updateModelBaseModels(modelIds, baseModel);
+    busy = false;
+    if (!response.ok) {
+        error = response.message ?? 'Cannot update base model';
+        return;
+    }
+    baseModel = response.data[0]?.base_model ?? '';
     await refresh();
 }
 
@@ -114,6 +136,24 @@ async function runOperation(destination: ModelDestination | null) {
 
         {#if error}<p class="error-message">{error}</p>{/if}
 
+        {#if hasObjectErrors}
+            <p class="error-details">Some selected models have errors. Editing is disabled.</p>
+        {:else}
+        <div class="space-below">
+            <h2>Set base model</h2>
+            <BaseModelEditor value={baseModel} disabled={busy}
+                placeholder="Type a base model name"
+                onChanged={(value) => baseModel = value} />
+            <div class="spaced-horizontally">
+                <div></div>
+                <button class="button-with-text" disabled={busy || models.length === 0}
+                        onclick={saveBaseModel}>
+                    <img class="action-icon" alt="save" src={saveIcon} />
+                    <span>Apply base model</span>
+                </button>
+            </div>
+        </div>
+
         <div class="space-below">
             <TagEditor title="Add tags" tags={addTags} disabled={busy} editable={true}
                        onChanged={tags => addTags = tags} />
@@ -146,6 +186,7 @@ async function runOperation(destination: ModelDestination | null) {
 
         {#if models.length > 0}
             <MultiModelCollectionEditor {models} onChanged={refresh} />
+        {/if}
         {/if}
     </div>
 </div>

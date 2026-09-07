@@ -147,6 +147,8 @@ def test_user_object_search_and_lro_classification(user_type_repository):
         'name_prefix': 'no', 'required_tags': ['text'], 'forbidden_tags': []})
 
     assert [value['id'] for value in found] == [object_id]
+    assert found[0]['has_tags'] is True
+    assert found[0]['has_collections'] is False
     assert repository.user_object_operation_requires_lro([object_id], 1024 * 1024) is False
     assert repository.user_object_operation_requires_lro([object_id], 1024 * 1024 + 1) is True
 
@@ -156,6 +158,9 @@ def test_user_object_participates_in_collection_uniqueness(user_type_repository)
     item = repository.create_user_type(type_input(tmp_path))
     object_id = add_object(engine, item['id'])
     child = repository.create_collection({'name': 'Child', 'user_objects': [object_id]})
+
+    summary = repository.list_user_objects(item['id'])[0]
+    assert summary['has_collections'] is True
 
     with pytest.raises(ArcException) as exc_info:
         repository.create_collection({'name': 'Parent', 'user_objects': [object_id],

@@ -19,6 +19,7 @@ from itertools import chain
 from dataclasses import dataclass, field
 import datetime
 
+from backend.base_models import normalize_base_model
 from backend.config import get_config, Configuration
 from backend.files.metadata import (ARCHIVIST_METADATA_SUFFIX,
                                     LEGACY_METADATA_SUFFIX,
@@ -354,6 +355,8 @@ class Scanner:
                             internal_name=side_metadata['model_name'],
                             type=type_name,
                             file_format=file_format(present_set),
+                            base_model=normalize_base_model(
+                                side_metadata.get('base_model')),
                             relative_path=relative_path,
                             deployment=str(DeploymentStatus.WORKING if present_set.where == 'w'
                                            else DeploymentStatus.ARCHIVE),
@@ -375,6 +378,7 @@ class Scanner:
                               internal_name=metadata['model_name'],
                               type=type_name,
                               file_format=file_format(working_set, archive_set),
+                              base_model=normalize_base_model(metadata.get('base_model')),
                               relative_path=relative_path,
                               deployment=str(check_deployment(working_set, archive_set)),
                               touched=self.timestamp,

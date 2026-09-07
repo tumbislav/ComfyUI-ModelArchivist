@@ -10,6 +10,8 @@ from sqlalchemy import Column, JSON, String, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel, CheckConstraint
 from uuid import uuid4
 
+from backend.base_models import abbreviate_base_model
+
 # ---------------------------------------------------------------------------
 # Helpful enums
 # ---------------------------------------------------------------------------
@@ -146,7 +148,7 @@ class WorkflowLocationSetting(SQLModel, table=True):
     archive_dir: str | None = None
     active: bool = True
 
-#todo: add notes and civitai.name == version, base model, from_civitai, civitai.model_id + civitai.id (version id)
+#todo: add notes and civitai.name == version, from_civitai, civitai.model_id + civitai.id (version id)
 
 class Model(SQLModel, table=True):
     id: str = Field(primary_key=True)
@@ -154,6 +156,7 @@ class Model(SQLModel, table=True):
     internal_name: str
     type: str
     file_format: str = ''
+    base_model: str = ''
     relative_path: str
     deployment: str
     touched: str
@@ -176,6 +179,7 @@ class Model(SQLModel, table=True):
         self.internal_name = other.internal_name
         self.type = other.type
         self.file_format = other.file_format
+        self.base_model = other.base_model
         self.relative_path = other.relative_path
         self.deployment = other.deployment
         self.touched = other.touched
@@ -186,7 +190,11 @@ class Model(SQLModel, table=True):
                  'internal_name': self.internal_name,
                  'type': type_map.get(self.type, self.type),
                  'file_format': self.file_format,
+                 'base_model_abbreviation': abbreviate_base_model(self.base_model),
+                 'relative_path': self.relative_path.replace('\\', '/'),
                  'deployment': self.deployment,
+                 'has_tags': bool(self.tags),
+                 'has_collections': bool(self.collections),
                  'errors': self.errors,
                  'read_only': self.read_only,
                  'metadata_update_available': self.metadata_update_available }
@@ -201,6 +209,8 @@ class Model(SQLModel, table=True):
                  'type': type_map.get(self.type, self.type),
                  'raw_type': self.type,
                  'file_format': self.file_format,
+                 'base_model': self.base_model,
+                 'base_model_abbreviation': abbreviate_base_model(self.base_model),
                  'working_path': working_path,
                  'archive_path': archive_path,
                  'relative_path': self.relative_path.replace('\\', '/'),
@@ -210,6 +220,8 @@ class Model(SQLModel, table=True):
                  'read_only': self.read_only,
                  'metadata_update_available': self.metadata_update_available,
                  'tags': [tag.tag for tag in self.tags],
+                 'has_tags': bool(self.tags),
+                 'has_collections': bool(self.collections),
                  'working_set': sets.get('w'),
                  'archive_set': sets.get('a'),
                  'collections': [collection.summary() for collection in self.collections] }
@@ -251,7 +263,10 @@ class Workflow(SQLModel, table=True):
                  'file_name': self.file_name,
                  'internal_name': self.internal_name,
                  'purpose': self.purpose,
+                 'relative_path': self.relative_path.replace('\\', '/'),
                  'deployment': self.deployment,
+                 'has_tags': bool(self.tags),
+                 'has_collections': bool(self.collections),
                  'errors': self.errors,
                  'read_only': self.read_only }
 
@@ -271,6 +286,8 @@ class Workflow(SQLModel, table=True):
                 'errors': self.errors,
                 'read_only': self.read_only,
                 'tags': [tag.tag for tag in self.tags],
+                'has_tags': bool(self.tags),
+                'has_collections': bool(self.collections),
                 'working_set': sets.get('w'),
                 'archive_set': sets.get('a'),
                 'collections': [collection.summary() for collection in self.collections]}
@@ -345,7 +362,8 @@ class UserDefinedObject(SQLModel, table=True):
                 'display_name': self.display_name, 'purpose': self.purpose,
                 'deployment': self.deployment, 'size': self.size,
                 'modified_at_ns': self.modified_at_ns, 'errors': self.errors,
-                'read_only': self.read_only}
+                'read_only': self.read_only, 'has_tags': bool(self.tags),
+                'has_collections': bool(self.collections)}
 
     def representation(self) -> dict:
         sets = {item.where: item.representation() for item in self.sets}

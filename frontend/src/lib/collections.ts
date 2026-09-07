@@ -123,3 +123,12 @@ export async function updateCollectionWorkflows(collectionId: string, workflowId
     });
     return await parseResponse(response, identity, 'updateCollectionWorkflows');
 }
+
+export async function updateCollectionUserObjects(collectionId: string, userObjectIds: string[],
+                                                  add: boolean): Promise<ApiResult<CollectionSummary>> {
+    const response = await fetch(getUrl(`/collections/${collectionId}/user-objects`), {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({user_object_ids: userObjectIds, add})
+    });
+    return await parseResponse(response, identity, 'updateCollectionUserObjects');
+}

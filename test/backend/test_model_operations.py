@@ -4,6 +4,7 @@
 # purpose: Tests for model filesystem operations
 # ---------------------------------------------------------------------------
 
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -29,6 +30,7 @@ def model_repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     engine = create_engine(f'sqlite:///{tmp_path / "operations.db"}')
     update_database_schema(engine)
     monkeypatch.setattr(repository, '_engine', engine)
+    monkeypatch.setattr(repository, '_logger', logging.getLogger('test.model.operations'))
     monkeypatch.setattr(repository, '_config', SimpleNamespace(
         read_only=False,
         model_types={},
@@ -90,7 +92,59 @@ def test_model_representation_includes_actual_and_prospective_paths(model_reposi
     assert result['archive_path'] == str(archive / 'nested')
     assert result['working_set']['where'] == 'w'
     assert result['archive_set'] is None
+    assert result['base_model'] == ''
+    assert result['base_model_abbreviation'] == ''
+    assert result['has_tags'] is False
+    assert result['has_collections'] is False
     assert 'component_sets' not in result
+
+
+def test_update_model_base_model_updates_database_and_archivist_sidecar(model_repository):
+    engine, working, _ = model_repository
+    add_working_model(engine, working)
+    changed = repository.get_model(MODEL_ID)
+    changed['base_model'] = '  Flux.1 D  '
+
+    result = repository.update_model(changed)
+
+    assert result['base_model'] == 'Flux.1 D'
+    assert result['base_model_abbreviation'] == 'F1D'
+    metadata = working / 'nested' / 'model.archivist.json'
+    assert '"base_model": "Flux.1 D"' in metadata.read_text(encoding='utf-8')
+    with Session(engine) as session:
+        assert session.get(Model, MODEL_ID).base_model == 'Flux.1 D'
+
+
+def test_bulk_base_model_update_can_clear_value(model_repository):
+    engine, working, _ = model_repository
+    add_working_model(engine, working)
+
+    repository.update_model_base_models([MODEL_ID], 'SDXL 1.0')
+    result = repository.update_model_base_models([MODEL_ID], '   ')
+
+    assert result['models'][0]['base_model'] == ''
+    assert result['models'][0]['base_model_abbreviation'] == ''
+    metadata = working / 'nested' / 'model.archivist.json'
+    assert '"base_model": ""' in metadata.read_text(encoding='utf-8')
+
+
+def test_list_base_models_is_distinct_case_insensitively_and_omits_blank(model_repository):
+    engine, working, _ = model_repository
+    add_working_model(engine, working)
+    first = repository.get_model(MODEL_ID)
+    first['base_model'] = 'SDXL 1.0'
+    repository.update_model(first)
+    with Session(engine) as session:
+        session.add(Model(id='b' * 64, file_name='second', internal_name='Second',
+                          type='checkpoints', base_model='sdxl 1.0', relative_path='',
+                          deployment='archive', touched='timestamp'))
+        session.add(Model(id='c' * 64, file_name='third', internal_name='Third',
+                          type='checkpoints', base_model='', relative_path='',
+                          deployment='archive', touched='timestamp'))
+        session.commit()
+
+    assert len(repository.list_base_models()) == 1
+    assert repository.list_base_models()[0].casefold() == 'sdxl 1.0'.casefold()
 
 
 def test_database_rejects_two_component_sets_on_same_model_side(model_repository):

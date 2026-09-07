@@ -10,6 +10,7 @@ import WaitingForStart from '$components/top/WaitingForStart.svelte'
 import ConfirmBox from '$components/top/ConfirmBox.svelte'
 import ModelContents from '$components/models/ModelContents.svelte'
 import WorkflowContents from '$components/workflows/WorkflowContents.svelte'
+import UserObjectContents from '$components/user-objects/UserObjectContents.svelte'
 import CollectionContents from '$components/collections/CollectionContents.svelte'
 
 import { onMount } from 'svelte';
@@ -52,6 +53,8 @@ onMount(() => {
         <ModelContents bind:multiEditorOpen={content_modal_open}/>
     {:else if current_tab === 'workflows'}
         <WorkflowContents bind:multiEditorOpen={content_modal_open}/>
+    {:else if current_tab === 'user'}
+        <UserObjectContents />
     {:else if current_tab === 'collections'}
         <CollectionContents/>
     {/if}

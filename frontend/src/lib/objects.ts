@@ -61,7 +61,13 @@ export type ModelSummary = {
     internal_name: string;
     type: string;
     file_format: string;
+    base_model_abbreviation: string;
+    relative_path: string;
     deployment: string;
+    has_tags: boolean;
+    has_collections: boolean;
+    errors: string[];
+    read_only: boolean;
 };
 
 export type Model = {
@@ -71,6 +77,8 @@ export type Model = {
     type: string;
     raw_type: string;
     file_format: string;
+    base_model: string;
+    base_model_abbreviation: string;
     relative_path: string;
     working_path: string | null;
     archive_path: string | null;
@@ -80,6 +88,8 @@ export type Model = {
     working_set?: ComponentSet;
     archive_set?: ComponentSet;
     collections: CollectionSummary[];
+    errors: string[];
+    read_only: boolean;
 }
 
 export function toModel(json: any): Model {
@@ -90,6 +100,8 @@ export function toModel(json: any): Model {
         type: json.type,
         raw_type: json.raw_type,
         file_format: json.file_format,
+        base_model: json.base_model,
+        base_model_abbreviation: json.base_model_abbreviation,
         relative_path: json.relative_path,
         working_path: json.working_path,
         archive_path: json.archive_path,
@@ -98,7 +110,9 @@ export function toModel(json: any): Model {
         tags: json.tags,
         working_set: json.working_set ? toComponentSet(json.working_set) : undefined,
         archive_set: json.archive_set ? toComponentSet(json.archive_set) : undefined,
-        collections: json.collections
+        collections: json.collections,
+        errors: json.errors ?? [],
+        read_only: json.read_only ?? false
     }
 }
 
@@ -109,7 +123,13 @@ export function toModelSummary(model: any): ModelSummary {
         internal_name: model.internal_name,
         type: model.type,
         file_format: model.file_format,
-        deployment: model.deployment
+        base_model_abbreviation: model.base_model_abbreviation,
+        relative_path: model.relative_path,
+        deployment: model.deployment,
+        has_tags: model.has_tags ?? (model.tags?.length > 0),
+        has_collections: model.has_collections ?? (model.collections?.length > 0),
+        errors: model.errors ?? [],
+        read_only: model.read_only ?? false
     }
 }
 
@@ -121,7 +141,10 @@ export type WorkflowSummary = {
     internal_name: string;
     file_name: string;
     purpose: string;
+    relative_path: string;
     deployment: string;
+    has_tags: boolean;
+    has_collections: boolean;
     errors: string[];
     read_only: boolean;
 }
@@ -170,7 +193,10 @@ export function toWorkflowSummary(workflow: any): WorkflowSummary {
         file_name: workflow.file_name,
         internal_name: workflow.internal_name,
         purpose: workflow.purpose,
+        relative_path: workflow.relative_path,
         deployment: workflow.deployment,
+        has_tags: workflow.has_tags ?? (workflow.tags?.length > 0),
+        has_collections: workflow.has_collections ?? (workflow.collections?.length > 0),
         errors: workflow.errors ?? [],
         read_only: workflow.read_only ?? false
     };
@@ -205,6 +231,44 @@ export type UserObjectSummary = {
     modified_at_ns: number;
     errors: string[];
     read_only: boolean;
+    has_tags: boolean;
+    has_collections: boolean;
+}
+
+export type UserObjectEntry = {
+    id: string;
+    relative_path: string;
+    entry_type: 'file' | 'directory';
+    size: number;
+    modified_at_ns: number;
+}
+
+export type UserObjectSet = {
+    id: string;
+    where: 'w' | 'a';
+    size: number;
+    modified_at_ns: number;
+    entries: UserObjectEntry[];
+}
+
+export type UserObject = UserObjectSummary & {
+    touched: Date;
+    type: UserDefinedType;
+    tags: string[];
+    working_set?: UserObjectSet;
+    archive_set?: UserObjectSet;
+    collections: CollectionSummary[];
+}
+
+export function toUserObject(json: any): UserObject {
+    return {
+        ...json,
+        touched: new Date(json.touched),
+        has_tags: json.has_tags ?? json.tags?.length > 0,
+        has_collections: json.has_collections ?? json.collections?.length > 0,
+        working_set: json.working_set ?? undefined,
+        archive_set: json.archive_set ?? undefined
+    };
 }
 
 /* Collections

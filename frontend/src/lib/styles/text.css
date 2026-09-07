@@ -114,20 +114,29 @@ p {
  * ----------------------------------------------- */
 
 .warning-message {
-    color: var(--text-error);
+    color: var(--text-warning);
     font-size: var(--medium-font-size);
     text-align: center;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .message-container {
-    height: 40px;
-    border: 2px solid red;
+    border: 1px solid var(--text-error);
 }
 
 .error-message {
-    color: red;
-    font-weight: bold;
+    color: var(--text-error);
+    font-weight: 600;
+}
+
+.error-details {
+    color: var(--text-error);
+    font-style: italic
+}
+
+.warning-details {
+    color: var(--text-warning);
+    font-style: italic
 }
 
 /* Plugin styles

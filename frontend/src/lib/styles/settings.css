@@ -13,7 +13,8 @@
     --text-color: rgb(50, 50, 50);
     --text-dim: rgb(85, 85, 85);
     --text-dimmer: rgb(170, 170, 170);
-    --text-error: rgb(150, 50, 50);
+    --text-error: rgb(114, 0, 3);
+    --text-warning: rgb(114, 34, 0);
     --text-title: rgb(120, 50, 50);
 
     /* background */
@@ -49,7 +50,8 @@
     --text-color: rgb(250, 250, 250);
     --text-dim: rgb(200, 200, 200);
     --text-dimmer: rgb(140, 140, 140);
-    --text-error: rgb(256, 120, 120);
+    --text-error: rgb(216, 78, 81);
+    --text-warning: rgb(218, 120, 97);
     --text-title: rgb(200, 100, 100);
 
     /* background */

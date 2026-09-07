@@ -14,7 +14,7 @@ from sqlmodel import Session, create_engine
 import backend.repository.repository as repository
 import backend.server.routers.configuration as configuration_router
 from backend.repository.migrations import update_database_schema
-from backend.repository.tables import Model, Tag
+from backend.repository.tables import Collection, Model, Tag
 
 
 @pytest.fixture
@@ -28,11 +28,15 @@ def model_repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     red = Tag(tag='red')
     blue = Tag(tag='blue')
     banned = Tag(tag='banned')
+    alpha = Model(id='a', file_name='alpha', internal_name='Alpha Model',
+                  type='checkpoints', file_format='safetensors',
+                  base_model='SDXL 1.0',
+                  relative_path='nested\\models', deployment='working',
+                  touched='timestamp', tags=[common, red],
+                  collections=[Collection(name='Favorites', purpose='')])
     with Session(engine) as session:
         session.add_all([
-            Model(id='a', file_name='alpha', internal_name='Alpha Model',
-                  type='checkpoints', file_format='safetensors', relative_path='',
-                  deployment='working', touched='timestamp', tags=[common, red]),
+            alpha,
             Model(id='b', file_name='alpine', internal_name='Alpine Model',
                   type='loras', file_format='gguf', relative_path='',
                   deployment='archive', touched='timestamp', tags=[common, banned]),
@@ -72,6 +76,17 @@ def test_model_search_excludes_any_forbidden_tag(model_repository):
 
 def test_model_name_prefix_escapes_like_wildcards(model_repository):
     assert result_ids({'name_prefix': 'Literal_100%'}) == ['d']
+
+
+def test_model_summary_includes_table_fields_and_presence_indicators(model_repository):
+    summaries = {model['id']: model for model in repository.list_models(True)}
+
+    assert summaries['a']['relative_path'] == 'nested/models'
+    assert summaries['a']['base_model_abbreviation'] == 'XL'
+    assert summaries['a']['has_tags'] is True
+    assert summaries['a']['has_collections'] is True
+    assert summaries['d']['has_tags'] is False
+    assert summaries['d']['has_collections'] is False
 
 
 def test_file_format_config_is_normalized_and_deduplicated(

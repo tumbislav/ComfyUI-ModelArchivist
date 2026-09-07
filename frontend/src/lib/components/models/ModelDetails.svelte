@@ -9,6 +9,7 @@
  * ---------------------------------------------------------------------------*/
 import FileSet from '$components/controls/FileSet.svelte'
 import TagEditor from '$components/controls/TagEditor.svelte'
+import BaseModelEditor from '$components/controls/BaseModelEditor.svelte'
 import ModelCollectionEditor from '$components/models/ModelCollectionEditor.svelte'
 import moveDownIcon from '$icons/actions/move-down16.png';
 import moveUpIcon from '$icons/actions/move-up16.png';
@@ -81,12 +82,14 @@ async function handleEnter(event: KeyboardEvent) {
     </div>
 </div>
 
-{#if model.deployment === 'mismatch'}
-    <p class="warning-message">Model is mismatched, synchronize it.</p>
-{/if}
-
 {#if operationError}
     <p class="error-message">{operationError}</p>
+{/if}
+{#each model.errors as error}
+    <p class="error-details">{error}</p>
+{/each}
+{#if model.deployment === 'mismatch'}
+    <p class="warning-details">Model is mismatched; synchronize it before continuing.</p>
 {/if}
 
 <div class="space-below dialog-section">
@@ -95,7 +98,7 @@ async function handleEnter(event: KeyboardEvent) {
             File name
             <input class="text-input full-width"
                    onkeydown={handleEnter}
-                   disabled={model.deployment === 'mismatch'}
+                   disabled={model.read_only || model.deployment === 'mismatch'}
                    bind:value={model.file_name} />
         </label>
         <p class="annotation-right">{model.id}</p>
@@ -104,15 +107,25 @@ async function handleEnter(event: KeyboardEvent) {
             Internal name
             <input class="text-input full-width"
                    onkeydown={handleEnter}
-                   disabled={model.deployment === 'mismatch'}
+                   disabled={model.read_only || model.deployment === 'mismatch'}
                    bind:value={model.internal_name} />
         </label>
      </div>
 
     <div class="space-below">
+        <label class="dialog-label" for="model-base-model">Base model</label>
+        <div class="base-model-row">
+            <span class="base-model-abbreviation">{model.base_model_abbreviation}</span>
+            <BaseModelEditor value={model.base_model} inputId="model-base-model"
+                disabled={model.read_only || model.deployment === 'mismatch'}
+                onChanged={(value) => model.base_model = value} />
+        </div>
+    </div>
+
+    <div class="space-below">
         <TagEditor {tags}
             onChanged={(updated: string[]) => { tags = [...updated]; model.tags = [...updated]; }}
-            disabled={model.deployment === 'mismatch'}
+            disabled={model.read_only || model.deployment === 'mismatch'}
             title={'Tags'}
             editable={true} />
     </div>
@@ -120,7 +133,7 @@ async function handleEnter(event: KeyboardEvent) {
     <div class="spaced-horizontally">
         <div></div>
         <button class="button-with-text"
-                disabled={!changed || saving || model.deployment === 'mismatch'}
+                disabled={!changed || saving || model.read_only || model.deployment === 'mismatch'}
                 onclick={() => onSave()} >
             <img class="action-icon" alt="save" src={saveIcon} />
             <span  class="button-label">Save</span>
@@ -135,19 +148,21 @@ async function handleEnter(event: KeyboardEvent) {
 
     <div class="spaced-horizontally">
         <button class="button-with-text"
-                disabled={operating || !['archive', 'synced'].includes(model.deployment)}
+                disabled={operating || model.read_only ||
+                          !['archive', 'synced'].includes(model.deployment)}
                 onclick={() => onMove('working')}>
             <img class="action-icon" alt="move up" src={moveUpIcon} />
             <span class="button-label">To working set</span>
         </button>
         <button class="button-with-text"
-                disabled={operating || model.deployment === 'synced'}
+                disabled={operating || model.read_only || model.deployment === 'synced'}
                 onclick={() => onSync()}>
             <img class="action-icon" alt="move up down" src={moveUpDownIcon} />
             <span class="button-label">Sync</span>
         </button>
         <button class="button-with-text"
-                disabled={operating || !['working', 'synced'].includes(model.deployment)}
+                disabled={operating || model.read_only ||
+                          !['working', 'synced'].includes(model.deployment)}
                 onclick={() => onMove('archive')}>
             <img class="action-icon" alt="move down" src={moveDownIcon} />
             <span class="button-label">To archive</span>

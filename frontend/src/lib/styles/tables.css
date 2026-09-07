@@ -13,8 +13,13 @@
 
 .main-table {
     border-collapse: collapse;
-    max-width: var(--table-max-width);
     font-size: var(--medium-font-size);
+}
+
+.main-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
 th, td {
@@ -48,15 +53,99 @@ th, td {
     font-style: italic;
 }
 
+.model-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+.model-table th:first-child,
+.model-table td:first-child,
+.model-table .indicator-column,
+.model-table .error-column {
+    width: 2rem;
+    text-align: center;
+}
+
+.model-table th:nth-child(2),
+.model-table td:nth-child(2) {
+    width: 50%;
+}
+
+.model-table th:nth-child(3),
+.model-table td:nth-child(3) {
+    width: 20%;
+}
+
+.model-table th:nth-child(4),
+.model-table td:nth-child(4) {
+    width: 7rem;
+}
+
+.model-table .base-model-column {
+    width: 4rem;
+    text-align: center;
+}
+
+.model-table th:nth-child(8),
+.model-table td:nth-child(8) {
+    width: 5rem;
+}
+
+.model-table .model-name,
+.model-table .relative-path {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.model-table .model-section button {
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+}
+
+.model-table .section-marker {
+    display: inline-block;
+    width: 1rem;
+}
+
+.model-table .indicator-icon {
+    display: block;
+    width: 16px;
+    height: 16px;
+    margin: auto;
+}
+
 .workflow-table {
     width: 100%;
     table-layout: fixed;
 }
 
-.workflow-table .workflow-purpose {
+.workflow-table .workflow-purpose,
+.workflow-table .workflow-path {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+}
+
+.workflow-table th:first-child,
+.workflow-table td:first-child,
+.workflow-table .indicator-column,
+.workflow-table .error-column {
+    width: 2rem;
+    text-align: center;
+}
+
+.workflow-table .indicator-icon {
+    display: block;
+    width: 16px;
+    height: 16px;
+    margin: auto;
 }
 
 .workflow-table th:nth-child(2),
@@ -66,5 +155,56 @@ th, td {
 
 .workflow-table th:nth-child(3),
 .workflow-table td:nth-child(3) {
-    width: 50%;
+    width: 35%;
 }
+
+.workflow-table th:nth-child(4),
+.workflow-table td:nth-child(4) {
+    width: 25%;
+}
+
+.workflow-table th:nth-child(7),
+.workflow-table td:nth-child(7) {
+    width: 5rem;
+}
+
+.user-object-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+.user-object-table th:first-child,
+.user-object-table td:first-child,
+.user-object-table .indicator-column,
+.user-object-table .error-column {
+    width: 2rem;
+    text-align: center;
+}
+
+.user-object-table th:nth-child(2),
+.user-object-table td:nth-child(2) { width: 40%; }
+.user-object-table th:nth-child(3),
+.user-object-table td:nth-child(3) { width: 40%; }
+.user-object-table th:nth-child(6),
+.user-object-table td:nth-child(6) { width: 5rem; }
+
+.user-object-table .object-name,
+.user-object-table .relative-path {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.user-object-table .user-object-section button {
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+}
+
+.user-object-table .section-marker { display: inline-block; width: 1rem; }
+.user-object-table .indicator-icon { display: block; width: 16px; height: 16px; margin: auto; }

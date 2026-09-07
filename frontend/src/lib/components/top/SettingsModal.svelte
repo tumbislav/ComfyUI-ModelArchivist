@@ -71,8 +71,12 @@ onMount(async () => {
         error = repositoryResult.message ?? 'Cannot load repository settings'; loading = false; return;
     }
     settings = clone(repositoryResult.data);
+    const workflowLocations = repositoryResult.data.workflow_locations.length > 0
+        ? clone(repositoryResult.data.workflow_locations)
+        : [{working_dir: '', archive_dir: ''}];
+    settings.workflow_locations = clone(workflowLocations);
     savedModels = clone(repositoryResult.data.model_types);
-    savedWorkflows = clone(repositoryResult.data.workflow_locations);
+    savedWorkflows = clone(workflowLocations);
     const rootsResult = await getModelMappingRoots();
     if (rootsResult.ok) {
         modelMappingRoots = rootsResult.data;
@@ -329,17 +333,7 @@ function removeUserType(type: UserDefinedType, index: number): void {
                     </div>
                 {:else if activeTab === 'workflows' && settings}
                     <div class="spaced-horizontally settings-tab-actions">
-                        <div>
-                            {#if settings.mode === 'standalone' &&
-                                 settings.workflow_locations.length === 0}
-                                <button class="button-with-text"
-                                        onclick={() => settings?.workflow_locations.unshift(
-                                            {working_dir: '', archive_dir: ''})}>
-                                    <img class="action-icon" alt="add" src={addIcon} />
-                                    <span class="button-label">Add location</span>
-                                </button>
-                            {/if}
-                        </div>
+                        <div></div>
                         <div class="settings-actions">
                             <button class="button-with-text" disabled={!activeDirty || saving}
                                     onclick={undo}>
@@ -354,7 +348,8 @@ function removeUserType(type: UserDefinedType, index: number): void {
                         </div>
                     </div>
                     <div class="settings-item-list">
-                        {#each settings.workflow_locations as location}
+                        {#if settings.workflow_locations[0]}
+                            {@const location = settings.workflow_locations[0]}
                             <div class="settings-form aligned-settings-form dialog-section">
                                 <label class="dialog-label">
                                     Working folder
@@ -368,9 +363,7 @@ function removeUserType(type: UserDefinedType, index: number): void {
                                                onError={message => error = message} />
                                 </label>
                             </div>
-                        {:else}
-                            <p>No workflow location is configured.</p>
-                        {/each}
+                        {/if}
                     </div>
                 {:else if activeTab === 'user-types'}
                     <div class="spaced-horizontally settings-tab-actions">
@@ -451,7 +444,11 @@ function removeUserType(type: UserDefinedType, index: number): void {
                                 </label>
                                 <label class="dialog-label checkbox-label">
                                     Small-object type
-                                    <input type="checkbox" bind:checked={type.small} />
+                                    <input type="checkbox" checked={type.small}
+                                           onchange={(event) => {
+                                               type.small = event.currentTarget.checked;
+                                               if (type.small) type.size_limit = 1024 * 1024;
+                                           }} />
                                 </label>
                             </div>
                             <div class="spaced-horizontally settings-item-actions">

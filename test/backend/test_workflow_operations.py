@@ -13,7 +13,7 @@ from sqlmodel import Session, create_engine
 
 import backend.repository.repository as repository
 from backend.repository.migrations import update_database_schema
-from backend.repository.tables import (Component, ComponentSet, ComponentType,
+from backend.repository.tables import (Collection, Component, ComponentSet, ComponentType,
                                        DeploymentStatus, Tag, Workflow)
 
 
@@ -203,6 +203,7 @@ def test_list_workflows_filters_name_and_tags(workflow_repository):
         first = session.get(Workflow, first_id)
         first.internal_name = 'Alpha workflow'
         first.tags = [Tag(tag='wanted')]
+        first.collections = [Collection(name='Favorites', purpose='')]
         second = session.get(Workflow, second_id)
         second.internal_name = 'Beta workflow'
         session.add(first)
@@ -213,6 +214,46 @@ def test_list_workflows_filters_name_and_tags(workflow_repository):
         'name_prefix': 'alpha', 'required_tags': ['wanted'], 'forbidden_tags': []})
 
     assert [workflow['id'] for workflow in result] == [first_id]
+
+
+def test_workflow_summary_includes_table_fields_and_presence_indicators(
+        workflow_repository):
+    engine, working, _archive = workflow_repository
+    first_id = add_workflow(engine, working, 'w', '{}')
+    second_root = working / 'second'
+    second_root.mkdir()
+    second_id = add_workflow(engine, second_root, 'w', '{}')
+    with Session(engine) as session:
+        first = session.get(Workflow, first_id)
+        first.tags = [Tag(tag='wanted')]
+        first.collections = [Collection(name='Favorites', purpose='')]
+        session.add(first)
+        session.commit()
+
+    summaries = {workflow['id']: workflow
+                 for workflow in repository.list_workflows(True)}
+
+    assert summaries[first_id]['relative_path'] == 'nested'
+    assert summaries[first_id]['has_tags'] is True
+    assert summaries[first_id]['has_collections'] is True
+    assert summaries[second_id]['has_tags'] is False
+    assert summaries[second_id]['has_collections'] is False
+
+
+def test_workflow_representation_includes_presence_indicators(workflow_repository):
+    engine, working, _archive = workflow_repository
+    workflow_id = add_workflow(engine, working, 'w', '{}')
+    with Session(engine) as session:
+        workflow = session.get(Workflow, workflow_id)
+        workflow.tags = [Tag(tag='wanted')]
+        workflow.collections = [Collection(name='Favorites', purpose='')]
+        session.add(workflow)
+        session.commit()
+
+    result = repository.get_workflow(workflow_id)
+
+    assert result['has_tags'] is True
+    assert result['has_collections'] is True
 
 
 def test_workflow_batch_operation_preflights_and_executes(workflow_repository):

@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 import backend.files.metadata as metadata_module
+from backend.base_models import abbreviate_base_model, normalize_base_model
 from backend.files.metadata import load_model_metadata, model_component_stem, scan_model_metadata
 
 
@@ -23,6 +24,7 @@ def test_imports_legacy_metadata_without_modifying_it(tmp_path):
         'model_name': 'Imported name',
         'file_name': 'example',
         'tags': ['imported'],
+        'base_model': 'Flux.1 D',
         'lora_manager_only': True,
     }
     legacy_text = json.dumps(legacy_data, indent=2)
@@ -51,7 +53,7 @@ def test_existing_archivist_metadata_takes_precedence_over_legacy(tmp_path):
 
     data = load_model_metadata(model_file, archivist_file)
 
-    assert data == archivist_data
+    assert data == {**archivist_data, 'base_model': ''}
 
 
 def test_sidecars_share_the_model_stem():
@@ -97,3 +99,39 @@ def test_invalid_legacy_metadata_is_unreadable_and_falls_back_to_hash(tmp_path):
 
     assert scanned.unreadable is True
     assert scanned.hash_calculated is True
+
+
+def test_scan_adds_legacy_base_model_to_existing_archivist_sidecar(tmp_path):
+    model_file = tmp_path / 'example.safetensors'
+    archivist_file = model_file.with_suffix('.archivist.json')
+    legacy_file = model_file.with_suffix('.metadata.json')
+    model_file.write_bytes(b'model contents')
+    archivist_file.write_text(json.dumps({
+        'sha256': 'a' * 64, 'model_name': 'Archivist name'}), encoding='utf-8')
+    legacy_file.write_text(json.dumps({
+        'base_model': 'SDXL 1.0', 'model_name': 'Legacy name'}), encoding='utf-8')
+
+    scanned = scan_model_metadata(model_file)
+
+    assert scanned.data['base_model'] == 'SDXL 1.0'
+    saved = json.loads(archivist_file.read_text(encoding='utf-8'))
+    assert saved['base_model'] == 'SDXL 1.0'
+    assert saved['model_name'] == 'Archivist name'
+
+
+@pytest.mark.parametrize(('value', 'expected'), [
+    ('', ''),
+    (None, ''),
+    ('  SDXL 1.0  ', 'XL'),
+    ('flux.1 d', 'F1D'),
+    ('Wan Video future edition', 'WAN'),
+    ('Future Diffusion Model', 'FDM'),
+    ('Nova', 'NOVA'),
+    ('Other', 'OTH'),
+])
+def test_base_model_abbreviation(value, expected):
+    assert abbreviate_base_model(value) == expected
+
+
+def test_base_model_normalization_preserves_unknown_names():
+    assert normalize_base_model('  Future Model 9  ') == 'Future Model 9'

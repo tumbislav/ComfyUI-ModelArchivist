@@ -9,6 +9,8 @@ import json
 from pathlib import Path
 from dataclasses import dataclass
 
+from backend.base_models import normalize_base_model
+
 
 ARCHIVIST_METADATA_SUFFIX = '.archivist.json'
 LEGACY_METADATA_SUFFIX = '.metadata.json'
@@ -42,10 +44,17 @@ def compute_sha256(path: Path, chunk_size: int = 1 << 20) -> str:
 
 def load_model_metadata(model_file: Path, archivist_file: Path) -> dict:
     """Load Archivist metadata, importing a LoraManager sidecar if necessary."""
+    legacy_file = model_file.with_suffix(LEGACY_METADATA_SUFFIX)
     if archivist_file.is_file():
         data = json.loads(archivist_file.read_text(encoding='utf-8'))
+        if 'base_model' not in data and legacy_file.is_file():
+            try:
+                legacy_data = json.loads(legacy_file.read_text(encoding='utf-8'))
+                if isinstance(legacy_data, dict):
+                    data['base_model'] = legacy_data.get('base_model', '')
+            except (OSError, UnicodeError, ValueError, TypeError):
+                pass
     else:
-        legacy_file = model_file.with_suffix(LEGACY_METADATA_SUFFIX)
         if legacy_file.is_file():
             data = json.loads(legacy_file.read_text(encoding='utf-8'))
         else:
@@ -58,6 +67,7 @@ def load_model_metadata(model_file: Path, archivist_file: Path) -> dict:
     data.setdefault('model_name', model_file.stem)
     data.setdefault('file_name', model_file.stem)
     data.setdefault('tags', [])
+    data['base_model'] = normalize_base_model(data.get('base_model'))
     archivist_file.write_text(json.dumps(data), encoding='utf-8')
     return data
 
@@ -80,6 +90,15 @@ def scan_model_metadata(model_file: Path, rehash: bool = False) -> ScannedModelM
             unreadable = True
     if data is None:
         data = {}
+    imported_base_model = False
+    if 'base_model' not in data and archivist_file.exists() and legacy_file.is_file():
+        try:
+            legacy_data = json.loads(legacy_file.read_text(encoding='utf-8'))
+            if isinstance(legacy_data, dict) and 'base_model' in legacy_data:
+                data['base_model'] = legacy_data['base_model']
+                imported_base_model = True
+        except (OSError, UnicodeError, ValueError, TypeError):
+            pass
     cached_hash = data.get('sha256')
     usable_hash = (isinstance(cached_hash, str) and len(cached_hash) == 64
                    and all(char in '0123456789abcdefABCDEF' for char in cached_hash))
@@ -89,7 +108,8 @@ def scan_model_metadata(model_file: Path, rehash: bool = False) -> ScannedModelM
     data.setdefault('model_name', model_file.stem)
     data.setdefault('file_name', model_file.stem)
     data.setdefault('tags', [])
-    if not unreadable and not archivist_file.exists():
+    data['base_model'] = normalize_base_model(data.get('base_model'))
+    if not unreadable and (not archivist_file.exists() or imported_base_model):
         archivist_file.write_text(json.dumps(data), encoding='utf-8')
     return ScannedModelMetadata(data=data, unreadable=unreadable,
                                 hash_calculated=hash_calculated)

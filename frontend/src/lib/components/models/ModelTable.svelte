@@ -6,6 +6,10 @@
 
 <script lang=ts>
 import { type ModelSummary } from "$lib/objects";
+import tagIcon from '$icons/indicators/tag16.png';
+import noTagIcon from '$icons/indicators/no-tag16.png';
+import collectionIcon from '$icons/indicators/collection16.png';
+import noCollectionIcon from '$icons/indicators/no-collection16.png';
 
 let {
     models,
@@ -22,6 +26,15 @@ let {
 let allVisibleSelected = $derived(
     models.length > 0 && models.every((model) => selected_ids.has(model.id))
 );
+let closedTypes = $state(new Set<string>());
+let sections = $derived.by(() => {
+    const grouped = new Map<string, ModelSummary[]>();
+    for (const model of models) {
+        const section = grouped.get(model.type);
+        section ? section.push(model) : grouped.set(model.type, [model]);
+    }
+    return [...grouped.entries()];
+});
 
 function toggleSelected(modelId: string) {
     const next = new Set(selected_ids);
@@ -38,6 +51,12 @@ function toggleAllVisible() {
     }
     selected_ids = next;
 }
+
+function toggleSection(type: string) {
+    const next = new Set(closedTypes);
+    next.has(type) ? next.delete(type) : next.add(type);
+    closedTypes = next;
+}
 </script>
 
 {#if error}
@@ -47,7 +66,7 @@ function toggleAllVisible() {
     </div>
 {:else}
 
-    <table class="main-table">
+    <table class="main-table model-table">
         <thead>
         <tr class="table-head table-section">
             <th class="clear" id="header">
@@ -57,30 +76,74 @@ function toggleAllVisible() {
                        onchange={toggleAllVisible}>
             </th>
             <th>Model</th>
+            <th>Relative path</th>
+            <th>Format</th>
+            <th class="base-model-column">Base</th>
+            <th class="indicator-column">
+                <img class="indicator-icon action-icon" src={tagIcon} alt="Does the model have tags?">
+            </th>
+            <th class="indicator-column">
+                <img class="indicator-icon action-icon" src={collectionIcon} alt="Is the model in collection(s)?">
+            </th>
             <th>Location</th>
+            <th class="error-column">E</th>
         </tr>
         </thead>
-        <tbody>
-        {#each models as m, i (m.id)}
-            {#if i === 0 || m.type !== models[i - 1].type}
-                <tr class="table-section">
-                    <td colspan=4>{m.type}</td>
+        {#each sections as [type, sectionModels] (type)}
+            <tbody>
+                <tr class="table-section model-section">
+                    <td colspan=9>
+                        <button type="button"
+                                aria-expanded={!closedTypes.has(type)}
+                                onclick={() => toggleSection(type)}>
+                            <span class="section-marker" aria-hidden="true">
+                                {closedTypes.has(type) ? '▸' : '▾'}
+                            </span>
+                            <span>{type} ({sectionModels.length})</span>
+                        </button>
+                    </td>
                 </tr>
-            {/if}
-            <tr class="table-clickable"
-                aria-selected={selected_id === m.id}
-                onclick={() => selected_id = m.id} >
-                <td class="clear" id="{m.id}">
-                    <input type="checkbox"
-                           checked={selected_ids.has(m.id)}
-                           onclick={(event) => event.stopPropagation()}
-                           onchange={() => toggleSelected(m.id)}>
-                </td>
-                <td>{m.internal_name}</td>
-                <td>{m.deployment}</td>
-            </tr>
+                {#if !closedTypes.has(type)}
+                    {#each sectionModels as model (model.id)}
+                        <tr class="table-clickable"
+                            aria-selected={selected_id === model.id}
+                            onclick={() => selected_id = model.id} >
+                            <td class="clear" id="{model.id}">
+                                <input type="checkbox"
+                                       checked={selected_ids.has(model.id)}
+                                       onclick={(event) => event.stopPropagation()}
+                                       onchange={() => toggleSelected(model.id)}>
+                            </td>
+                            <td class="model-name" title={model.internal_name}>
+                                {model.internal_name}
+                            </td>
+                            <td class="relative-path" title={model.relative_path}>
+                                {model.relative_path}
+                            </td>
+                            <td>{model.file_format}</td>
+                            <td class="base-model-column"
+                                title={model.base_model_abbreviation}>
+                                {model.base_model_abbreviation}
+                            </td>
+                            <td class="indicator-column">
+                                <img class="indicator-icon action-icon"
+                                     src={model.has_tags ? tagIcon : noTagIcon}
+                                     alt={model.has_tags ? 'Has tags' : 'No tags'}>
+                            </td>
+                            <td class="indicator-column">
+                                <img class="indicator-icon action-icon"
+                                     src={model.has_collections ? collectionIcon : noCollectionIcon}
+                                     alt={model.has_collections ? 'In collections' : 'Not in a collection'}>
+                            </td>
+                            <td>{model.deployment}</td>
+                            <td class="error-column">
+                                {#if model.read_only}<span class="error-message">E</span>{/if}
+                            </td>
+                        </tr>
+                    {/each}
+                {/if}
+            </tbody>
         {/each}
-        </tbody>
     </table>
 {/if}
 

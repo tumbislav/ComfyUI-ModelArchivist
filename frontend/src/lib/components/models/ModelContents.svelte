@@ -22,8 +22,7 @@ import { confirmBox } from '$lib/confirm.svelte';
 
 import {
     type Model,
-    type ModelSummary,
-    toModelSummary
+    type ModelSummary
 } from "$lib/objects";
 
 import {
@@ -79,6 +78,7 @@ let operation_error = $state<string | null>(null);
 type ModelSnapshot = {
     file_name: string;
     internal_name: string;
+    base_model: string;
     tags: string[];
 };
 
@@ -86,6 +86,7 @@ function modelSnapshot(model: Model): ModelSnapshot {
     return {
         file_name: model.file_name,
         internal_name: model.internal_name,
+        base_model: model.base_model,
         tags: [...model.tags]
     };
 }
@@ -100,6 +101,7 @@ let active_changed = $derived(
     active_snapshot !== null &&
     (active_model.file_name !== active_snapshot.file_name ||
      active_model.internal_name !== active_snapshot.internal_name ||
+     active_model.base_model !== active_snapshot.base_model ||
      !sameTags(active_model.tags, active_snapshot.tags))
 );
 
@@ -187,7 +189,7 @@ async function saveModel() {
     }
     active_model = envelope.data;
     active_snapshot = modelSnapshot(envelope.data);
-    models = models.map((m) => m.id === envelope.data.id ? toModelSummary(envelope.data) : m);
+    await refreshModels();
     saving_active = false;
 }
 

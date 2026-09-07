@@ -87,6 +87,12 @@ body {
     overflow: hidden;
 }
 
+.object-results > main {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: auto;
+}
+
 .content-modal-backdrop {
     position: absolute;
     inset: 0;

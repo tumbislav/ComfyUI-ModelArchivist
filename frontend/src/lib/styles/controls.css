@@ -237,6 +237,54 @@ button.help-button {
     width: 100%;
 }
 
+.base-model-row {
+    display: grid;
+    grid-template-columns: 4rem minmax(0, 1fr);
+    align-items: center;
+    gap: var(--gap-small);
+}
+
+.base-model-abbreviation {
+    text-align: center;
+    font-weight: 600;
+}
+
+.base-model-editor {
+    position: relative;
+    width: 100%;
+}
+
+.base-model-suggestions {
+    position: absolute;
+    z-index: var(--z-popup);
+    top: calc(100% + var(--gap-tiny));
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    max-height: 12rem;
+    overflow-y: auto;
+    padding: var(--gap-tiny);
+    border: var(--solid-border);
+    border-radius: var(--radius-small);
+    background: var(--bg-accent);
+    box-shadow: var(--shadow-right);
+}
+
+.base-model-suggestions button {
+    border: 0;
+    padding: var(--gap-small);
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.base-model-suggestions button:hover,
+.base-model-suggestions button:focus-visible {
+    background: var(--bg-color);
+}
+
 /* Multi select and tag editor
  * ------------------------------------------------*/
 

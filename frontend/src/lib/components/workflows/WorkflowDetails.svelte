@@ -38,6 +38,9 @@ let archiveSet = $derived<ComponentSet | undefined>(workflow.archive_set);
 {#if operationError}
     <p class="error-message">{operationError}</p>
 {/if}
+{#each workflow.errors as error}
+    <p class="error-details">{error}</p>
+{/each}
 <div class="space-below">
     <h2>File name</h2>
     <input class="text-input full-width" disabled={workflow.read_only} bind:value={workflow.file_name} />

@@ -21,6 +21,7 @@ let { workflowIds, onClose, onChanged }: { workflowIds: string[]; onClose: () =>
 let workflows = $state<Workflow[]>([]), addTags = $state<string[]>([]), removeTags = $state<string[]>([]);
 let busy = $state(false), error = $state<string | null>(null);
 let removableTags = $derived([...new Set(workflows.flatMap(workflow => workflow.tags))].sort());
+let hasObjectErrors = $derived(workflows.some(workflow => workflow.read_only));
 async function load() {
     const results = await Promise.all(workflowIds.map(getWorkflow));
     const failed = results.find(result => !result.ok);
@@ -61,6 +62,9 @@ async function run(destination: WorkflowDestination | null) {
         {#if error}
             <p class="error-message">{error}</p>
         {/if}
+        {#if hasObjectErrors}
+            <p class="error-details">Some selected workflows have errors. Editing is disabled.</p>
+        {:else}
         <div class="space-below">
             <TagEditor title="Add tags" tags={addTags} disabled={busy} editable={true}
                        onChanged={tags => addTags = tags} />
@@ -93,6 +97,7 @@ async function run(destination: WorkflowDestination | null) {
         </div>
         {#if workflows.length}
             <MultiWorkflowCollectionEditor {workflows} onChanged={refresh} />
+        {/if}
         {/if}
     </div>
 </div>

@@ -113,3 +113,4 @@ Optional, unconfirmed extensions to be considered for V2:
   * when brought to working set, it archives all objects that are not part of it
   * automatically adds new working set objects that match pre-defined criteria, e.g. a regexp
   * runs a set-up script (???)
+* Add a base model attribute to models

@@ -43,10 +43,26 @@ export async function parseResponse<T>(response: Response, packager: (x: any) =>
         }
     }
     else {
+        let message = response.statusText;
+        try {
+            const contentType = response.headers.get('content-type');
+            if (contentType?.includes('application/json')) {
+                const body = await response.json();
+                if (typeof body?.detail === 'string') message = body.detail;
+                else if (Array.isArray(body?.detail)) {
+                    message = body.detail.map((item: any) => item.msg ?? JSON.stringify(item)).join('; ');
+                }
+            } else {
+                const body = await response.text();
+                if (body) message = body;
+            }
+        } catch {
+            // Preserve the HTTP reason phrase if the error body cannot be decoded.
+        }
         return {
             ok: false,
             status: response.status,
-            message: response.statusText,
+            message,
             in_function: caller
         }
     }

@@ -28,6 +28,7 @@ from backend.repository.tables import (Model, Workflow, Collection, Component, C
                                        ModelTypeSetting, ModelLocationSetting,
                                        WorkflowLocationSetting)
 from backend.exception import ArcException
+from backend.base_models import normalize_base_model
 from backend.config import Configuration, OptionsConfig, get_config
 from backend.environment import get_environment_provider
 from backend.repository.migrations import update_database_schema
@@ -691,7 +692,7 @@ def save_scanned_user_object(scanned: UserDefinedObject) -> None:
 
 def update_model(updates: dict) -> dict:
     """
-    Update an existing model. The items that may change are the name, internal name and tags.
+    Update an existing model's editable metadata.
     """
     if _config.read_only:
         raise ArcException(ArcException.Code.READ_ONLY, 'Model updates are disabled')
@@ -703,10 +704,13 @@ def update_model(updates: dict) -> dict:
             raise ArcException(ArcException.Code.UNKNOWN_MODEL, msg)
         _logger.debug(f'updating model {updates["id"]}')
 
-        model_files.update_model(model, updates['file_name'], updates['internal_name'], updates['tags'])
+        base_model = normalize_base_model(updates.get('base_model', model.base_model))
+        model_files.update_model(model, updates['file_name'], updates['internal_name'],
+                                 updates['tags'], base_model)
 
         model.file_name = updates['file_name']
         model.internal_name = updates['internal_name']
+        model.base_model = base_model
         model.tags = resolve_tags(session, updates['tags'])
         model.touched = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
 
@@ -728,6 +732,26 @@ def update_model_tags(ids: list[str], add: list[str], remove: list[str]) -> dict
         tags.extend(tag for tag in add if tag not in tags)
         changed = dict(current)
         changed['tags'] = tags
+        results.append(update_model(changed))
+    return {'models': results}
+
+
+def list_base_models() -> list[str]:
+    """Return distinct, non-empty base-model names already in the repository."""
+    with Session(_engine) as session:
+        values = session.exec(select(Model.base_model).where(Model.base_model != '')).all()
+    distinct = {value.casefold(): value for value in values if value}
+    return sorted(distinct.values(), key=str.casefold)
+
+
+def update_model_base_models(ids: list[str], base_model: object) -> dict:
+    """Set one base-model value on several models, including their sidecars."""
+    normalized = normalize_base_model(base_model)
+    results = []
+    for model_id in dict.fromkeys(ids):
+        current = get_model(model_id)
+        changed = dict(current)
+        changed['base_model'] = normalized
         results.append(update_model(changed))
     return {'models': results}
 

@@ -74,6 +74,11 @@ export async function syncModel(model_id: string): Promise<ApiResult<Operation>>
     return await parseResponse(response, identity, 'syncModel');
 }
 
+export async function getBaseModels(): Promise<ApiResult<string[]>> {
+    const response = await fetch(getUrl('/models/base-models'));
+    return await parseResponse(response, identity, 'getBaseModels');
+}
+
 export async function moveModel(model_id: string,
                                 destination: ModelDestination): Promise<ApiResult<Operation>> {
     const url = getUrl(`/models/${model_id}/move?destination=${destination}&simulate=false`);
@@ -92,6 +97,17 @@ export async function updateModelTags(ids: string[], add: string[],
     });
     return await parseResponse(response,
         value => value.models.map(toModel), 'updateModelTags');
+}
+
+export async function updateModelBaseModels(ids: string[],
+                                            base_model: string): Promise<ApiResult<Model[]>> {
+    const response = await fetch(getUrl('/models/bulk/base-model'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ids, base_model})
+    });
+    return await parseResponse(response,
+        value => value.models.map(toModel), 'updateModelBaseModels');
 }
 
 export async function syncModels(ids: string[]): Promise<ApiResult<Operation>> {

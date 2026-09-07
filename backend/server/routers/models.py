@@ -34,9 +34,19 @@ class ModelTagUpdate(ModelIds):
     remove: list[str] = Field(default_factory=list)
 
 
+class ModelBaseModelUpdate(ModelIds):
+    base_model: str = ''
+
+
 @router.get('/models')
 async def get_models() -> list[dict]:
     return repo.list_models(True)
+
+
+@router.get('/models/base-models')
+async def get_base_models() -> list[str]:
+    return repo.list_base_models()
+
 
 @router.get('/models/{id}')
 async def get_model(id: str) -> dict | None:
@@ -55,6 +65,11 @@ async def search_models(criteria: ModelSearchCriteria) -> list[dict]:
 @router.post('/models/bulk/tags')
 async def update_model_tags(data: ModelTagUpdate) -> dict:
     return repo.update_model_tags(data.ids, data.add, data.remove)
+
+
+@router.post('/models/bulk/base-model')
+async def update_model_base_models(data: ModelBaseModelUpdate) -> dict:
+    return repo.update_model_base_models(data.ids, data.base_model)
 
 
 @router.post('/models/bulk/synchronize')

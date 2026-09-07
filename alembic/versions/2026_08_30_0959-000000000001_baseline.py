@@ -48,6 +48,7 @@ def upgrade() -> None:
     sa.Column('internal_name', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('type', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('file_format', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+    sa.Column('base_model', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('relative_path', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('deployment', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('touched', sqlmodel.sql.sqltypes.AutoString(), nullable=False),

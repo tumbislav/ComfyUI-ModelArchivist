@@ -14,13 +14,18 @@ logger = logging.getLogger('archivist.files')
 
 renamed_file = lambda old_path, new_stem: str(old_path.parent / ''.join([new_stem] + old_path.suffixes))
 
-def update_model(model: Model, name: str, internal_name: str, tags: list[str]):
+def update_model(model: Model, name: str, internal_name: str, tags: list[str],
+                 base_model: str):
     """
     Update a model's metadata and possibly rename the model files.
     """
-    rename_files = model.name != name
-    change_metadata = model.internal_name != internal_name or model.tags != tags or rename_files
-    for c in model.components:
+    rename_files = model.file_name != name
+    current_tags = [tag.tag for tag in model.tags]
+    change_metadata = (model.internal_name != internal_name or current_tags != tags
+                       or model.base_model != base_model or rename_files)
+    components = [component for component_set in model.component_sets
+                  for component in component_set.components]
+    for c in components:
         if c.component_type == ComponentType.EXAMPLE:
             continue
         file_path = Path(c.file_dir) / c.file_name
@@ -29,6 +34,7 @@ def update_model(model: Model, name: str, internal_name: str, tags: list[str]):
             metadata['tags'] = tags
             metadata['model_name'] = internal_name
             metadata['file_name'] = name
+            metadata['base_model'] = base_model
             if 'file_path' in metadata:
                 metadata['file_path'] = renamed_file(Path(metadata['file_path']), name).replace('\\', '/')
             if 'preview_url' in metadata:
