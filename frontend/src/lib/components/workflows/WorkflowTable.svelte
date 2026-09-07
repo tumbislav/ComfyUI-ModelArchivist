@@ -67,7 +67,9 @@ function toggleAllVisible() {
             </td>
             <td>{workflow.deployment}</td>
             <td class="error-column">
-                {#if workflow.read_only}<span class="error-message">E</span>{/if}
+                {#if workflow.read_only}
+                    <span class="error-message">E</span>
+                {/if}
             </td>
         </tr>
     {/each}</tbody>

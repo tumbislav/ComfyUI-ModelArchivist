@@ -9,7 +9,6 @@ import generalIcon from '$icons/nav/settings16.png';
 import modelIcon from '$icons/nav/model16.png';
 import workflowIcon from '$icons/nav/workflow16.png';
 import userTypeIcon16 from '$icons/nav/user-defined16.png';
-import collectionIcon from '$icons/nav/collection16.png';
 import addIcon from '$icons/actions/add16.png';
 import cancelIcon from '$icons/actions/cancel16.png';
 import removeIcon from '$icons/actions/remove16.png';
@@ -26,16 +25,16 @@ import { getModelMappingRoots, getRepositorySettings, previewModelMappings,
 import { createUserType, deleteUserType, getUserType, updateUserType, userTypeState } from '$lib/user-types.svelte';
 import { type UserDefinedType } from '$lib/objects';
 import { onMount } from 'svelte';
+import { SvelteMap } from 'svelte/reactivity';
 
-export type SettingsTab = 'general' | 'models' | 'workflows' | 'user-types' | 'collections';
+export type SettingsTab = 'general' | 'models' | 'workflows' | 'user-types';
 let { onClose, initialTab = 'general' }: { onClose: () => void; initialTab?: SettingsTab } = $props();
 
 const tabs: {id: SettingsTab; label: string; icon: string}[] = [
     {id: 'general', label: 'General', icon: generalIcon},
     {id: 'models', label: 'Models', icon: modelIcon},
     {id: 'workflows', label: 'Workflows', icon: workflowIcon},
-    {id: 'user-types', label: 'User types', icon: userTypeIcon16},
-    {id: 'collections', label: 'Collections', icon: collectionIcon}
+    {id: 'user-types', label: 'User types', icon: userTypeIcon16}
 ];
 const iconNames = ['any', 'dataset', 'file', 'folder-images', 'folder-sound', 'folder-speech',
     'folder-video', 'folder-wildcards', 'folder', 'image', 'sound', 'speech', 'stencil',
@@ -58,6 +57,32 @@ let modelMappingRoots = $state<string[]>([]);
 let mappingWorkingRoot = $state('');
 let mappingArchiveRoot = $state('');
 let mappingExtensions = $state('.safetensors, .ckpt, .pt, .pth, .bin, .gguf');
+const expandedTypes = new SvelteMap<object, boolean>();
+
+function preserveExpansion<T extends object>(previous: T[], next: T[], key: (type: T) => string): void {
+    for (const type of next) {
+        const old = previous.find(candidate => key(candidate) === key(type));
+
+        if (old && expandedTypes.has(old)) {
+            expandedTypes.set(type, expandedTypes.get(old)!);
+        }
+    }
+}
+
+function replaceSettings(next: RepositorySettings): void {
+    const previous = settings?.model_types ?? [];
+    settings = next;
+
+    preserveExpansion(previous, settings.model_types, type => type.name);
+}
+
+function replaceUserTypes(next: UserDefinedType[]): void {
+    const previous = userTypes;
+    userTypes = next;
+
+    preserveExpansion(previous, userTypes, type => type.id || type.name);
+}
+
 let modelsDirty = $derived(settings !== null && !same(settings.model_types, savedModels));
 let workflowsDirty = $derived(settings !== null && !same(settings.workflow_locations, savedWorkflows));
 let userTypesDirty = $derived(deletedUserTypeIds.length > 0 || !same(userTypes, savedUserTypes));
@@ -106,9 +131,16 @@ function continueGuard(): void {
 }
 function undo(): void {
     if (!settings) return;
-    if (activeTab === 'models') settings.model_types = clone(savedModels);
+    if (activeTab === 'models') {
+        const previous = settings.model_types;
+        settings.model_types = clone(savedModels);
+        preserveExpansion(previous, settings.model_types, type => type.name);
+    }
     if (activeTab === 'workflows') settings.workflow_locations = clone(savedWorkflows);
-    if (activeTab === 'user-types') { userTypes = clone(savedUserTypes); deletedUserTypeIds = []; }
+    if (activeTab === 'user-types') {
+        replaceUserTypes(clone(savedUserTypes));
+        deletedUserTypeIds = [];
+    }
     error = null;
 }
 async function save(): Promise<boolean> {
@@ -117,13 +149,15 @@ async function save(): Promise<boolean> {
     if (activeTab === 'models') {
         const result = await saveModelSettings(settings.model_types); saving = false;
         if (!result.ok) { error = result.message ?? 'Cannot save model settings'; return false; }
-        settings = clone(result.data); savedModels = clone(result.data.model_types);
+        replaceSettings(clone(result.data));
+        savedModels = clone(result.data.model_types);
         savedWorkflows = clone(result.data.workflow_locations); return true;
     }
     if (activeTab === 'workflows') {
         const result = await saveWorkflowSettings(settings.workflow_locations); saving = false;
         if (!result.ok) { error = result.message ?? 'Cannot save workflow settings'; return false; }
-        settings = clone(result.data); savedModels = clone(result.data.model_types);
+        replaceSettings(clone(result.data));
+        savedModels = clone(result.data.model_types);
         savedWorkflows = clone(result.data.workflow_locations); return true;
     }
     for (const id of deletedUserTypeIds) {
@@ -135,10 +169,13 @@ async function save(): Promise<boolean> {
         if (old && same(old, type)) continue;
         const result = old ? await updateUserType(type) : await createUserType(type);
         if (!result.ok) { saving = false; error = result.message ?? `Cannot save ${type.name}`; return false; }
+        if (!old) {
+            type.id = result.data.id;
+        }
     }
     await userTypeState.load();
     const details = await Promise.all(userTypeState.types.map(type => getUserType(type.id)));
-    userTypes = details.map((result, index) => result.ok ? result.data : userTypeState.types[index]);
+    replaceUserTypes(details.map((result, index) => result.ok ? result.data : userTypeState.types[index]));
     savedUserTypes = clone(userTypes); deletedUserTypeIds = []; saving = false; return true;
 }
 async function saveAndContinue(): Promise<void> { if (await save()) continueGuard(); }
@@ -284,8 +321,10 @@ function removeUserType(type: UserDefinedType, index: number): void {
                         </div>
                     </div>
                     <div class="model-type-list">
-                        {#each settings.model_types as type, typeIndex}
-                            <details class:unsaved={type._new === true} open={type._new === true}>
+                        {#each settings.model_types as type, typeIndex (type)}
+                            <details class:unsaved={type._new === true}
+                                     bind:open={() => expandedTypes.get(type) ?? type._new === true,
+                                                open => expandedTypes.set(type, open)}>
                                 <summary>{type.display_name || type.name || 'New model type'}</summary>
                                 <div class="settings-form model-settings-form">
                                 <label class="dialog-label">
@@ -387,8 +426,10 @@ function removeUserType(type: UserDefinedType, index: number): void {
                         </div>
                     </div>
                     <div class="settings-item-list">
-                    {#each userTypes as type, typeIndex}
-                        <details class:unsaved={!type.id} open={!type.id}>
+                    {#each userTypes as type, typeIndex (type)}
+                        <details class:unsaved={!type.id}
+                                 bind:open={() => expandedTypes.get(type) ?? !type.id,
+                                            open => expandedTypes.set(type, open)}>
                             <summary>{type.name || 'New user-defined type'}</summary>
                             <div class="user-type-help">
                                 <HelpButton text="" />
@@ -462,9 +503,6 @@ function removeUserType(type: UserDefinedType, index: number): void {
                         </details>
                     {/each}
                     </div>
-                {:else if activeTab === 'collections'}
-                    <h3>Collections</h3>
-                    <p>Collection settings will be added later.</p>
                 {/if}
                 {#if error}
                     <p class="error-message">{error}</p>

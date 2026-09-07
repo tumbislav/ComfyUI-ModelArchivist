@@ -9,11 +9,13 @@ import modelIcon from '$icons/nav/model24.png';
 import workflowIcon from '$icons/nav/workflow24.png';
 import userDefinedIcon from '$icons/nav/user-defined24.png';
 import collectionIcon from '$icons/nav/collection24.png';
+import tagIcon from '$icons/nav/tag24.png';
 import settingsIcon from '$icons/nav/settings24.png';
 import lightDarkModeIcon from '$icons/nav/light-dark-mode24.png';
 import logo_pic from '$icons/nav/archivist.png';
 import downIcon from '$icons/actions/down16.png';
 import SettingsModal, { type SettingsTab } from '$components/top/SettingsModal.svelte';
+import RemapTags from '$components/top/RemapTags.svelte';
 
 import { onMount } from 'svelte';
 import { statusMonitor } from '$lib/status.svelte';
@@ -22,15 +24,20 @@ import { userTypeIcon, userTypeState } from '$lib/user-types.svelte';
 import { startScan, type ActiveTab } from '$lib/admin';
 let {
     current_tab = $bindable(),
-    navigationLocked = false
+    navigationLocked = false,
+    remapBlocked = false,
+    onTagsRemapped
 }: {
     current_tab: ActiveTab;
     navigationLocked: boolean;
+    remapBlocked?: boolean;
+    onTagsRemapped: () => void;
 } = $props();
 
 let theme = $state<'light' | 'dark'>('light');
 let typeMenuOpen = $state(false);
 let settingsOpen = $state(false);
+let remapOpen = $state(false);
 let scanSubmitting = $state(false);
 let scanBusy = $derived(scanSubmitting ||
     statusMonitor.operation?.state === 'pending' ||
@@ -201,7 +208,16 @@ $effect(() => {
                 {/if}
             </div>
         </div>
-        <button class="nav-option" aria-label="options" onclick={() => openSettings('general')}>
+        <button class="nav-option"
+                aria-label="tag-editor"
+                title={remapBlocked ? 'Save or discard object changes before remapping tags' : 'Remap tags'}
+                disabled={navigationLocked || remapBlocked || scanBusy || settingsOpen}
+                onclick={() => remapOpen = true}>
+            <img class="action-icon" alt="options" src={tagIcon} />
+        </button>
+        <button class="nav-option"
+                aria-label="options"
+                onclick={() => openSettings('general')}>
             <img class="action-icon" alt="options" src={settingsIcon} />
         </button>
         <button class="nav-option"
@@ -214,6 +230,10 @@ $effect(() => {
 
 {#if settingsOpen}
     <SettingsModal initialTab={settingsInitialTab} onClose={() => settingsOpen = false} />
+{/if}
+
+{#if remapOpen}
+    <RemapTags onClose={() => remapOpen = false} onRemapped={onTagsRemapped} />
 {/if}
 
 

@@ -34,6 +34,7 @@ class ArcException(Exception):
         UNKNOWN_COLLECTION = 'Collection does not exist'
         DUPLICATE_COLLECTION_MEMBER = 'Duplicate collection member'
         COLLECTION_CYCLE = 'Collection membership cycle'
+        INVALID_TAG = 'invalid_tag'
 
     def __init__(self, error_code: Code, message: str):
         super().__init__()

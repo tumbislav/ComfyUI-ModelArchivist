@@ -6,9 +6,22 @@
 
 <script lang="ts">
     import closeIcon from '$icons/actions/close8.png';
-    import { getTagsContext } from '$lib/tags';
+    import { getTagsContext, loadTagRules, normalizeTag } from '$lib/tags';
+    import { onMount } from 'svelte';
     
     const global_tags = getTagsContext();
+    const inputId = $props.id();
+    let rulesReady = $state(false);
+    let validationError = $state<string | null>(null);
+
+    onMount(async () => {
+        try {
+            await loadTagRules();
+            rulesReady = true;
+        } catch (error) {
+            validationError = error instanceof Error ? error.message : 'Cannot load tag rules';
+        }
+    });
 
     let {
         tags,
@@ -36,7 +49,7 @@
     });
     
     let normalizedDraft = $derived(
-        new Set(draft_tags.map(t => t.toLowerCase()))
+        new Set(draft_tags)
     );
     
     let suggestions = $derived.by(() => {
@@ -46,22 +59,23 @@
         
         return (availableTags ?? global_tags.all_tags)
             .filter(tag => tag.toLowerCase().startsWith(q))
-            .filter(tag => !normalizedDraft.has(tag.toLowerCase()));
+            .filter(tag => !normalizedDraft.has(tag))
+            .filter(tag => !editable || (rulesReady && normalizeTag(tag) !== null));
     });
     
     let canAddNew = $derived.by(() => {
-        const q = query.trim();
-        if (!q) return false;
+        const q = rulesReady ? normalizeTag(query) : null;
+        if (!q || disabled || !editable) return false;
         
-        return !normalizedDraft.has(q.toLowerCase());
+        return !normalizedDraft.has(q);
     });
     
     
     function addTag(tag: string) {
-        const cleaned = tag.trim();
-        if (!cleaned) return;
+        const cleaned = editable ? normalizeTag(tag) : tag;
+        if (!cleaned || disabled) return;
         
-        if (!normalizedDraft.has(cleaned.toLowerCase())) {
+        if (!normalizedDraft.has(cleaned)) {
             draft_tags = [...draft_tags, cleaned];
         }
         
@@ -70,6 +84,7 @@
     }
 
     function removeTag(tag: string) {
+        if (disabled) return;
         draft_tags = draft_tags.filter(t => t !== tag);
         onChanged(draft_tags);
     }
@@ -78,10 +93,10 @@
         if (event.key === 'Enter') {
             event.preventDefault();
 
-            if (suggestions.length > 0) {
-                addTag(suggestions[0]);
-            } else if (canAddNew && editable) {
+            if (canAddNew && editable) {
                 addTag(query);
+            } else if (suggestions.length > 0) {
+                addTag(suggestions[0]);
             }
         }
 
@@ -106,7 +121,7 @@
 </script>
 
 {#if title}
-<h2>{title}</h2>
+    <label class="dialog-label" for={inputId}>{title}</label>
 {/if}
 
 <div class="multi-select">
@@ -125,7 +140,7 @@
         {/each}
         
         <div class="pill-container" bind:this={inputWrapper}>
-            <input class="pill-input"
+            <input class="pill-input" id={inputId}
                    type="text"
                    bind:value={query}
                    onfocus={positionDropdown}
@@ -136,25 +151,34 @@
         </div>
     </div>
 
-{#if query.trim()}
-    <div class="multi-select-dropdown"
-         style:--dropdown-top={dropdownTop}
-         style:--dropdown-left={dropdownLeft}
-         style:--dropdown-width={dropdownWidth}>
-    {#if suggestions.length > 0}
-        {#each suggestions as tag}
-            <button type="button" class="pill-container" onclick={() => addTag(tag)} >
-                <span class="pill-content">{tag}</span>
-            </button>
-        {/each}
-    {:else if canAddNew}
-            <button type="button" class="pill-container"  onclick={() => addTag(query)} >
-                <span class="pill-content">+ '{query.trim()}'</span>
-            </button>
+    {#if query.trim()}
+        <div class="multi-select-dropdown"
+             style:--dropdown-top={dropdownTop}
+             style:--dropdown-left={dropdownLeft}
+             style:--dropdown-width={dropdownWidth}>
+            {#each suggestions as tag}
+                <button type="button" class="pill-container" {disabled} onclick={() => addTag(tag)}>
+                    <span class="pill-content">{tag}</span>
+                </button>
+            {/each}
+
+            {#if canAddNew}
+                <button type="button" class="pill-container" {disabled} onclick={() => addTag(query)}>
+                    <span class="pill-content">+ '{query.trim()}'</span>
+                </button>
+            {/if}
+        </div>
     {/if}
-    </div>
-{/if}
 </div>
+
+{#if validationError}
+    <p class="error-message">{validationError}</p>
+{:else if editable && rulesReady && query && normalizeTag(query) === null}
+    <p class="error-message">
+        Start with a letter, underscore, or digit (0–9). Use name characters or spaces;
+        ASCII colon (:) and dash (-) are allowed only inside the tag.
+    </p>
+{/if}
 
 <style>
 </style>

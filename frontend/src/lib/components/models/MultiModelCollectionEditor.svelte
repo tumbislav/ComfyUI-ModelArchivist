@@ -160,10 +160,10 @@ async function createNew() {
             {#if error}
                 <p class="error-message">{error}</p>
             {/if}
-            <fieldset disabled={busy}>
+
                 <div class="spaced-horizontally">
                     <h2>Add to collection</h2>
-                    <button type="button" class="round" aria-label="Close collection picker"
+                    <button disabled={busy} type="button" class="round" aria-label="Close collection picker"
                             onclick={() => void closePopup()}>
                         <img class="action-icon" alt="" src={closeIcon} />
                     </button>
@@ -171,10 +171,10 @@ async function createNew() {
                 <div class="dialog-section collection-create">
                     <h3>New collection</h3>
                     <label class="dialog-label" for="multi-collection-name">Name</label>
-                    <input id="multi-collection-name" class="text-input full-width" bind:value={newName} />
+                    <input disabled={busy} id="multi-collection-name" class="text-input full-width" bind:value={newName} />
                     <label class="dialog-label" for="multi-collection-purpose">Purpose</label>
-                    <textarea id="multi-collection-purpose" class="text-input full-width" bind:value={newPurpose}></textarea>
-                    <button class="button-with-text" disabled={!newName.trim()} onclick={createNew}>
+                    <textarea disabled={busy} id="multi-collection-purpose" class="text-input full-width" bind:value={newPurpose}></textarea>
+                    <button class="button-with-text" disabled={busy || !newName.trim()} onclick={createNew}>
                         <img class="action-icon" alt="create" src={confirmIcon} />
                         <span class="button-label">Create and close</span>
                     </button>
@@ -183,17 +183,17 @@ async function createNew() {
                     {#each collections as collection (collection.id)}
                         {@const count = counts.get(collection.id)?.count ?? 0}
                         <button type="button" class="blank-button"
-                                disabled={count === models.length}
+                                disabled={busy || count === models.length}
                                 onclick={() => addTo(collection.id)}>
                             ({count} models) {collection.name}
                         </button>
                     {/each}
                 </div>
-                <button class="button-with-text" onclick={() => void closePopup()}>
+                <button disabled={busy} class="button-with-text" onclick={() => void closePopup()}>
                     <img class="action-icon" alt="cancel" src={cancelIcon} />
                     <span class="button-label">Cancel</span>
                 </button>
-            </fieldset>
+
         </div>
     </div>
 {/if}

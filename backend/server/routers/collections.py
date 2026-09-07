@@ -39,6 +39,8 @@ async def get_collection(id: str) -> dict:
     try:
         return repo.get_collection(id)
     except ArcException as error:
+        if error.code == ArcException.Code.INVALID_TAG:
+            raise HTTPException(400, {'code': 'invalid_tag', 'message': error.message, 'params': {}})
         if error.code == ArcException.Code.UNKNOWN_COLLECTION:
             raise HTTPException(404, error.message)
         raise HTTPException(400, error.message)
@@ -49,6 +51,8 @@ async def create_collection(data: dict) -> dict:
     try:
         return repo.create_collection(data)
     except ArcException as error:
+        if error.code == ArcException.Code.INVALID_TAG:
+            raise HTTPException(400, {'code': 'invalid_tag', 'message': error.message, 'params': {}})
         if error.code in (ArcException.Code.UNKNOWN_MODEL,
                           ArcException.Code.UNKNOWN_WORKFLOW,
                           ArcException.Code.UNKNOWN_USER_OBJECT,
@@ -60,11 +64,24 @@ async def create_collection(data: dict) -> dict:
         raise HTTPException(400, error.message)
 
 
+@router.get('/collections/{id}/members')
+async def collection_members(id: str) -> list[dict]:
+    try:
+        return repo.collection_members(id)
+    except ArcException as error:
+        if error.code == ArcException.Code.INVALID_TAG:
+            raise HTTPException(400, {'code': 'invalid_tag', 'message': error.message, 'params': {}})
+        raise HTTPException(404, {'code': error.code.name.lower(),
+                                  'message': error.message, 'params': {'id': id}})
+
+
 @router.put('/collections/{id}')
 async def update_collection(id: str, data: dict) -> dict:
     try:
         return repo.update_collection(id, data)
     except ArcException as error:
+        if error.code == ArcException.Code.INVALID_TAG:
+            raise HTTPException(400, {'code': 'invalid_tag', 'message': error.message, 'params': {}})
         if error.code in (ArcException.Code.UNKNOWN_MODEL,
                           ArcException.Code.UNKNOWN_WORKFLOW,
                           ArcException.Code.UNKNOWN_USER_OBJECT,
@@ -81,6 +98,8 @@ async def update_collection_models(id: str, data: CollectionModelUpdate) -> dict
     try:
         return repo.update_collection_models(id, data.model_ids, data.add)
     except ArcException as error:
+        if error.code == ArcException.Code.INVALID_TAG:
+            raise HTTPException(400, {'code': 'invalid_tag', 'message': error.message, 'params': {}})
         if error.code in (ArcException.Code.UNKNOWN_MODEL,
                           ArcException.Code.UNKNOWN_COLLECTION):
             raise HTTPException(404, error.message)
@@ -95,6 +114,8 @@ async def update_collection_workflows(id: str, data: CollectionWorkflowUpdate) -
     try:
         return repo.update_collection_workflows(id, data.workflow_ids, data.add)
     except ArcException as error:
+        if error.code == ArcException.Code.INVALID_TAG:
+            raise HTTPException(400, {'code': 'invalid_tag', 'message': error.message, 'params': {}})
         if error.code in (ArcException.Code.UNKNOWN_WORKFLOW,
                           ArcException.Code.UNKNOWN_COLLECTION):
             raise HTTPException(404, error.message)
@@ -109,6 +130,8 @@ async def update_collection_user_objects(id: str, data: CollectionUserObjectUpda
     try:
         return repo.update_collection_user_objects(id, data.user_object_ids, data.add)
     except ArcException as error:
+        if error.code == ArcException.Code.INVALID_TAG:
+            raise HTTPException(400, {'code': 'invalid_tag', 'message': error.message, 'params': {}})
         if error.code in (ArcException.Code.UNKNOWN_USER_OBJECT,
                           ArcException.Code.UNKNOWN_COLLECTION):
             raise HTTPException(404, error.message)
@@ -123,6 +146,8 @@ async def delete_collection(id: str) -> dict:
     try:
         return repo.delete_collection(id)
     except ArcException as error:
+        if error.code == ArcException.Code.INVALID_TAG:
+            raise HTTPException(400, {'code': 'invalid_tag', 'message': error.message, 'params': {}})
         if error.code == ArcException.Code.UNKNOWN_COLLECTION:
             raise HTTPException(404, error.message)
         if error.code == ArcException.Code.EMPTY_COLLECTION:

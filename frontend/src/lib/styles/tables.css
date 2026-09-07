@@ -208,3 +208,14 @@ th, td {
 
 .user-object-table .section-marker { display: inline-block; width: 1rem; }
 .user-object-table .indicator-icon { display: block; width: 16px; height: 16px; margin: auto; }
+
+.collection-table, .collection-member-table { width: 100%; table-layout: fixed; }
+.collection-table .selection-column,
+.collection-table .indicator-column,
+.collection-table .error-column { width: 2rem; text-align: center; }
+.collection-table .location-column { width: 5rem; }
+.collection-table th:nth-child(2) { width: 35%; }
+.collection-table .indicator-icon { display: block; width: 16px; height: 16px; margin: auto; }
+.ellipsized-cell { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.collection-member-table th:not(:first-child),
+.collection-member-table td:not(:first-child) { width: 2rem; text-align: center; }

@@ -406,13 +406,41 @@ class Collection(SQLModel, table=True):
     )
 
     def summary(self) -> dict:
+        leaves = self.leaf_members()
+        error_count = sum(item.read_only for item in leaves)
         return {'id': self.id,
                 'name': self.name,
+                'purpose': self.purpose,
+                'deployment': self.deployment,
+                'has_tags': bool(self.tags),
+                'has_models': bool(self.models),
+                'has_workflows': bool(self.workflows),
+                'has_user_objects': bool(self.user_objects),
+                'has_children': bool(self.children),
+                'error_count': error_count,
+                'read_only': error_count > 0,
+                'has_archive': any(item.deployment in ('archive', 'synced') for item in leaves),
+                'has_working': any(item.deployment in ('working', 'synced') for item in leaves),
                 'parents': [
                     {'id': collection.id, 'name': collection.name}
                     for collection in sorted(
                         self.parents, key=lambda item: (item.name.casefold(), item.id))
                 ]}
+
+    def leaf_members(self) -> list:
+        """Return unique transitive objects without following parent relationships."""
+        visited = set()
+        leaves = {}
+        pending = [self]
+        while pending:
+            collection = pending.pop()
+            if collection.id in visited:
+                continue
+            visited.add(collection.id)
+            for item in [*collection.models, *collection.workflows, *collection.user_objects]:
+                leaves[(type(item).__name__, item.id)] = item
+            pending.extend(collection.children)
+        return list(leaves.values())
 
     @property
     def deployment(self) -> DeploymentStatus:
@@ -440,7 +468,7 @@ class Collection(SQLModel, table=True):
         return DeploymentStatus.MIXED
 
     def representation(self, type_map: dict) -> dict:
-        return {'id': self.id,
+        return {**self.summary(), 'id': self.id,
                 'name': self.name,
                 'purpose': self.purpose,
                 'deployment': self.deployment,

@@ -49,6 +49,7 @@ export async function parseResponse<T>(response: Response, packager: (x: any) =>
             if (contentType?.includes('application/json')) {
                 const body = await response.json();
                 if (typeof body?.detail === 'string') message = body.detail;
+                else if (typeof body?.detail?.message === 'string') message = body.detail.message;
                 else if (Array.isArray(body?.detail)) {
                     message = body.detail.map((item: any) => item.msg ?? JSON.stringify(item)).join('; ');
                 }

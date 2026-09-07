@@ -5,7 +5,7 @@
  ! -------------------------------------------------->
 
 <script lang="ts">
-import { onMount } from 'svelte';
+import { onMount, untrack } from 'svelte';
 import { fly } from 'svelte/transition';
 import WorkflowActions from '$components/workflows/WorkflowActions.svelte';
 import WorkflowTable from '$components/workflows/WorkflowTable.svelte';
@@ -17,7 +17,24 @@ import { type Workflow, type WorkflowSummary } from '$lib/objects';
 import { getWorkflow, getWorkflows, moveWorkflow, searchWorkflows, syncWorkflow,
     updateWorkflow, type WorkflowDestination, type WorkflowSearchCriteria } from '$lib/workflows';
 
-let { multiEditorOpen=$bindable(false) }: { multiEditorOpen: boolean } = $props();
+let { multiEditorOpen=$bindable(false), remapBlocked=$bindable(false), tagRevision=0 }: {
+    multiEditorOpen: boolean;
+    remapBlocked?: boolean;
+    tagRevision?: number;
+} = $props();
+
+$effect(() => {
+    remapBlocked = changed || saving || operating || multiEditorOpen;
+});
+
+$effect(() => {
+    if (tagRevision > 0) {
+        untrack(() => {
+            void refreshWorkflows();
+            if (active_id) void refreshActive();
+        });
+    }
+});
 let workflows = $state<WorkflowSummary[]>([]), error = $state<string | null>(null);
 let selected_id = $state<string | null>(null), selected_ids = $state<Set<string>>(new Set());
 let active_id = $state<string | null>(null), active = $state<Workflow | null>(null);

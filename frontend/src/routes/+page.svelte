@@ -19,6 +19,8 @@ import { getServerStatus, type ActiveTab } from "$lib/admin";
 let current_tab = $state<ActiveTab>( null );
 let server_ready = $state( false );
 let content_modal_open = $state(false);
+let remapBlocked = $state(false);
+let tagRevision = $state(0);
 
 onMount(() => {
     async function checkStatus() {
@@ -43,20 +45,21 @@ onMount(() => {
 </script>
 
 <heading class="page-header">
-    <ArchivistHeader bind:current_tab navigationLocked={content_modal_open}/>
+    <ArchivistHeader bind:current_tab navigationLocked={content_modal_open}
+        {remapBlocked} onTagsRemapped={() => tagRevision += 1} />
 </heading>
 
 <div class="page-contents">
     {#if !server_ready}
         <WaitingForStart />
     {:else if current_tab === 'models'}
-        <ModelContents bind:multiEditorOpen={content_modal_open}/>
+        <ModelContents bind:multiEditorOpen={content_modal_open} bind:remapBlocked {tagRevision} />
     {:else if current_tab === 'workflows'}
-        <WorkflowContents bind:multiEditorOpen={content_modal_open}/>
+        <WorkflowContents bind:multiEditorOpen={content_modal_open} bind:remapBlocked {tagRevision} />
     {:else if current_tab === 'user'}
-        <UserObjectContents />
+        <UserObjectContents bind:remapBlocked {tagRevision} />
     {:else if current_tab === 'collections'}
-        <CollectionContents/>
+        <CollectionContents bind:navigationLocked={content_modal_open} bind:remapBlocked {tagRevision} />
     {/if}
 </div>
 

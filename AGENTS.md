@@ -69,6 +69,11 @@ sentences by concatenating translated fragments.
 
 ## Frontend organization
 
+Keep HTML/Svelte markup and JavaScript/TypeScript code clearly indented and nested for
+readability, with blank lines between logical blocks. Avoid compressing nested markup
+or multiple statements onto one line. Use `TagEditor.svelte` and `ModelDetails.svelte`
+as formatting examples for subsequent changes.
+
 Reusable design rules belong in `frontend/src/lib/styles/`; avoid duplicating the same
 visual contract in multiple Svelte components. Component-local CSS is appropriate only
 for genuinely private layout. Preserve keyboard access, labels, focus behavior, modal

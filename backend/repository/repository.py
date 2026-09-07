@@ -29,6 +29,7 @@ from backend.repository.tables import (Model, Workflow, Collection, Component, C
                                        WorkflowLocationSetting)
 from backend.exception import ArcException
 from backend.base_models import normalize_base_model
+from backend.tags import edited_tags
 from backend.config import Configuration, OptionsConfig, get_config
 from backend.environment import get_environment_provider
 from backend.repository.migrations import update_database_schema
@@ -705,13 +706,14 @@ def update_model(updates: dict) -> dict:
         _logger.debug(f'updating model {updates["id"]}')
 
         base_model = normalize_base_model(updates.get('base_model', model.base_model))
+        tags = edited_tags(updates['tags'], (tag.tag for tag in model.tags))
         model_files.update_model(model, updates['file_name'], updates['internal_name'],
-                                 updates['tags'], base_model)
+                                 tags, base_model)
 
         model.file_name = updates['file_name']
         model.internal_name = updates['internal_name']
         model.base_model = base_model
-        model.tags = resolve_tags(session, updates['tags'])
+        model.tags = resolve_tags(session, tags)
         model.touched = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
 
         session.add(model)
@@ -724,6 +726,7 @@ def update_model_tags(ids: list[str], add: list[str], remove: list[str]) -> dict
     """Apply tag additions and removals to several models."""
     if _config.read_only:
         raise ArcException(ArcException.Code.READ_ONLY, 'Model updates are disabled')
+    add = edited_tags(add)
     results = []
     removed = set(remove)
     for model_id in dict.fromkeys(ids):
@@ -1300,16 +1303,17 @@ def update_workflow(updates: dict) -> dict:
             raise ArcException(ArcException.Code.UNKNOWN_WORKFLOW, updates['id'])
         if workflow.read_only:
             raise ArcException(ArcException.Code.READ_ONLY, 'Workflow is read-only')
+        tags = edited_tags(updates.get('tags', []), (tag.tag for tag in workflow.tags))
         try:
             workflow_files.update_workflow(
                 workflow, updates['file_name'], updates['internal_name'],
-                updates.get('purpose', ''), updates.get('tags', []))
+                updates.get('purpose', ''), tags)
         except (OSError, UnicodeError, ValueError, TypeError) as error:
             raise ArcException(ArcException.Code.INACCESSIBLE_FILE, str(error)) from error
         workflow.file_name = updates['file_name']
         workflow.internal_name = updates['internal_name']
         workflow.purpose = updates.get('purpose', '')
-        workflow.tags = resolve_tags(session, updates.get('tags', []))
+        workflow.tags = resolve_tags(session, tags)
         workflow.touched = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
         session.add(workflow)
         session.commit()
@@ -1319,6 +1323,7 @@ def update_workflow(updates: dict) -> dict:
 
 def update_workflow_tags(ids: list[str], add: list[str], remove: list[str]) -> dict:
     """Apply tag additions and removals to several workflows."""
+    add = edited_tags(add)
     results = []
     removed = set(remove)
     for workflow_id in dict.fromkeys(ids):
@@ -1844,7 +1849,7 @@ def update_user_object(id: str, data: dict) -> dict:
                                'invalid user-object metadata')
         item.display_name = display_name.strip()
         item.purpose = purpose
-        item.tags = resolve_tags(session, tags)
+        item.tags = resolve_tags(session, edited_tags(tags, (tag.tag for tag in item.tags)))
         session.add(item)
         session.commit()
         session.refresh(item)
@@ -2178,6 +2183,95 @@ def get_collection(id: str) -> dict:
         return collection.representation(type_map)
 
 
+def collection_members(id: str) -> list[dict]:
+    """Group direct members and eligible additions, including ancestor constraints."""
+    with Session(_engine) as session:
+        collections = {item.id: item for item in session.exec(select(Collection)).all()}
+        target = collections.get(id)
+        if target is None:
+            raise ArcException(ArcException.Code.UNKNOWN_COLLECTION, id)
+
+        def reachable(root):
+            nodes, leaves = set(), set()
+            pending = [root]
+            while pending:
+                item = pending.pop()
+                if item.id in nodes:
+                    continue
+                nodes.add(item.id)
+                for field in ('models', 'workflows', 'user_objects'):
+                    leaves.update((field, member.id) for member in getattr(item, field))
+                pending.extend(item.children)
+            return nodes, leaves
+
+        ancestors, pending = set(), [target]
+        occupied_nodes, occupied_leaves = set(), set()
+        while pending:
+            item = pending.pop()
+            if item.id in ancestors:
+                continue
+            ancestors.add(item.id)
+            nodes, leaves = reachable(item)
+            occupied_nodes.update(nodes)
+            occupied_leaves.update(leaves)
+            pending.extend(item.parents)
+
+        type_map = _config.model_types if _config is not None else {}
+        segments = {}
+        direct = {field: {item.id for item in getattr(target, field)}
+                  for field in ('models', 'workflows', 'user_objects', 'children')}
+
+        def segment(key, name, field):
+            return segments.setdefault(key, {'id': key, 'name': name, 'field': field,
+                                             'members': [], 'candidates': []})
+
+        def row(item, name):
+            if isinstance(item, Collection):
+                summary = item.summary()
+                archive, working = summary['has_archive'], summary['has_working']
+            else:
+                archive = item.deployment in ('archive', 'synced')
+                working = item.deployment in ('working', 'synced')
+            return {'id': item.id, 'name': name, 'has_archive': archive, 'has_working': working}
+
+        for raw_type, name in type_map.items():
+            segment(f'model:{raw_type}', name, 'models')
+        for item in session.exec(select(Model)).all():
+            group = segment(f'model:{item.type}', type_map.get(item.type, item.type), 'models')
+            member = row(item, item.internal_name or item.file_name)
+            if item.id in direct['models']:
+                group['members'].append(member)
+            elif ('models', item.id) not in occupied_leaves:
+                group['candidates'].append(member)
+        group = segment('workflows', 'Workflows', 'workflows')
+        for item in session.exec(select(Workflow)).all():
+            member = row(item, item.internal_name or item.file_name)
+            if item.id in direct['workflows']:
+                group['members'].append(member)
+            elif ('workflows', item.id) not in occupied_leaves:
+                group['candidates'].append(member)
+        for kind in session.exec(select(UserDefinedType).order_by(UserDefinedType.name)).all():
+            group = segment(f'user:{kind.id}', kind.name, 'user_objects')
+            for item in kind.objects:
+                member = row(item, item.display_name)
+                if item.id in direct['user_objects']:
+                    group['members'].append(member)
+                elif ('user_objects', item.id) not in occupied_leaves:
+                    group['candidates'].append(member)
+        group = segment('collections', 'Collections', 'children')
+        for item in collections.values():
+            if item.id in direct['children']:
+                group['members'].append(row(item, item.name))
+                continue
+            nodes, leaves = reachable(item)
+            if leaves and not nodes.intersection(occupied_nodes) and not leaves.intersection(occupied_leaves):
+                group['candidates'].append(row(item, item.name))
+        for group in segments.values():
+            for field in ('members', 'candidates'):
+                group[field].sort(key=lambda member: (member['name'].casefold(), member['id']))
+        return list(segments.values())
+
+
 def create_collection(data: dict) -> dict:
     """Create a validated collection.
 
@@ -2313,7 +2407,7 @@ def create_collection(data: dict) -> dict:
         for child_id in child_ids:
             visit(child_id, set())
 
-        resolved_tags = resolve_tags(session, tags)
+        resolved_tags = resolve_tags(session, edited_tags(tags))
         collection = Collection(name=name.strip(), purpose=purpose,
                                 models=models, workflows=workflows, user_objects=user_objects,
                                 children=children,
@@ -2473,7 +2567,7 @@ def update_collection(id: str, data: dict) -> dict:
         collection.workflows = workflows
         collection.user_objects = user_objects
         collection.children = children
-        collection.tags = resolve_tags(session, tags)
+        collection.tags = resolve_tags(session, edited_tags(tags, (tag.tag for tag in collection.tags)))
         session.add(collection)
         session.flush()
 
@@ -2709,7 +2803,9 @@ def list_tags(target_types: Set[PrimaryObjectType] | None, offset: int, limit: i
             else:
                 statement = select(Tag).offset(offset).where(or_(*cond))
         else:
-            statement = select(Tag).offset(offset).limit(limit)
+            statement = select(Tag).offset(offset)
+            if limit > 0:
+                statement = statement.limit(limit)
         found = session.exec(statement).all()
         return [t.tag for t in found]
 

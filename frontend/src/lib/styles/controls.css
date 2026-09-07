@@ -358,3 +358,7 @@ button.help-button {
 .pill-input:focus-visible {
     outline: 0;
 }
+/* Inline member actions share the same size and focus behavior across tables. */
+.inline-button { display: inline-flex; align-items: center; justify-content: center;
+    padding: var(--gap-tiny); border: 0; background: transparent; color: inherit; cursor: pointer; }
+.inline-button:disabled { cursor: default; opacity: 0.5; }

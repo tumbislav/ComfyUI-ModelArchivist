@@ -64,7 +64,10 @@ async def search_models(criteria: ModelSearchCriteria) -> list[dict]:
 
 @router.post('/models/bulk/tags')
 async def update_model_tags(data: ModelTagUpdate) -> dict:
-    return repo.update_model_tags(data.ids, data.add, data.remove)
+    try:
+        return repo.update_model_tags(data.ids, data.add, data.remove)
+    except ArcException as error:
+        raise HTTPException(400, {'code': error.code.name.lower(), 'message': error.message, 'params': {}})
 
 
 @router.post('/models/bulk/base-model')
@@ -105,7 +108,10 @@ async def move_models(data: ModelIds, destination: DeploymentStatus,
 
 @router.put('/models/{id}')
 async def update_mode(changed_model: dict) -> dict:
-    return repo.update_model(changed_model)
+    try:
+        return repo.update_model(changed_model)
+    except ArcException as error:
+        raise HTTPException(400, {'code': error.code.name.lower(), 'message': error.message, 'params': {}})
 
 
 @router.post('/models/{id}/synchronize')

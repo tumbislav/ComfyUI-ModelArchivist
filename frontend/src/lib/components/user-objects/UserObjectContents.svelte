@@ -5,6 +5,7 @@
  ! -------------------------------------------------------------------------- -->
 
 <script lang="ts">
+import { untrack } from 'svelte';
 import { fly } from 'svelte/transition';
 import UserObjectTable from '$components/user-objects/UserObjectTable.svelte';
 import UserObjectDetails from '$components/user-objects/UserObjectDetails.svelte';
@@ -15,6 +16,24 @@ import { userTypeState } from '$lib/user-types.svelte';
 import { getUserObject, getUserObjects, isLongOperation, moveUserObject, syncUserObject,
     updateUserObject, type UserObjectDestination } from '$lib/user-objects';
 import type { UserObject, UserObjectSummary } from '$lib/objects';
+
+let { remapBlocked=$bindable(false), tagRevision=0 }: {
+    remapBlocked?: boolean;
+    tagRevision?: number;
+} = $props();
+
+$effect(() => {
+    remapBlocked = changed || saving || operating;
+});
+
+$effect(() => {
+    if (tagRevision > 0) {
+        untrack(() => {
+            void refresh();
+            if (activeId) void refreshActive();
+        });
+    }
+});
 
 let objects = $state<UserObjectSummary[]>([]), error = $state<string | null>(null);
 let selectedId = $state<string | null>(null), selectedIds = $state(new Set<string>());

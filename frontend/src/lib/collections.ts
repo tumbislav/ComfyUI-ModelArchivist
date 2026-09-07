@@ -6,6 +6,7 @@
 
 import {
     type CollectionSummary,
+    type CollectionOverview,
     type Collection,
     identity } from "$lib/objects";
 
@@ -32,7 +33,7 @@ export type CollectionInput = {
     children: string[];
 };
 
-export async function getCollections(): Promise<ApiResult<CollectionSummary[]>> {
+export async function getCollections(): Promise<ApiResult<CollectionOverview[]>> {
     const url = getUrl('/collections');
     const response = await fetch(url);
     return await parseResponse(response, identity, 'getCollections');
@@ -75,7 +76,7 @@ export async function createCollection(collection: CollectionInput): Promise<Api
     return await parseResponse(response, identity, 'createCollection');
 }
 
-function collectionInput(collection: Collection): CollectionInput {
+export function collectionInput(collection: Collection): CollectionInput {
     return {
         name: collection.name,
         purpose: collection.purpose,
@@ -85,6 +86,27 @@ function collectionInput(collection: Collection): CollectionInput {
         user_objects: collection.user_objects.map((item) => item.id),
         children: collection.children.map((child) => child.id)
     };
+}
+
+export type MemberField = 'models' | 'workflows' | 'user_objects' | 'children';
+export type CollectionMember = {id: string; name: string; has_archive: boolean; has_working: boolean};
+export type MemberSegment = {id: string; name: string; field: MemberField;
+    members: CollectionMember[]; candidates: CollectionMember[]};
+export type CollectionOperationResult = {allowed: boolean; performed?: boolean;
+    errors?: {code: string; message: string}[]; warnings?: {code: string; message: string}[];
+    members?: CollectionOperationResult[]};
+
+export async function getCollectionMembers(id: string): Promise<ApiResult<MemberSegment[]>> {
+    const response = await fetch(getUrl(`/collections/${id}/members`));
+    return await parseResponse(response, identity, 'getCollectionMembers');
+}
+
+export async function operateCollection(id: string, destination: 'working' | 'archive' | null):
+    Promise<ApiResult<import('$lib/models').Operation | CollectionOperationResult>> {
+    const action = destination === null ? 'synchronize?simulate=false'
+        : `move?simulate=false&destination=${destination}`;
+    const response = await fetch(getUrl(`/collections/${id}/${action}`), {method: 'POST'});
+    return await parseResponse(response, identity, 'operateCollection');
 }
 
 export async function addModelToCollection(collectionId: string,

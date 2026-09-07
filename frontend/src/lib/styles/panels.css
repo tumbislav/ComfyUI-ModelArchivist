@@ -136,3 +136,12 @@ body {
     justify-content: space-between;
     gap: var(--gap-small);
 }
+.collection-member-scroll { max-height: 400px; overflow: auto; margin-block: var(--gap-small); }
+.collection-add-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--gap-small); }
+.collection-add-row select { flex: 1; min-width: 0; }
+.collection-member-picker { width: min(30rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem);
+    box-sizing: border-box; overflow: auto; padding: var(--gap-mid); color: var(--text-color);
+    background: var(--bg-color); border: var(--solid-border); border-radius: var(--radius-mid); }
+.collection-member-picker::backdrop { background: #0006; }
+.collection-member-picker .collection-options { max-height: 50vh; overflow-y: auto; }
+.collection-member-picker .collection-options button { overflow-wrap: anywhere; }

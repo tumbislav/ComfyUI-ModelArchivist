@@ -12,7 +12,6 @@
  * ---------------------------------------------------------------------------*/
 
     import { setTagsContext, getTags } from '$lib/tags';
-    import { PrimaryObjectType } from '$lib/objects';
 
     let all_tags = $state<string[]>([]);
     let loading = $state(false);
@@ -20,15 +19,15 @@
     
     async function refreshTags() {
         loading = true;
-        const envelope = await getTags([PrimaryObjectType.MODEL,
-                                        PrimaryObjectType.WORKFLOW,
-                                        PrimaryObjectType.COLLECTION]);
+        const envelope = await getTags([]);
         if (envelope.ok) {
             all_tags = envelope.data;
+            error = null;
         }
         else {
             error = envelope.message ?? null;
         }
+        loading = false;
     }
     
     setTagsContext({

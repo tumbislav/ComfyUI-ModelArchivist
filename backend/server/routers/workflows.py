@@ -50,7 +50,10 @@ async def search_workflows(criteria: WorkflowSearchCriteria) -> list[dict]:
 
 @router.post('/workflows/bulk/tags')
 async def update_workflow_tags(data: WorkflowTagUpdate) -> dict:
-    return repo.update_workflow_tags(data.ids, data.add, data.remove)
+    try:
+        return repo.update_workflow_tags(data.ids, data.add, data.remove)
+    except ArcException as error:
+        raise HTTPException(400, {'code': error.code.name.lower(), 'message': error.message, 'params': {}})
 
 
 @router.post('/workflows/bulk/synchronize')
@@ -70,6 +73,8 @@ async def update_workflow(id: str, changed_workflow: dict) -> dict:
     try:
         return repo.update_workflow(changed_workflow)
     except ArcException as error:
+        if error.code == ArcException.Code.INVALID_TAG:
+            raise HTTPException(400, {'code': 'invalid_tag', 'message': error.message, 'params': {}})
         if error.code == ArcException.Code.UNKNOWN_WORKFLOW:
             raise HTTPException(404, error.message)
         if error.code == ArcException.Code.READ_ONLY:

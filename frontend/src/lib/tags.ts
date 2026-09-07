@@ -51,3 +51,64 @@ export type TagsContext = {
 }
 
 export const [getTagsContext, setTagsContext] = createContext<TagsContext>();
+
+let tagPattern: RegExp | null = null;
+let rulesRequest: Promise<void> | null = null;
+
+export async function loadTagRules(): Promise<void> {
+    if (!rulesRequest) {
+        rulesRequest = (async () => {
+            const response = await fetch(getUrl('/tags/rules'));
+            const result = await parseResponse<{pattern: string}>(response, identity, 'tagRules');
+
+            if (!result.ok) {
+                throw new Error(result.message ?? 'Cannot load tag validation rules');
+            }
+
+            tagPattern = new RegExp(result.data.pattern, 'u');
+        })().catch(error => {
+            rulesRequest = null;
+            throw error;
+        });
+    }
+
+    await rulesRequest;
+}
+
+export function normalizeTag(value: string): string | null {
+    const trimmed = value.replace(/ +$/, '');
+
+    if (!tagPattern?.test(trimmed)) {
+        return null;
+    }
+
+    return trimmed.normalize('NFKC');
+}
+
+export type TagUsage = {
+    tag: string;
+    models: number;
+    workflows: number;
+    user_objects: number;
+    collections: number;
+};
+
+export type TagRemapResult = {
+    applied: string[];
+    skipped: {source: string; code: string; message: string}[];
+    errors: {code: string; message: string}[];
+};
+
+export async function getTagUsage(): Promise<ApiResult<TagUsage[]>> {
+    return await parseResponse(await fetch(getUrl('/tags/usage')), identity, 'tagUsage');
+}
+
+export async function remapTags(mappings: Record<string, string>): Promise<ApiResult<import('$lib/models').Operation>> {
+    const response = await fetch(getUrl('/tags/remap'), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({mappings})
+    });
+
+    return await parseResponse(response, identity, 'remapTags');
+}

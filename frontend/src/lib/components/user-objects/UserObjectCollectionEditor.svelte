@@ -76,20 +76,20 @@ async function createNew() {
 </div>
 {#if popupOpen}
     <div class="modal-backdrop"><div class="modal-dialog collection-picker" style={popupPosition}>
-        <fieldset disabled={busy}>
+
             <div class="spaced-horizontally"><h2 class="tight-vertical">Add to collection</h2>
-                <button class="round" aria-label="Close collection picker" onclick={() => void closePopup()}>
+                <button disabled={busy} class="round" aria-label="Close collection picker" onclick={() => void closePopup()}>
                     <img class="action-icon" alt="" src={closeIcon} /></button></div>
             {#if error}<p class="error-message">{error}</p>{/if}
             <div class="dialog-section collection-create"><h3>New collection</h3>
-                <label class="dialog-label">Name<input class="text-input full-width" bind:value={newName} /></label>
-                <label class="dialog-label">Purpose<textarea class="text-input full-width" bind:value={newPurpose}></textarea></label>
-                <button class="button-with-text" disabled={!newName.trim()} onclick={createNew}>
+                <label class="dialog-label">Name<input disabled={busy} class="text-input full-width" bind:value={newName} /></label>
+                <label class="dialog-label">Purpose<textarea disabled={busy} class="text-input full-width" bind:value={newPurpose}></textarea></label>
+                <button class="button-with-text" disabled={busy || !newName.trim()} onclick={createNew}>
                     <img class="action-icon" alt="create" src={confirmIcon} />
                     <span class="button-label">Create and close</span></button></div>
             <div class="collection-options">{#each collections as collection (collection.id)}
-                <button class="blank-button" disabled={memberIds.has(collection.id)}
+                <button class="blank-button" disabled={busy || memberIds.has(collection.id)}
                     onclick={() => addTo(collection.id)}>{collection.name}</button>{/each}</div>
-        </fieldset>
+
     </div></div>
 {/if}

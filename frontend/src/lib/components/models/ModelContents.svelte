@@ -15,7 +15,7 @@ import MultiModelEditor from '$components/models/MultiModelEditor.svelte'
 
 /* General imports
  * ---------------------------------------------------------------------------*/
-import { onMount } from "svelte";
+import { onMount, untrack } from "svelte";
 import { fly } from "svelte/transition";
 import { sidebar_in_out } from "$lib/common";
 import { confirmBox } from '$lib/confirm.svelte';
@@ -40,10 +40,27 @@ import { type ApiResult } from "$lib/api";
 import { statusMonitor } from '$lib/status.svelte';
 
 let {
-    multiEditorOpen=$bindable(false)
+    multiEditorOpen=$bindable(false),
+    remapBlocked=$bindable(false),
+    tagRevision=0
 }: {
     multiEditorOpen: boolean;
+    remapBlocked?: boolean;
+    tagRevision?: number;
 } = $props();
+
+$effect(() => {
+    remapBlocked = active_changed || saving_active || operating_active || multiEditorOpen;
+});
+
+$effect(() => {
+    if (tagRevision > 0) {
+        untrack(() => {
+            void refreshModels();
+            if (active_id) void refreshActiveModel();
+        });
+    }
+});
 
 /* Initialize the contents
  * ---------------------------------------------------------------------------*/

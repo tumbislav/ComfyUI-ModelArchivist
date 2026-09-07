@@ -280,7 +280,21 @@ export type CollectionSummary = {
     parents?: CollectionSummary[];
 }
 
-export type Collection = {
+export type CollectionOverview = CollectionSummary & {
+    purpose: string;
+    deployment: string;
+    has_tags: boolean;
+    has_models: boolean;
+    has_workflows: boolean;
+    has_user_objects: boolean;
+    has_children: boolean;
+    error_count: number;
+    read_only: boolean;
+    has_archive: boolean;
+    has_working: boolean;
+};
+
+export type Collection = CollectionOverview & {
     id: string;
     name: string
     purpose: string;

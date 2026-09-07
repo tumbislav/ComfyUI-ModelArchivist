@@ -43,6 +43,8 @@ class UserObjectSearchCriteria(BaseModel):
 
 
 def handle(error: ArcException) -> HTTPException:
+    if error.code == ArcException.Code.INVALID_TAG:
+        return HTTPException(400, {'code': 'invalid_tag', 'message': error.message, 'params': {}})
     if error.code in (ArcException.Code.UNKNOWN_USER_TYPE,
                       ArcException.Code.UNKNOWN_USER_OBJECT):
         return HTTPException(404, error.message)

@@ -382,3 +382,23 @@
 .nested-modal-parent:disabled {
     opacity: 0.5;
 }
+/* Global tag remapping */
+.remap-tags-dialog {
+    width: min(65rem, calc(100vw - 2rem));
+    max-height: calc(100vh - 2rem);
+    box-sizing: border-box;
+    overflow: auto;
+    padding: var(--gap-mid);
+    background: var(--bg-color);
+    color: var(--text-color);
+    border: var(--solid-border);
+    border-radius: var(--radius-mid);
+}
+
+.remap-tags-dialog::backdrop { background: #0006; }
+.remap-tags-dialog .spaced-horizontally { flex-wrap: wrap; gap: var(--gap-small); }
+.remap-tags-scroll { max-height: 60vh; overflow: auto; }
+.remap-tags-table { width: 100%; }
+.remap-tags-table td:first-child { overflow-wrap: anywhere; }
+.remap-tags-table td:last-child { min-width: 12rem; }
+.remap-message { white-space: pre-wrap; }

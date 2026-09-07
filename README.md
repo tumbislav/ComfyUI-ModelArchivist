@@ -72,6 +72,26 @@ Type definitions may be deleted after two explicit confirmations; their objects 
 removed from every collection, but files and directories on disk remain untouched.
 Changing a populated type between file and folder class is prohibited.
 
+## Tags
+
+New tags are case-sensitive Python-style Unicode names, extended to allow leading ASCII
+digits (0–9), ordinary spaces after the first character, and internal ASCII colons (`:`)
+and dashes (`-`). Colons and dashes cannot start or end a tag; their Unicode equivalents
+are not accepted. Python keywords are allowed. Leading spaces, tabs, newlines,
+and other punctuation outside the identifier character set are invalid. Trailing spaces are
+removed and new values are normalized to Unicode NFKC. Existing imported tags remain
+available until explicitly removed or remapped.
+
+The header's tag editor shows direct usage counts for models, workflows, user-defined
+objects, and collections. Remapping applies all substitutions simultaneously: `A → B`
+and `B → C` move original A assignments to B and original B assignments to C. Merging
+tags removes duplicate assignments. Blank and invalid targets are skipped.
+
+Remapping updates SQLite, model `.archivist.json` sidecars, and workflow JSON tag fields.
+Third-party sidecars are untouched. Affected objects and files are checked before
+writing; read-only objects block the batch. Execution failures roll back the database
+and attempt to restore files already written, reporting any restoration failures.
+
 # Pre-release testing
 
 Before publishing Model Archivist:

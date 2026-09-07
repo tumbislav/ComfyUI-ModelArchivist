@@ -12,7 +12,8 @@ from sqlmodel import Session, create_engine
 import backend.repository.repository as repository
 from backend.exception import ArcException
 from backend.repository.migrations import update_database_schema
-from backend.repository.tables import Collection, DeploymentStatus, Model, Workflow
+from backend.repository.tables import (Collection, DeploymentStatus, Model, Workflow,
+                                       UserDefinedType, UserDefinedObject)
 
 
 MODEL_ID = 'a' * 64
@@ -246,7 +247,13 @@ def test_update_collection_changes_properties_but_preserves_id(collection_reposi
         'workflows': [WORKFLOW_ID],
     })
 
-    assert result == {'id': original['id'], 'name': 'Updated', 'parents': []}
+    assert result['id'] == original['id']
+    assert result['name'] == 'Updated'
+    assert result['parents'] == []
+    assert result['purpose'] == 'New purpose'
+    assert result['has_tags'] is True
+    assert result['has_models'] is False
+    assert result['has_workflows'] is True
     with Session(collection_repository) as session:
         collection = session.get(Collection, original['id'])
         assert collection.purpose == 'New purpose'
@@ -497,3 +504,88 @@ def test_collection_operation_rejects_unknown_collection(collection_repository):
 
     assert result['allowed'] is False
     assert result['errors'][0]['code'] == 'unknown_collection'
+
+
+def test_collection_overview_uses_direct_indicators_and_transitive_status(collection_repository):
+    with Session(collection_repository) as session:
+        workflow = session.get(Workflow, WORKFLOW_ID)
+        workflow.deployment = 'archive'
+        workflow.errors = ['missing_file']
+        session.add(workflow)
+        session.commit()
+    child = repository.create_collection({'name': 'Child', 'models': [MODEL_ID],
+                                          'workflows': [WORKFLOW_ID], 'tags': ['child_tag']})
+    parent = repository.create_collection({'name': 'Parent', 'purpose': 'Mixed members',
+                                           'children': [child['id']]})
+    assert parent['purpose'] == 'Mixed members'
+    assert parent['has_models'] is False
+    assert parent['has_workflows'] is False
+    assert parent['has_user_objects'] is False
+    assert parent['has_children'] is True
+    assert parent['has_tags'] is False
+    assert parent['deployment'] == 'mixed'
+    assert parent['has_archive'] is True
+    assert parent['has_working'] is True
+    assert parent['error_count'] == 1
+    assert parent['read_only'] is True
+    details = repository.get_collection(parent['id'])
+    assert details['error_count'] == 1
+    groups = repository.collection_members(parent['id'])
+    members = next(group for group in groups if group['id'] == 'collections')['members']
+    assert members == [{'id': child['id'], 'name': 'Child', 'has_archive': True, 'has_working': True}]
+    assert all(not group['members'] for group in groups if group['id'] != 'collections')
+
+
+def test_member_candidates_exclude_ancestor_conflicts_without_mutating(collection_repository):
+    extra_id = 'b' * 64
+    with Session(collection_repository) as session:
+        session.add(Model(id=extra_id, file_name='extra', internal_name='Extra',
+                          type='loras', relative_path='', deployment='archive', touched='timestamp'))
+        session.commit()
+    target = repository.create_collection({'name': 'Target', 'models': [MODEL_ID]})
+    sibling = repository.create_collection({'name': 'Sibling', 'workflows': [WORKFLOW_ID]})
+    ancestor = repository.create_collection({'name': 'Ancestor', 'children': [target['id'], sibling['id']]})
+    overlap = repository.create_collection({'name': 'Overlap', 'models': [MODEL_ID]})
+    eligible = repository.create_collection({'name': 'Eligible', 'models': [extra_id]})
+    before = repository.get_collection(target['id'])
+    groups = repository.collection_members(target['id'])
+    available = {group['id']: {item['id'] for item in group['candidates']} for group in groups}
+    assert available['model:checkpoints'] == set()
+    assert available['model:loras'] == {extra_id}
+    assert available['workflows'] == set()
+    assert available['collections'] == {eligible['id']}
+    assert not {ancestor['id'], target['id'], sibling['id'], overlap['id']} & available['collections']
+    assert repository.get_collection(target['id']) == before
+    # The backend revalidates if an excluded candidate is nevertheless submitted.
+    with pytest.raises(ArcException) as exc_info:
+        repository.update_collection_workflows(target['id'], [WORKFLOW_ID], True)
+    assert exc_info.value.code is ArcException.Code.DUPLICATE_COLLECTION_MEMBER
+
+
+def test_member_candidates_reject_unknown_collection(collection_repository):
+    with pytest.raises(ArcException) as exc_info:
+        repository.collection_members('missing')
+    assert exc_info.value.code is ArcException.Code.UNKNOWN_COLLECTION
+
+
+def test_collection_user_objects_are_grouped_by_type(collection_repository):
+    with Session(collection_repository) as session:
+        kind = UserDefinedType(name='Documents', short_name='Docs', object_class='file',
+                               working_dir='/docs-working', archive_dir='/docs-archive', icon='document')
+        first = UserDefinedObject(type=kind, relative_path='one.txt', display_name='One',
+                                   deployment='synced', touched='timestamp')
+        second = UserDefinedObject(type=kind, relative_path='two.txt', display_name='Two',
+                                    deployment='archive', touched='timestamp')
+        session.add_all([kind, first, second])
+        session.commit()
+        kind_id, first_id, second_id = kind.id, first.id, second.id
+    target = repository.create_collection({'name': 'Documents', 'user_objects': [first_id]})
+    assert target['has_user_objects'] is True
+    assert target['has_archive'] is True
+    assert target['has_working'] is True
+    group = next(group for group in repository.collection_members(target['id'])
+                 if group['id'] == f'user:{kind_id}')
+    assert group['name'] == 'Documents'
+    assert group['field'] == 'user_objects'
+    assert group['members'] == [{'id': first_id, 'name': 'One', 'has_archive': True, 'has_working': True}]
+    assert group['candidates'] == [{'id': second_id, 'name': 'Two', 'has_archive': True, 'has_working': False}]
