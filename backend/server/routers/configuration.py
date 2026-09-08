@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from backend.config import get_config
+from backend.dispatcher import dispatcher, OperationBusyError
 from backend.directory_picker import DirectoryPickerUnavailable, pick_directory
 import backend.repository.repository as repo
 
@@ -44,6 +45,23 @@ class ModelConfigurationInput(BaseModel):
 
 class WorkflowConfigurationInput(BaseModel):
     workflow_locations: list[LocationInput] = Field(default_factory=list)
+
+
+class ModelExtensionsInput(BaseModel):
+    extensions: list[str]
+
+
+@router.put('/config/model-extensions')
+async def update_model_extensions(data: ModelExtensionsInput) -> dict:
+    try:
+        with dispatcher.configuration_change():
+            return repo.update_model_extensions(data.extensions)
+    except OperationBusyError as error:
+        raise HTTPException(409, detail={
+            'code': 'operation_busy', 'message': str(error), 'params': {}}) from error
+    except ValueError as error:
+        raise HTTPException(400, detail={
+            'code': 'invalid_model_extensions', 'message': str(error), 'params': {}}) from error
 
 
 class DirectoryPickerInput(BaseModel):
@@ -101,7 +119,11 @@ async def get_repository_configuration() -> dict:
 @router.put('/config/repository')
 async def update_repository_configuration(data: RepositoryConfigurationInput) -> dict:
     try:
-        return repo.update_repository_configuration(data.model_dump())
+        with dispatcher.configuration_change():
+            return repo.update_repository_configuration(data.model_dump())
+    except OperationBusyError as error:
+        raise HTTPException(409, detail={
+            "code": "operation_busy", "message": str(error), "params": {}}) from error
     except ValueError as error:
         raise HTTPException(400, str(error)) from error
 
@@ -109,7 +131,11 @@ async def update_repository_configuration(data: RepositoryConfigurationInput) ->
 @router.put('/config/models')
 async def update_model_configuration(data: ModelConfigurationInput) -> dict:
     try:
-        return repo.update_model_configuration(data.model_dump())
+        with dispatcher.configuration_change():
+            return repo.update_model_configuration(data.model_dump())
+    except OperationBusyError as error:
+        raise HTTPException(409, detail={
+            "code": "operation_busy", "message": str(error), "params": {}}) from error
     except ValueError as error:
         raise HTTPException(400, str(error)) from error
 
@@ -117,6 +143,36 @@ async def update_model_configuration(data: ModelConfigurationInput) -> dict:
 @router.put('/config/workflows')
 async def update_workflow_configuration(data: WorkflowConfigurationInput) -> dict:
     try:
-        return repo.update_workflow_configuration(data.model_dump())
+        with dispatcher.configuration_change():
+            return repo.update_workflow_configuration(data.model_dump())
+    except OperationBusyError as error:
+        raise HTTPException(409, detail={
+            "code": "operation_busy", "message": str(error), "params": {}}) from error
+    except ValueError as error:
+        raise HTTPException(400, str(error)) from error
+
+
+@router.put('/config/model-type')
+async def update_single_model_type(data: ModelTypeInput, original_name: str | None = None) -> dict:
+    try:
+        with dispatcher.configuration_change():
+            current = repo.get_repository_configuration()
+            types = current['model_types']
+            name = original_name if original_name is not None else data.name.strip()
+            index = next((i for i, item in enumerate(types) if item['name'] == name), None)
+            if original_name is None and index is not None:
+                raise ValueError('a model type with this name already exists')
+            if original_name is not None and index is None:
+                raise ValueError('the original model type no longer exists')
+            if any(item['name'] == data.name.strip() and i != index for i, item in enumerate(types)):
+                raise ValueError('a model type with this name already exists')
+            if index is None:
+                types.append(data.model_dump())
+            else:
+                types[index] = data.model_dump()
+            return repo.update_model_configuration({'model_types': types})
+    except OperationBusyError as error:
+        raise HTTPException(409, detail={
+            'code': 'operation_busy', 'message': str(error), 'params': {}}) from error
     except ValueError as error:
         raise HTTPException(400, str(error)) from error

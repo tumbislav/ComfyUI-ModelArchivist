@@ -7,15 +7,15 @@
 <script lang="ts">
 import { onMount, untrack } from 'svelte';
 import { fly } from 'svelte/transition';
-import WorkflowActions from '$components/workflows/WorkflowActions.svelte';
+import FilterActions from '$components/controls/FilterActions.svelte';
 import WorkflowTable from '$components/workflows/WorkflowTable.svelte';
 import WorkflowDetails from '$components/workflows/WorkflowDetails.svelte';
 import MultiWorkflowEditor from '$components/workflows/MultiWorkflowEditor.svelte';
 import { sidebar_in_out } from '$lib/common';
 import { confirmBox } from '$lib/confirm.svelte';
 import { type Workflow, type WorkflowSummary } from '$lib/objects';
-import { getWorkflow, getWorkflows, moveWorkflow, searchWorkflows, syncWorkflow,
-    updateWorkflow, type WorkflowDestination, type WorkflowSearchCriteria } from '$lib/workflows';
+import { getWorkflow, getWorkflows, moveWorkflow, syncWorkflow,
+    updateWorkflow, type WorkflowDestination } from '$lib/workflows';
 
 let { multiEditorOpen=$bindable(false), remapBlocked=$bindable(false), tagRevision=0 }: {
     multiEditorOpen: boolean;
@@ -48,17 +48,12 @@ const makeSnapshot = (workflow: Workflow): WorkflowSnapshot => ({file_name: work
 let changed = $derived(active !== null && snapshot !== null &&
     (active.file_name !== snapshot.file_name || active.internal_name !== snapshot.internal_name ||
      active.purpose !== snapshot.purpose || active.tags.join('\0') !== snapshot.tags.join('\0')));
-const emptyFilter: WorkflowSearchCriteria = {required_tags: [], forbidden_tags: [], name_prefix: ''};
-let currentFilter = $state({...emptyFilter});
-const hasFilters = (filter: WorkflowSearchCriteria) => !!filter.name_prefix ||
-    filter.required_tags.length > 0 || filter.forbidden_tags.length > 0;
-
 onMount(refreshWorkflows);
 $effect(() => { if (selected_id && selected_id !== active_id) void openDetails(selected_id); });
 $effect(() => { if (active && sidebar) sidebar.focus(); });
 
 async function refreshWorkflows(): Promise<boolean> {
-    const result = hasFilters(currentFilter) ? await searchWorkflows(currentFilter) : await getWorkflows();
+    const result = await getWorkflows();
     if (!result.ok) { error = result.message ?? 'Cannot load workflows'; return false; }
     workflows = result.data; error = null; return true;
 }
@@ -97,12 +92,6 @@ async function refreshActive() {
     if (!result.ok) { operationError = result.message ?? 'Cannot refresh workflow'; return; }
     active = result.data; snapshot = makeSnapshot(result.data); await refreshWorkflows();
 }
-async function filterWorkflows(filter: WorkflowSearchCriteria): Promise<boolean> {
-    if (!await closeDetails()) return false;
-    const previous = currentFilter;
-    currentFilter = {required_tags: [...filter.required_tags], forbidden_tags: [...filter.forbidden_tags], name_prefix: filter.name_prefix};
-    if (await refreshWorkflows()) return true; currentFilter = previous; return false;
-}
 async function openMulti() { if (selected_ids.size >= 2 && await closeDetails()) multiEditorOpen = true; }
 function closeMulti() { multiEditorOpen = false; }
 async function refreshAfterMultiEdit() { await refreshWorkflows(); }
@@ -110,14 +99,14 @@ async function handleEscape(event: KeyboardEvent) { if (event.key === 'Escape') 
 async function clickOutside(event: MouseEvent) {
     const target = event.target as HTMLElement;
     if (target.closest('[data-workflow-table]') || target.closest('[data-workflow-details]') ||
-        target.closest('[data-workflow-actions]')) return;
+        target.closest('[data-filter-actions]')) return;
     await closeDetails();
 }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="object-view" onclick={clickOutside}>
-    <WorkflowActions selectedCount={selected_ids.size} onFilter={filterWorkflows} onOpenMulti={openMulti} />
+    <FilterActions tab="workflows" selectedCount={selected_ids.size} onOpenMulti={openMulti} />
     <div class="object-results"><main data-workflow-table><WorkflowTable {workflows} {error}
         bind:selected_id bind:selected_ids /></main></div>
     {#if active}

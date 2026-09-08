@@ -7,6 +7,7 @@
 <script lang="ts">
 import { onMount, tick, untrack } from 'svelte';
 import { fly } from 'svelte/transition';
+import FilterActions from '$components/controls/FilterActions.svelte';
 import CollectionTable from '$components/collections/CollectionTable.svelte';
 import CollectionDetails from '$components/collections/CollectionDetails.svelte';
 import { sidebar_in_out } from '$lib/common';
@@ -35,7 +36,7 @@ $effect(() => {
     }
 });
 let collections = $state<CollectionOverview[]>([]), active = $state<Collection | null>(null);
-let segments = $state<MemberSegment[]>([]), selectedIds = $state(new Set<string>());
+let segments = $state<MemberSegment[]>([]);
 let snapshot = $state(''), busy = $state(false), loading = $state(false);
 let error = $state<string | null>(null), detailError = $state<string | null>(null);
 let warning = $state<string | null>(null), popup = $state<MemberSegment | null>(null);
@@ -54,7 +55,6 @@ async function refresh() {
         const result = await getCollections();
         if (!result.ok) {error = result.message ?? 'Cannot load collections'; return;}
         collections = result.data;
-        selectedIds = new Set([...selectedIds].filter(id => collections.some(item => item.id === id)));
         error = null;
     } catch (cause) {error = message(cause);}
 }
@@ -162,9 +162,10 @@ function escape(event: KeyboardEvent) {
 </script>
 
 <div class="object-view">
+    <FilterActions tab="collections" />
     {#if error}<p class="error-message">{error} <button class="blank-button" onclick={refresh}>Retry</button></p>{/if}
     <div class="object-results"><main><CollectionTable {collections} selectedId={active?.id ?? null}
-        bind:selectedIds disabled={busy || loading || popup !== null} onOpen={open} /></main></div>
+        disabled={busy || loading || popup !== null} onOpen={open} /></main></div>
     {#if active}
         <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
         <aside class="right-sidebar" data-collection-details tabindex="-1" bind:this={sidebar}

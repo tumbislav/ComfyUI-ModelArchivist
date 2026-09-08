@@ -40,3 +40,24 @@ def test_archive_absence_does_not_create_empty_component_set(
     assert {component.relative_path for component in model.component_sets[0].components} == {
         'nested'
     }
+
+
+@pytest.mark.parametrize('allowlist, expected', [(None, 2), (['.safetensors'], 1), ([], 0)])
+def test_global_allowlist_restricts_per_type_extensions(tmp_path, monkeypatch, allowlist, expected):
+    working = tmp_path / 'working'
+    working.mkdir()
+    (working / 'first.safetensors').write_bytes(b'weights')
+    (working / 'second.ckpt').write_bytes(b'weights')
+    saved = []
+    monkeypatch.setattr(scanner_module.repo, 'save_scanned_model',
+                        lambda model, _tags: saved.append(model))
+    scanner = Scanner(start_time=datetime.datetime.now(tz=datetime.timezone.utc))
+    scanner.config = SimpleNamespace(
+        model_extensions=['.safetensors', '.ckpt'],
+        model_extensions_by_type={'checkpoints': ['.safetensors', '.ckpt']},
+        model_extension_allowlist=allowlist)
+    scanner.barrier = SimpleNamespace(wait=lambda: None)
+    archive = tmp_path / 'archive'
+    archive.mkdir()
+    scanner.find_models('checkpoints', working, archive, False)
+    assert len(saved) == expected

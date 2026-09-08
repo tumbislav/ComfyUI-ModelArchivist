@@ -26,6 +26,8 @@ export type ModelTypeSetting = {
 export type RepositorySettings = {
     mode: 'standalone' | 'comfyui';
     setup_complete: boolean;
+    model_extensions: string[];
+    available_model_extensions: string[];
     options: {
         update_json_metadata: boolean;
         ignore_unknown_types: boolean;
@@ -46,6 +48,9 @@ async function request<T>(path: string, method = 'GET', body?: unknown): Promise
 
 export const getRepositorySettings = () => request<RepositorySettings>('/config/repository');
 
+export const saveModelExtensions = (extensions: string[]) =>
+    request<RepositorySettings>('/config/model-extensions', 'PUT', {extensions});
+
 export const saveModelSettings = (model_types: ModelTypeSetting[]) =>
     request<RepositorySettings>('/config/models', 'PUT', {model_types});
 
@@ -62,3 +67,7 @@ export const previewModelMappings = (working_root: string, archive_root: string,
                                      extensions: string[]) =>
     request<ModelTypeSetting[]>('/config/model-mapping-preview', 'POST',
         {working_root, archive_root, extensions});
+
+export const saveModelType = (type: ModelTypeSetting, originalName?: string) =>
+    request<RepositorySettings>('/config/model-type' + (originalName === undefined ? ''
+        : `?original_name=${encodeURIComponent(originalName)}`), 'PUT', type);

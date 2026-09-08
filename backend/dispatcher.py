@@ -4,6 +4,7 @@
 # purpose: Dispatch and report long-running backend operations
 # ---------------------------------------------------------------------------
 
+from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timezone
 from threading import Lock, Thread
@@ -37,6 +38,15 @@ class OperationDispatcher:
         self._lock = Lock()
         self._operations: dict[str, dict] = {}
         self._active_id: str | None = None
+
+    @contextmanager
+    def configuration_change(self):
+        with self._lock:
+            scanner = _get_scanner()
+            if self._active_id is not None or (
+                    scanner is not None and scanner.started and not scanner.finished):
+                raise OperationBusyError('another long-running operation is active')
+            yield
 
     def submit(self, operation_type: str, target: OperationTarget,
                progress: dict | None = None) -> dict:
@@ -143,7 +153,7 @@ class OperationDispatcher:
 dispatcher = OperationDispatcher()
 
 
-def submit_scan(rehash: bool = False, scope: str = 'all', type_id: str | None = None) -> dict:
+def submit_scan(rehash: bool = False, scope: str = 'all', type_id: str | list[str] | None = None) -> dict:
     def run(report: Callable[[dict], None]) -> dict:
         scanner = _create_scanner()
         if scanner is None:
@@ -156,4 +166,8 @@ def submit_scan(rehash: bool = False, scope: str = 'all', type_id: str | None = 
         report(progress)
         return {'scan_id': scan_id, 'progress': progress}
 
-    return dispatcher.submit('scan', run, {'scope': scope, 'type_id': type_id})
+    return dispatcher.submit('scan', run, {
+        'scope': scope,
+        'type_id': type_id if isinstance(type_id, str) else None,
+        'type_ids': type_id if isinstance(type_id, list) else None,
+    })

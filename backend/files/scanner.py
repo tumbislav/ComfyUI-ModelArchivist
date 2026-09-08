@@ -124,17 +124,18 @@ class Scanner:
     barrier: Barrier | None = None
     config: Configuration | None = None
     scope: str = 'all'
-    type_id: str | None = None
+    type_id: str | list[str] | None = None
     logger: logging.Logger = field(default_factory=lambda:logging.getLogger('archivist.files'))
 
     def start(self, rehash: bool = False, scope: str = 'all',
-              type_id: str | None = None) -> str | None:
+              type_id: str | list[str] | None = None) -> str | None:
         if self.started:
             self.logger.error(f'attempting to start an already started scanner')
             return None
         self.config = get_config()
         self.scope = scope
         self.type_id = type_id
+        selected_types = {type_id} if isinstance(type_id, str) else set(type_id or [])
         self.logger.debug(f'starting scan with rehash={rehash}')
 
         self.started = True
@@ -142,7 +143,7 @@ class Scanner:
 
         threads = []
         for name, locations in self.config.model_folders.items():
-            if scope not in ('all', 'models') or (type_id is not None and name != type_id):
+            if scope not in ('all', 'models') or (type_id is not None and name not in selected_types):
                 continue
             for active, archive in locations:
                 threads.append(Thread(target=self.find_models, args=(name, active, archive, rehash)))
@@ -152,7 +153,7 @@ class Scanner:
 
         user_types = repo.user_types_for_scan() if scope in ('all', 'user_objects') else []
         if type_id is not None:
-            user_types = [item for item in user_types if item['id'] == type_id]
+            user_types = [item for item in user_types if item['id'] in selected_types]
         if user_types:
             threads.append(Thread(target=self.find_user_objects, args=(user_types,)))
 
@@ -179,7 +180,8 @@ class Scanner:
             return {'started': False}
         progress_dict = {'started': self.started,
                          'scope': self.scope,
-                         'type_id': self.type_id,
+                         'type_id': self.type_id if isinstance(self.type_id, str) else None,
+                         'type_ids': self.type_id if isinstance(self.type_id, list) else None,
                          'finished': self.finished,
                          'models_scanned': self.models_scanned,
                          'workflows_scanned': self.workflows_scanned,
@@ -224,6 +226,9 @@ class Scanner:
         archive_examples = archive_root.parent / 'examples'
         extensions_by_type = getattr(self.config, 'model_extensions_by_type', {})
         model_extensions = set(extensions_by_type.get(type_name, self.config.model_extensions))
+        allowlist = getattr(self.config, 'model_extension_allowlist', None)
+        if allowlist is not None:
+            model_extensions.intersection_update(allowlist)
 
 
         def get_metadata(model_filename: str, model_dir: Path) -> tuple[str, dict, bool, bool]:

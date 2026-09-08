@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
+DEFAULT_MODEL_EXTENSIONS = ['.safetensors', '.ckpt', '.pt', '.pth', '.bin', '.gguf']
+
 class ConfigError(StrEnum):
     CONFIG_NOT_FOUND = 'Configuration file not found'
     CONFIG_UNREADABLE = 'Configuration file not readable'
@@ -76,6 +78,7 @@ class Configuration:
     all_working: set[Path] = field(default_factory=set, metadata={'suppress': True})
     model_extensions_by_type: dict[str, list[str]] = field(
         default_factory=dict, metadata={'suppress': True})
+    model_extension_allowlist: list[str] | None = field(default=None, metadata={'suppress': True})
     model_type_labels: dict[str, str] = field(
         default_factory=dict, metadata={'suppress': True})
     unmapped_model_folders: dict[str, list[Path]] = field(
@@ -201,7 +204,8 @@ class Configuration:
     @property
     def model_extensions(self) -> list[str]:
         return list(dict.fromkeys(extension for values in self.model_extensions_by_type.values()
-                                  for extension in values))
+                                  for extension in values if self.model_extension_allowlist is None
+                                  or extension in self.model_extension_allowlist))
 
     @property
     def model_types(self) -> dict[str, str]:

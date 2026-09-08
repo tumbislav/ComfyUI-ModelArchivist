@@ -33,7 +33,8 @@ every 500 ms while the dialog is open. Only one long-running operation can run a
 
 Selective scans use `/scan?scope=models`, `scope=workflows`, or `scope=user_objects`.
 An optional `type_id` selects a model type by name or a user type by ID, ready for
-individual-type actions in Settings. Scanning and cleanup are both restricted to the
+individual-type actions in Settings. A JSON body with `type_ids` selects a batch of
+model or user types. Scanning and cleanup are both restricted to the
 selected scope; other types and their records are preserved.
 
 In standalone mode, Archivist manages the working locations and permits exactly one
@@ -132,14 +133,6 @@ Before publishing Model Archivist:
 
 Items deliberately postponed during the current implementation pass:
 
-- Expand the status box into a detailed repository and long-running-operation monitor,
-  including useful progress while model hashes are calculated.
-- Finish Settings usability, validation, explanatory help text, and the Collections tab.
-- Add editing of the global model-extension allowlist to the General settings tab.
-- Present model, workflow, and user-defined-object error states clearly in the UI.
-- Revisit table columns, grouping, sorting, and possible accordion-style sections.
-- Persist filter definitions and sorting preferences in browser storage.
-- Consider server-sent events if polling proves inadequate for operation monitoring.
 - Add internationalization and localization support once interface text stabilizes.
 - Complete visual/CSS cleanup and final icon coverage.
 - Rebuild the Alembic baseline after the pre-release database schema stabilizes.
@@ -159,3 +152,30 @@ Optional, unconfirmed extensions to be considered for V2:
   * automatically adds new working set objects that match pre-defined criteria, e.g. a regexp
   * runs a set-up script (???)
 * Add a base model attribute to models
+
+## Scanning from Settings
+
+Models and User types offer per-type Save and Save and scan buttons. For a saved,
+unchanged type, Save and scan becomes Refresh. The tab-level Save and scan saves
+all pending changes in that tab and scans only its changed types. Workflows has the
+same Save and scan/Refresh action for its single configuration. Saving one type
+preserves unsaved edits to other types and tabs. While an operation is running,
+configuration editing and additional scans are blocked; Settings tabs and Close
+remain available.
+
+## Column filters
+
+Click a filterable column header to edit its filter. Name columns use a case-insensitive
+literal prefix; categorical columns offer checkboxes including `(blank)`; indicator
+columns offer all, present, or absent. Apply commits the draft. Clicking the header
+again, pressing Escape, or clicking outside cancels it. Clear removes that column's
+filter. Filters combine across columns, and the action-bar toggle suspends them without
+losing their values. Choices are drawn from the complete loaded table, including rows
+currently filtered out. Purpose columns have no filter.
+
+General settings offers “Remember last used filters”, off by default. When enabled,
+all four tabs' filters and their enabled states are stored in this browser. Otherwise,
+filters are retained only while the app remains open. Collections has no row selection
+or multi-editor. User types supports multi-editing tags, collection membership, and
+working/archive deployment. Bulk user-object changes run sequentially and report how
+many objects completed if an operation fails; completed changes are preserved.

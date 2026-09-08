@@ -7,6 +7,8 @@
 <script lang="ts">
 import { untrack } from 'svelte';
 import { fly } from 'svelte/transition';
+import FilterActions from '$components/controls/FilterActions.svelte';
+import MultiUserObjectEditor from '$components/user-objects/MultiUserObjectEditor.svelte';
 import UserObjectTable from '$components/user-objects/UserObjectTable.svelte';
 import UserObjectDetails from '$components/user-objects/UserObjectDetails.svelte';
 import { sidebar_in_out } from '$lib/common';
@@ -17,13 +19,14 @@ import { getUserObject, getUserObjects, isLongOperation, moveUserObject, syncUse
     updateUserObject, type UserObjectDestination } from '$lib/user-objects';
 import type { UserObject, UserObjectSummary } from '$lib/objects';
 
-let { remapBlocked=$bindable(false), tagRevision=0 }: {
+let { multiEditorOpen=$bindable(false), remapBlocked=$bindable(false), tagRevision=0 }: {
+    multiEditorOpen?: boolean;
     remapBlocked?: boolean;
     tagRevision?: number;
 } = $props();
 
 $effect(() => {
-    remapBlocked = changed || saving || operating;
+    remapBlocked = changed || saving || operating || multiEditorOpen;
 });
 
 $effect(() => {
@@ -109,13 +112,20 @@ async function refreshActive() {
 async function handleEscape(event: KeyboardEvent) { if (event.key === 'Escape') await closeDetails(); }
 async function clickOutside(event: MouseEvent) {
     const target = event.target as HTMLElement;
-    if (target.closest('[data-user-object-table]') || target.closest('[data-user-object-details]')) return;
+    if (target.closest('[data-user-object-table]') || target.closest('[data-user-object-details]') || target.closest('[data-filter-actions]') || target.closest('[data-user-multi]')) return;
     await closeDetails();
 }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div class="object-view" onclick={clickOutside}>
+    <FilterActions tab="user" selectedCount={selectedIds.size} onOpenMulti={async () => {
+        if (selectedIds.size >= 2 && await closeDetails()) multiEditorOpen = true;
+    }} />
+    {#if multiEditorOpen}
+        <MultiUserObjectEditor ids={[...selectedIds]} onClose={() => multiEditorOpen = false}
+            onChanged={async () => { await refresh(); }} />
+    {/if}
     {#if userTypeState.active}
         <div class="object-results"><main><UserObjectTable type={userTypeState.active} {objects} {error}
             bind:selectedId bind:selectedIds /></main></div>

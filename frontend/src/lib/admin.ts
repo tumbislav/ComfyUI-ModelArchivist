@@ -70,14 +70,15 @@ function toScanStatus(json: any): ScanStatus {
 export type ScanScope = 'all' | 'models' | 'workflows' | 'user_objects';
 
 export async function startScan(startup = false, scope: ScanScope = 'all',
-                                typeId?: string): Promise<ApiResult<Operation>> {
+                                typeId?: string | string[]): Promise<ApiResult<Operation>> {
     const query = new URLSearchParams({startup: String(startup), scope});
-    if (typeId !== undefined) query.set('type_id', typeId);
+    if (typeof typeId === 'string') query.set('type_id', typeId);
 
     const url = getUrl(`/scan?${query}`);
     const response = await apiFetch(url,{
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: Array.isArray(typeId) ? JSON.stringify({type_ids: typeId}) : undefined
     });
     return await parseResponse(response, identity, 'startScan');
 }

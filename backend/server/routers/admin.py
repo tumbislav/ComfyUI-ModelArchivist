@@ -5,6 +5,7 @@
 # ---------------------------------------------------------------------------
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 from threading import Lock
 from typing import Literal
 from pathlib import Path
@@ -31,10 +32,14 @@ def about() -> dict[str, str]:
     return {'version': project['project']['version'], 'mode': get_config().mode}
 
 
+class ScanTargets(BaseModel):
+    type_ids: list[str] = Field(min_length=1)
+
+
 @router.post('/scan', status_code=202)
 def start_scan(rehash: bool = False, startup: bool = False,
                scope: Literal['all', 'models', 'workflows', 'user_objects'] = 'all',
-               type_id: str | None = None) -> dict:
+               type_id: str | None = None, targets: ScanTargets | None = None) -> dict:
     global _startup_scan_id
     config = get_config()
     if config.read_only:
@@ -45,14 +50,15 @@ def start_scan(rehash: bool = False, startup: bool = False,
             'message': 'Complete repository setup before scanning',
             'params': {},
         })
+    selected = targets.type_ids if targets is not None else ([type_id] if type_id is not None else None)
     invalid_scope = scope not in ('all', 'models', 'workflows', 'user_objects')
-    if startup and (scope != 'all' or type_id is not None):
-        invalid_scope = True
-    if type_id is not None:
+    invalid_scope |= targets is not None and type_id is not None
+    invalid_scope |= startup and (scope != 'all' or selected is not None)
+    if selected is not None:
         if scope == 'models':
-            invalid_scope = invalid_scope or type_id not in config.model_folders
+            invalid_scope |= not set(selected).issubset(config.model_folders)
         elif scope == 'user_objects':
-            invalid_scope = invalid_scope or not any(item['id'] == type_id for item in user_types_for_scan())
+            invalid_scope |= not set(selected).issubset(item['id'] for item in user_types_for_scan())
         else:
             invalid_scope = True
     if invalid_scope:
@@ -70,7 +76,7 @@ def start_scan(rehash: bool = False, startup: bool = False,
                 return operation
         if scope == 'all' and type_id is None:
             return submit_scan(rehash)
-        return submit_scan(rehash, scope, type_id)
+        return submit_scan(rehash, scope, list(dict.fromkeys(selected)) if targets else type_id)
     except OperationBusyError as error:
         raise HTTPException(409, str(error))
 

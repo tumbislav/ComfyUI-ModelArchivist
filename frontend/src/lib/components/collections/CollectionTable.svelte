@@ -5,6 +5,8 @@
  ! -------------------------------------------------------------------------- -->
 
 <script lang="ts">
+import ColumnFilter from '$components/controls/ColumnFilter.svelte';
+import { filteredRows, filterStates } from '$lib/column-filters';
 import type { CollectionOverview } from '$lib/objects';
 import tagIcon from '$icons/indicators/tag16.png';
 import noTagIcon from '$icons/indicators/no-tag16.png';
@@ -17,8 +19,8 @@ import noUdtIcon from '$icons/indicators/no-udt16.png';
 import collectionIcon from '$icons/indicators/collection16.png';
 import noCollectionIcon from '$icons/indicators/no-collection16.png';
 
-let {collections, selectedId, selectedIds=$bindable(), disabled=false, onOpen}: {
-    collections: CollectionOverview[]; selectedId: string | null; selectedIds: Set<string>;
+let {collections: allRows, selectedId, disabled=false, onOpen}: {
+    collections: CollectionOverview[]; selectedId: string | null;
     disabled?: boolean; onOpen: (id: string) => Promise<void>;
 } = $props();
 const indicators = [
@@ -28,32 +30,35 @@ const indicators = [
     {key: 'has_user_objects', name: 'Direct UDT objects', yes: udtIcon, no: noUdtIcon},
     {key: 'has_children', name: 'Direct collections', yes: collectionIcon, no: noCollectionIcon}
 ] as const;
-let allSelected = $derived(collections.length > 0 && collections.every(item => selectedIds.has(item.id)));
-function toggle(id: string) {
-    const next = new Set(selectedIds); next.has(id) ? next.delete(id) : next.add(id); selectedIds = next;
-}
+let collections = $derived(filteredRows(allRows, $filterStates.collections));
 </script>
 
 <table class="main-table collection-table" data-collection-table>
     <thead><tr class="table-head table-section">
-        <th class="selection-column">
-            <input type="checkbox"
-                   aria-label="Select all collections"
-                   {disabled}
-                   checked={allSelected}
-                   onchange={() => selectedIds = allSelected ? new Set() :
-                        new Set(collections.map(item => item.id))} />
+        <th>
+            <ColumnFilter tab="collections" columnKey="name" rows={allRows}>
+                Name
+            </ColumnFilter>
         </th>
-        <th>Name</th>
         <th>Purpose</th>
         {#each indicators as indicator}
             <th class="indicator-column">
-                <img class="indicator-icon action-icon"
-                     src={indicator.yes} alt={indicator.name} title={indicator.name} />
+                <ColumnFilter tab="collections" columnKey={indicator.key} rows={allRows}>
+                    <img class="indicator-icon action-icon"
+                    src={indicator.yes} alt={indicator.name} title={indicator.name} />
+                </ColumnFilter>
             </th>
         {/each}
-        <th class="location-column">Location</th>
-        <th class="error-column">E</th>
+        <th class="location-column">
+            <ColumnFilter tab="collections" columnKey="deployment" rows={allRows}>
+                Location
+            </ColumnFilter>
+        </th>
+        <th class="error-column">
+            <ColumnFilter tab="collections" columnKey="errors" rows={allRows}>
+                E
+            </ColumnFilter>
+        </th>
     </tr></thead>
     <tbody>
         {#each collections as item (item.id)}
@@ -65,11 +70,6 @@ function toggle(id: string) {
                     }
                 }}
                 onclick={() => { if (!disabled) void onOpen(item.id); }}>
-                <td class="selection-column clear">
-                    <input type="checkbox" {disabled}
-                    aria-label={`Select ${item.name}`} checked={selectedIds.has(item.id)}
-                    onclick={event => event.stopPropagation()} onchange={() => toggle(item.id)} />
-                </td>
                 <td class="ellipsized-cell" title={item.name}>{item.name}</td>
                 <td class="ellipsized-cell" title={item.purpose}>{item.purpose}</td>
                 {#each indicators as indicator}
@@ -82,6 +82,6 @@ function toggle(id: string) {
                     <span class="error-message" title={`${item.error_count} members have errors`}>E</span>
                 {/if}</td>
             </tr>
-        {:else}<tr><td colspan="10">No collections.</td></tr>{/each}
+        {:else}<tr><td colspan="9">No collections.</td></tr>{/each}
     </tbody>
 </table>

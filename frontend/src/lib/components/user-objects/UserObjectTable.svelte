@@ -5,19 +5,23 @@
  ! -------------------------------------------------------------------------- -->
 
 <script lang="ts">
+import ColumnFilter from '$components/controls/ColumnFilter.svelte';
+import { filteredRows, filterStates } from '$lib/column-filters';
 import type { UserDefinedType, UserObjectSummary } from '$lib/objects';
 import tagIcon from '$icons/indicators/tag16.png';
 import noTagIcon from '$icons/indicators/no-tag16.png';
 import collectionIcon from '$icons/indicators/collection16.png';
 import noCollectionIcon from '$icons/indicators/no-collection16.png';
 
-let { type, objects, error, selectedId=$bindable(), selectedIds=$bindable() }: {
+let { type, objects: allRows, error, selectedId=$bindable(), selectedIds=$bindable() }: {
     type: UserDefinedType;
     objects: UserObjectSummary[];
     error: string | null;
     selectedId: string | null;
     selectedIds: Set<string>;
 } = $props();
+
+let objects = $derived(filteredRows(allRows, $filterStates.user));
 
 let closed = $state(false);
 let allSelected = $derived(objects.length > 0 && objects.every(item => selectedIds.has(item.id)));
@@ -29,6 +33,7 @@ function toggleAll() {
     objects.forEach(item => allSelected ? next.delete(item.id) : next.add(item.id));
     selectedIds = next;
 }
+
 </script>
 
 {#if error}
@@ -39,14 +44,38 @@ function toggleAll() {
             <tr class="table-head table-section">
                 <th class="clear"><input type="checkbox" checked={allSelected}
                     onclick={(event) => event.stopPropagation()} onchange={toggleAll} /></th>
-                <th>Name</th>
-                <th>Relative path</th>
-                <th class="indicator-column"><img class="indicator-icon action-icon"
-                    src={tagIcon} alt="Does the object have tags?" /></th>
-                <th class="indicator-column"><img class="indicator-icon action-icon"
-                    src={collectionIcon} alt="Is the object in collection(s)?" /></th>
-                <th>Location</th>
-                <th class="error-column">E</th>
+                <th>
+                    <ColumnFilter tab="user" columnKey="display_name" rows={allRows}>
+                        Name
+                    </ColumnFilter>
+                </th>
+                <th>
+                    <ColumnFilter tab="user" columnKey="relative_path" rows={allRows}>
+                        Relative path
+                    </ColumnFilter>
+                </th>
+                <th class="indicator-column">
+                    <ColumnFilter tab="user" columnKey="has_tags" rows={allRows}>
+                        <img class="indicator-icon action-icon"
+                        src={tagIcon} alt="Does the object have tags?" />
+                    </ColumnFilter>
+                </th>
+                <th class="indicator-column">
+                    <ColumnFilter tab="user" columnKey="has_collections" rows={allRows}>
+                        <img class="indicator-icon action-icon"
+                        src={collectionIcon} alt="Is the object in collection(s)?" />
+                    </ColumnFilter>
+                </th>
+                <th>
+                    <ColumnFilter tab="user" columnKey="deployment" rows={allRows}>
+                        Location
+                    </ColumnFilter>
+                </th>
+                <th class="error-column">
+                    <ColumnFilter tab="user" columnKey="errors" rows={allRows}>
+                        E
+                    </ColumnFilter>
+                </th>
             </tr>
         </thead>
         <tbody>

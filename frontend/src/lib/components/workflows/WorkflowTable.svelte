@@ -5,15 +5,19 @@
  ! -------------------------------------------------->
 
 <script lang="ts">
+import ColumnFilter from '$components/controls/ColumnFilter.svelte';
+import { filteredRows, filterStates } from '$lib/column-filters';
 import { type WorkflowSummary } from '$lib/objects';
 import tagIcon from '$icons/indicators/tag16.png';
 import noTagIcon from '$icons/indicators/no-tag16.png';
 import collectionIcon from '$icons/indicators/collection16.png';
 import noCollectionIcon from '$icons/indicators/no-collection16.png';
-let { workflows, error, selected_id=$bindable(), selected_ids=$bindable() }: {
+let { workflows: allRows, error, selected_id=$bindable(), selected_ids=$bindable() }: {
     workflows: WorkflowSummary[]; error: string | null; selected_id: string | null;
     selected_ids: Set<string>;
 } = $props();
+
+let workflows = $derived(filteredRows(allRows, $filterStates.workflows));
 let allVisibleSelected = $derived(workflows.length > 0 &&
     workflows.every(workflow => selected_ids.has(workflow.id)));
 function toggleSelected(id: string) {
@@ -25,6 +29,7 @@ function toggleAllVisible() {
     workflows.forEach(workflow => allVisibleSelected ? next.delete(workflow.id) : next.add(workflow.id));
     selected_ids = next;
 }
+
 </script>
 
 {#if error}<div class="message-container error-message"><p>Error loading workflows: {error}</p></div>
@@ -33,19 +38,39 @@ function toggleAllVisible() {
     <thead><tr class="table-head table-section">
         <th class="clear"><input type="checkbox" checked={allVisibleSelected}
             onclick={event => event.stopPropagation()} onchange={toggleAllVisible} /></th>
-        <th>Name</th>
+        <th>
+            <ColumnFilter tab="workflows" columnKey="internal_name" rows={allRows}>
+                Name
+            </ColumnFilter>
+        </th>
         <th>Purpose</th>
-        <th>Relative path</th>
-        <th class="indicator-column">
-            <img class="indicator-icon action-icon" src={tagIcon}
-                 alt="Does the workflow have tags?">
+        <th>
+            <ColumnFilter tab="workflows" columnKey="relative_path" rows={allRows}>
+                Relative path
+            </ColumnFilter>
         </th>
         <th class="indicator-column">
-            <img class="indicator-icon action-icon" src={collectionIcon}
-                 alt="Is the workflow in collection(s)?">
+            <ColumnFilter tab="workflows" columnKey="has_tags" rows={allRows}>
+                <img class="indicator-icon action-icon" src={tagIcon}
+                alt="Does the workflow have tags?">
+            </ColumnFilter>
         </th>
-        <th>Location</th>
-        <th class="error-column">E</th>
+        <th class="indicator-column">
+            <ColumnFilter tab="workflows" columnKey="has_collections" rows={allRows}>
+                <img class="indicator-icon action-icon" src={collectionIcon}
+                alt="Is the workflow in collection(s)?">
+            </ColumnFilter>
+        </th>
+        <th>
+            <ColumnFilter tab="workflows" columnKey="deployment" rows={allRows}>
+                Location
+            </ColumnFilter>
+        </th>
+        <th class="error-column">
+            <ColumnFilter tab="workflows" columnKey="errors" rows={allRows}>
+                E
+            </ColumnFilter>
+        </th>
     </tr></thead>
     <tbody>{#each workflows as workflow (workflow.id)}
         <tr class="table-clickable" aria-selected={selected_id === workflow.id}

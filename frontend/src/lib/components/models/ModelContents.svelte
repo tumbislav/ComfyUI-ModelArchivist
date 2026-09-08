@@ -8,7 +8,7 @@
 
 /* Nested components
  * ---------------------------------------------------------------------------*/
-import ModelActions from '$components/models/ModelActions.svelte'
+import FilterActions from '$components/controls/FilterActions.svelte'
 import ModelTable from '$components/models/ModelTable.svelte'
 import ModelDetails from '$components/models/ModelDetails.svelte'
 import MultiModelEditor from '$components/models/MultiModelEditor.svelte'
@@ -28,12 +28,10 @@ import {
 import {
     getModels,
     getModel,
-    searchModels,
     updateModel,
     syncModel,
     moveModel,
     type ModelDestination,
-    type ModelSearchCriteria
 } from "$lib/models";
 
 import { type ApiResult } from "$lib/api";
@@ -189,7 +187,7 @@ async function clickOutside(event: MouseEvent) {
     
     if (target.closest('[data-model-table]') ||
         target.closest('[data-model-details]') ||
-        target.closest('[data-model-actions]')) {
+        target.closest('[data-filter-actions]')) {
         return;
     }
     await closeDetails();
@@ -270,46 +268,14 @@ async function refreshActiveModel() {
 /* Model filter
  * ---------------------------------------------------------------------------*/
 
-const empty_filter: ModelSearchCriteria = {
-    types: [],
-    file_formats: [],
-    required_tags: [],
-    forbidden_tags: [],
-    name_prefix: ''
-};
-let current_filter = $state<ModelSearchCriteria>({...empty_filter});
-
-function hasFilters(filter: ModelSearchCriteria): boolean {
-    return filter.types.length > 0 || filter.file_formats.length > 0 ||
-        filter.required_tags.length > 0 || filter.forbidden_tags.length > 0 ||
-        filter.name_prefix.length > 0;
-}
-
 async function refreshModels(): Promise<boolean> {
-    const envelope = hasFilters(current_filter)
-        ? await searchModels(current_filter)
-        : await getModels();
+    const envelope = await getModels();
     if (envelope.ok) {
         models = envelope.data;
         models_error = null;
         return true;
     }
     models_error = envelope.message ?? 'Cannot load models';
-    return false;
-}
-
-async function filterModels(filter: ModelSearchCriteria): Promise<boolean> {
-    if (!(await closeDetails())) return false;
-    const previous_filter = current_filter;
-    current_filter = {
-        types: [...filter.types],
-        file_formats: [...filter.file_formats],
-        required_tags: [...filter.required_tags],
-        forbidden_tags: [...filter.forbidden_tags],
-        name_prefix: filter.name_prefix
-    };
-    if (await refreshModels()) return true;
-    current_filter = previous_filter;
     return false;
 }
 
@@ -331,8 +297,7 @@ async function refreshAfterMultiEdit() {
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions  -->
 <div class="object-view" onclick={clickOutside}>
-    <ModelActions selectedCount={selected_ids.size}
-                  onFilter={filterModels}
+    <FilterActions tab="models" selectedCount={selected_ids.size}
                   onOpenMulti={openMultiEditor}/>
 
     <div class="object-results">

@@ -125,7 +125,7 @@ onMount(() => {
     {:else if server_ready && current_tab === 'workflows'}
         <WorkflowContents bind:multiEditorOpen={content_modal_open} bind:remapBlocked {tagRevision} />
     {:else if server_ready && current_tab === 'user'}
-        <UserObjectContents bind:remapBlocked {tagRevision} />
+        <UserObjectContents bind:multiEditorOpen={content_modal_open} bind:remapBlocked {tagRevision} />
     {:else if server_ready && current_tab === 'collections'}
         <CollectionContents bind:navigationLocked={content_modal_open} bind:remapBlocked {tagRevision} />
     {/if}

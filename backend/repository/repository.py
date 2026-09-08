@@ -30,7 +30,7 @@ from backend.repository.tables import (Model, Workflow, Collection, Component, C
 from backend.exception import ArcException
 from backend.base_models import normalize_base_model
 from backend.tags import edited_tags
-from backend.config import Configuration, OptionsConfig, get_config
+from backend.config import Configuration, OptionsConfig, get_config, DEFAULT_MODEL_EXTENSIONS
 from backend.environment import get_environment_provider
 from backend.repository.migrations import update_database_schema
 import backend.files.model_files as model_files
@@ -117,6 +117,7 @@ def load_repository_configuration(config: Configuration) -> None:
             ignore_unknown_types=settings.ignore_unknown_types,
             always_recalc_hashes=settings.always_recalc_hashes)
         config.setup_required = not settings.setup_complete
+        config.model_extension_allowlist = settings.model_extension_allowlist
 
         type_settings = {item.name: item for item in session.exec(
             select(ModelTypeSetting)).all()}
@@ -246,6 +247,26 @@ def repo_status():
     return status_dict
 
 
+def model_extension_choices() -> list[str]:
+    config = get_config()
+    return sorted(set(DEFAULT_MODEL_EXTENSIONS).union(
+        extension for values in config.model_extensions_by_type.values() for extension in values
+    ).union(config.model_extension_allowlist or []))
+
+
+def update_model_extensions(extensions: list[str]) -> dict:
+    normalized = sorted({'.' + extension.strip().lower().lstrip('.') for extension in extensions})
+    if not set(normalized).issubset(model_extension_choices()):
+        raise ValueError('Select extensions from the available model extensions')
+    with Session(_engine) as session:
+        settings = session.get(ApplicationSettings, 1)
+        settings.model_extension_allowlist = normalized
+        session.add(settings)
+        session.commit()
+    load_repository_configuration(_config)
+    return get_repository_configuration()
+
+
 def get_repository_configuration() -> dict:
     """Return the persistent settings together with environment-derived locations."""
     with Session(_engine) as session:
@@ -265,6 +286,9 @@ def get_repository_configuration() -> dict:
         return {
             'mode': _config.mode,
             'setup_complete': settings.setup_complete,
+            'model_extensions': list(settings.model_extension_allowlist)
+                if settings.model_extension_allowlist is not None else model_extension_choices(),
+            'available_model_extensions': model_extension_choices(),
             'options': {
                 'update_json_metadata': settings.update_json_metadata,
                 'ignore_unknown_types': settings.ignore_unknown_types,
@@ -635,11 +659,13 @@ def save_scanned_workflow(workflow: Workflow, tag_names: list[str]) -> None:
             session.add(old_workflow)
             session.commit()
 
-def scan_cleanup(scan_timestamp: str, scope: str = 'all', type_id: str | None = None):
+def scan_cleanup(scan_timestamp: str, scope: str = 'all',
+                 type_id: str | list[str] | None = None):
+    selected_types = [type_id] if isinstance(type_id, str) else type_id
     with Session(_engine) as session:
         model_query = select(Model).where(Model.touched != scan_timestamp)
         if type_id is not None:
-            model_query = model_query.where(Model.type == type_id)
+            model_query = model_query.where(Model.type.in_(selected_types))
         models = session.exec(model_query) if scope in ('all', 'models') else []
         for model in models:
             _logger.debug(f'deleting model {model.internal_name}')
@@ -651,7 +677,7 @@ def scan_cleanup(scan_timestamp: str, scope: str = 'all', type_id: str | None = 
             session.delete(workflow)
         user_query = select(UserDefinedObject).where(UserDefinedObject.touched != scan_timestamp)
         if type_id is not None:
-            user_query = user_query.where(UserDefinedObject.type_id == type_id)
+            user_query = user_query.where(UserDefinedObject.type_id.in_(selected_types))
         user_objects = session.exec(user_query) if scope in ('all', 'user_objects') else []
         for user_object in user_objects:
             _logger.debug(f'deleting user-defined object {user_object.display_name}')

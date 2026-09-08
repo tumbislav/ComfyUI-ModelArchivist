@@ -51,6 +51,14 @@ button:disabled {
     border-radius: var(--radius-small);
 }
 
+.narrow-button {
+    padding: var(--gap-tiny) var(--gap-small);
+    height: var(--button-height);
+    width: var(--narrow-button-width);
+    min-width: var(--narrow-button-width);
+    border-radius: var(--radius-small);
+}
+
 .image-button {
     padding: var(--gap-tiny) var(--gap-tiny);
     height: var(--button-height);

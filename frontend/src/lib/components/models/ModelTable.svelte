@@ -5,6 +5,8 @@
  ! -------------------------------------------------->
 
 <script lang=ts>
+import ColumnFilter from '$components/controls/ColumnFilter.svelte';
+import { filteredRows, filterStates } from '$lib/column-filters';
 import { type ModelSummary } from "$lib/objects";
 import tagIcon from '$icons/indicators/tag16.png';
 import noTagIcon from '$icons/indicators/no-tag16.png';
@@ -12,7 +14,7 @@ import collectionIcon from '$icons/indicators/collection16.png';
 import noCollectionIcon from '$icons/indicators/no-collection16.png';
 
 let {
-    models,
+    models: allRows,
     error,
     selected_id=$bindable(),
     selected_ids=$bindable(),
@@ -22,6 +24,8 @@ let {
     selected_id: string | null,
     selected_ids: Set<string>,
 } = $props();
+
+let models = $derived(filteredRows(allRows, $filterStates.models));
 
 let allVisibleSelected = $derived(
     models.length > 0 && models.every((model) => selected_ids.has(model.id))
@@ -57,6 +61,7 @@ function toggleSection(type: string) {
     next.has(type) ? next.delete(type) : next.add(type);
     closedTypes = next;
 }
+
 </script>
 
 {#if error}
@@ -75,18 +80,46 @@ function toggleSection(type: string) {
                        onclick={(event) => event.stopPropagation()}
                        onchange={toggleAllVisible}>
             </th>
-            <th>Model</th>
-            <th>Relative path</th>
-            <th>Format</th>
-            <th class="base-model-column">Base</th>
-            <th class="indicator-column">
-                <img class="indicator-icon action-icon" src={tagIcon} alt="Does the model have tags?">
+            <th>
+                <ColumnFilter tab="models" columnKey="internal_name" rows={allRows}>
+                    Model
+                </ColumnFilter>
+            </th>
+            <th>
+                <ColumnFilter tab="models" columnKey="relative_path" rows={allRows}>
+                    Relative path
+                </ColumnFilter>
+            </th>
+            <th>
+                <ColumnFilter tab="models" columnKey="file_format" rows={allRows}>
+                    Format
+                </ColumnFilter>
+            </th>
+            <th class="base-model-column">
+                <ColumnFilter tab="models" columnKey="base_model_abbreviation" rows={allRows}>
+                    Base
+                </ColumnFilter>
             </th>
             <th class="indicator-column">
-                <img class="indicator-icon action-icon" src={collectionIcon} alt="Is the model in collection(s)?">
+                <ColumnFilter tab="models" columnKey="has_tags" rows={allRows}>
+                    <img class="indicator-icon action-icon" src={tagIcon} alt="Does the model have tags?">
+                </ColumnFilter>
             </th>
-            <th>Location</th>
-            <th class="error-column">E</th>
+            <th class="indicator-column">
+                <ColumnFilter tab="models" columnKey="has_collections" rows={allRows}>
+                    <img class="indicator-icon action-icon" src={collectionIcon} alt="Is the model in collection(s)?">
+                </ColumnFilter>
+            </th>
+            <th>
+                <ColumnFilter tab="models" columnKey="deployment" rows={allRows}>
+                    Location
+                </ColumnFilter>
+            </th>
+            <th class="error-column">
+                <ColumnFilter tab="models" columnKey="errors" rows={allRows}>
+                    E
+                </ColumnFilter>
+            </th>
         </tr>
         </thead>
         {#each sections as [type, sectionModels] (type)}

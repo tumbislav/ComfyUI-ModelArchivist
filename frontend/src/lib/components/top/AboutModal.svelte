@@ -103,6 +103,9 @@
     </div>
 
     <div class="about-help">
-        <button class="button-with-text" type="button" disabled>Help</button>
+        <button class="button-with-text" type="button"
+                onclick={() => window.open(
+                    'https://github.com/tumbislav/ComfyUI-ModelArchivist/blob/master/docs/HELP.md',
+                    '_blank', 'noopener,noreferrer')}>Help</button>
     </div>
 </dialog>

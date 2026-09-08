@@ -121,6 +121,8 @@ class ApplicationSettings(SQLModel, table=True):
     update_json_metadata: bool = True
     ignore_unknown_types: bool = False
     always_recalc_hashes: bool = False
+    model_extension_allowlist: list[str] | None = Field(
+        default=None, sa_column=Column(JSON, nullable=True))
 
 
 class ModelTypeSetting(SQLModel, table=True):

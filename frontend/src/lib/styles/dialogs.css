@@ -84,6 +84,14 @@
     gap: var(--gap-mid);
 }
 
+.settings-edit-controls {
+    display: contents;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+}
+
 .repository-summary {
     padding: var(--gap-mid);
     background: var(--bg-color);
@@ -444,3 +452,23 @@
 .remap-tags-table td:first-child { overflow-wrap: anywhere; }
 .remap-tags-table td:last-child { min-width: 12rem; }
 .remap-message { white-space: pre-wrap; }
+
+.user-multi-dialog {
+    width: min(48rem, calc(100vw - 2rem));
+    max-height: calc(100vh - 2rem);
+    box-sizing: border-box;
+    overflow: auto;
+    padding: var(--gap-mid);
+    border: var(--solid-border);
+    border-radius: var(--radius-mid);
+    background: var(--bg-color);
+    color: var(--text-color);
+}
+
+.user-multi-dialog > * {
+    margin-bottom: var(--gap-mid);
+}
+
+.user-multi-dialog::backdrop {
+    backdrop-filter: blur(2px);
+}

@@ -70,7 +70,11 @@ async def list_user_types() -> list[dict]:
 @router.post('/user-types', status_code=201)
 async def create_user_type(data: UserTypeInput) -> dict:
     try:
-        return repo.create_user_type(type_payload(data))
+        with dispatcher.configuration_change():
+            return repo.create_user_type(type_payload(data))
+    except OperationBusyError as error:
+        raise HTTPException(409, detail={
+            "code": "operation_busy", "message": str(error), "params": {}}) from error
     except ArcException as error:
         raise handle(error)
 
@@ -86,7 +90,11 @@ async def get_user_type(id: str) -> dict:
 @router.put('/user-types/{id}')
 async def update_user_type(id: str, data: UserTypeInput) -> dict:
     try:
-        return repo.update_user_type(id, type_payload(data))
+        with dispatcher.configuration_change():
+            return repo.update_user_type(id, type_payload(data))
+    except OperationBusyError as error:
+        raise HTTPException(409, detail={
+            "code": "operation_busy", "message": str(error), "params": {}}) from error
     except ArcException as error:
         raise handle(error)
 
@@ -102,7 +110,11 @@ async def preview_user_type_deletion(id: str) -> dict:
 @router.delete('/user-types/{id}')
 async def delete_user_type(id: str, confirmation_id: str) -> dict:
     try:
-        return repo.delete_user_type(id, confirmation_id)
+        with dispatcher.configuration_change():
+            return repo.delete_user_type(id, confirmation_id)
+    except OperationBusyError as error:
+        raise HTTPException(409, detail={
+            "code": "operation_busy", "message": str(error), "params": {}}) from error
     except ArcException as error:
         raise handle(error)
 
