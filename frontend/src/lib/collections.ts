@@ -4,13 +4,14 @@
  * purpose: Collection handling
  * ---------------------------------------------------------------------------*/
 
+
 import {
     type CollectionSummary,
     type CollectionOverview,
     type Collection,
     identity } from "$lib/objects";
 
-import {
+import { apiFetch,
     type ApiResult,
     getUrl,
     parseResponse } from "$lib/api";
@@ -35,13 +36,13 @@ export type CollectionInput = {
 
 export async function getCollections(): Promise<ApiResult<CollectionOverview[]>> {
     const url = getUrl('/collections');
-    const response = await fetch(url);
+    const response = await apiFetch(url);
     return await parseResponse(response, identity, 'getCollections');
 }
 
 export async function searchCollections(criteria: CollectionSearchCriteria): Promise<ApiResult<CollectionSummary[]>> {
     const url = getUrl('/collections/search');
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(criteria)
@@ -51,14 +52,14 @@ export async function searchCollections(criteria: CollectionSearchCriteria): Pro
 
 export async function getCollection(collectionId: string): Promise<ApiResult<Collection>> {
     const url = getUrl(`/collections/${collectionId}`);
-    const response = await fetch(url)
+    const response = await apiFetch(url)
     return await parseResponse(response, identity, 'getCollection');
 }
 
 export async function updateCollection(collectionId: string,
                                        updatedCollection: CollectionInput): Promise<ApiResult<CollectionSummary>> {
     const url = getUrl(`/collections/${collectionId}`);
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedCollection)
@@ -68,7 +69,7 @@ export async function updateCollection(collectionId: string,
 
 export async function createCollection(collection: CollectionInput): Promise<ApiResult<CollectionSummary>> {
     const url = getUrl('/collections');
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(collection)
@@ -97,7 +98,7 @@ export type CollectionOperationResult = {allowed: boolean; performed?: boolean;
     members?: CollectionOperationResult[]};
 
 export async function getCollectionMembers(id: string): Promise<ApiResult<MemberSegment[]>> {
-    const response = await fetch(getUrl(`/collections/${id}/members`));
+    const response = await apiFetch(getUrl(`/collections/${id}/members`));
     return await parseResponse(response, identity, 'getCollectionMembers');
 }
 
@@ -105,7 +106,7 @@ export async function operateCollection(id: string, destination: 'working' | 'ar
     Promise<ApiResult<import('$lib/models').Operation | CollectionOperationResult>> {
     const action = destination === null ? 'synchronize?simulate=false'
         : `move?simulate=false&destination=${destination}`;
-    const response = await fetch(getUrl(`/collections/${id}/${action}`), {method: 'POST'});
+    const response = await apiFetch(getUrl(`/collections/${id}/${action}`), {method: 'POST'});
     return await parseResponse(response, identity, 'operateCollection');
 }
 
@@ -129,7 +130,7 @@ export async function removeModelFromCollection(collectionId: string,
 
 export async function updateCollectionModels(collectionId: string, modelIds: string[],
                                              add: boolean): Promise<ApiResult<CollectionSummary>> {
-    const response = await fetch(getUrl(`/collections/${collectionId}/models`), {
+    const response = await apiFetch(getUrl(`/collections/${collectionId}/models`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({model_ids: modelIds, add})
@@ -139,7 +140,7 @@ export async function updateCollectionModels(collectionId: string, modelIds: str
 
 export async function updateCollectionWorkflows(collectionId: string, workflowIds: string[],
                                                 add: boolean): Promise<ApiResult<CollectionSummary>> {
-    const response = await fetch(getUrl(`/collections/${collectionId}/workflows`), {
+    const response = await apiFetch(getUrl(`/collections/${collectionId}/workflows`), {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({workflow_ids: workflowIds, add})
     });
@@ -148,7 +149,7 @@ export async function updateCollectionWorkflows(collectionId: string, workflowId
 
 export async function updateCollectionUserObjects(collectionId: string, userObjectIds: string[],
                                                   add: boolean): Promise<ApiResult<CollectionSummary>> {
-    const response = await fetch(getUrl(`/collections/${collectionId}/user-objects`), {
+    const response = await apiFetch(getUrl(`/collections/${collectionId}/user-objects`), {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({user_object_ids: userObjectIds, add})
     });

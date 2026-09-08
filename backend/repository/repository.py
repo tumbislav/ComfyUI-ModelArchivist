@@ -16,7 +16,7 @@ from uuid import uuid4
 from sqlmodel import Session, create_engine, select, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.engine.base import Engine
-from sqlalchemy import func
+from sqlalchemy import func, case
 from sqlalchemy.orm import selectinload
 from backend.repository.tables import (Model, Workflow, Collection, Component, ComponentSet,
                                        ComponentType, Tag, PrimaryObjectType, DeploymentStatus,
@@ -224,13 +224,6 @@ def start_repo():
         _config.log_file, encoding='utf-8', errors='backslashreplace'))
     sql_logger.setLevel(_config.sql_log_level)
     _repo_started = True
-    if _config.configured and not _config.read_only:
-        sc = create_scanner()
-        if sc is None:
-            msg = 'Cannot create a scanner, aborting'
-            _logger.critical(msg)
-            raise RuntimeError(msg)
-        sc.start(_config.options.always_recalc_hashes)
 
 
 def repo_status():
@@ -482,6 +475,41 @@ def update_workflow_configuration(data: dict) -> dict:
     return update_repository_configuration(current)
 
 
+def repository_summary() -> dict:
+    """Count disjoint deployment states, all objects, and objects with errors."""
+    result = {}
+    with Session(_engine) as session:
+        for key, table in (('models', Model), ('workflows', Workflow),
+                           ('user_objects', UserDefinedObject)):
+            total, working, archive, synced, errors = session.exec(select(
+                func.count(table.id),
+                func.sum(case((table.deployment == 'working', 1), else_=0)),
+                func.sum(case((table.deployment == 'archive', 1), else_=0)),
+                func.sum(case((table.deployment == 'synced', 1), else_=0)),
+                func.sum(case((func.json_array_length(table.errors) > 0, 1), else_=0)),
+            )).one()
+            result[key] = dict(zip(('total', 'working', 'archive', 'synced', 'errors'),
+                                   (int(value or 0) for value in
+                                    (total, working, archive, synced, errors))))
+
+        collections = session.exec(select(Collection).options(
+            selectinload(Collection.children),
+            selectinload(Collection.models),
+            selectinload(Collection.workflows),
+            selectinload(Collection.user_objects),
+        )).all()
+        counts = dict(total=len(collections), working=0, archive=0, synced=0, errors=0)
+        for collection in collections:
+            leaves = collection.leaf_members()
+            deployment = collection.deployment
+            counts['working'] += deployment == 'working'
+            counts['archive'] += deployment == 'archive'
+            counts['synced'] += deployment == 'synced'
+            counts['errors'] += any(item.errors for item in leaves)
+        result['collections'] = counts
+    return result
+
+
 def repository_counts() -> dict[str, int]:
     """Return counts of the logical objects displayed by the application."""
     if not _repo_started:
@@ -607,18 +635,24 @@ def save_scanned_workflow(workflow: Workflow, tag_names: list[str]) -> None:
             session.add(old_workflow)
             session.commit()
 
-def scan_cleanup(scan_timestamp: str):
+def scan_cleanup(scan_timestamp: str, scope: str = 'all', type_id: str | None = None):
     with Session(_engine) as session:
-        models = session.exec(select(Model).where(Model.touched != scan_timestamp))
+        model_query = select(Model).where(Model.touched != scan_timestamp)
+        if type_id is not None:
+            model_query = model_query.where(Model.type == type_id)
+        models = session.exec(model_query) if scope in ('all', 'models') else []
         for model in models:
             _logger.debug(f'deleting model {model.internal_name}')
             session.delete(model)
-        workflows = session.exec(select(Workflow).where(Workflow.touched != scan_timestamp))
+        workflows = session.exec(select(Workflow).where(
+            Workflow.touched != scan_timestamp)) if scope in ('all', 'workflows') else []
         for workflow in workflows:
             _logger.debug(f'deleting workflow {workflow.internal_name}')
             session.delete(workflow)
-        user_objects = session.exec(select(UserDefinedObject).where(
-            UserDefinedObject.touched != scan_timestamp))
+        user_query = select(UserDefinedObject).where(UserDefinedObject.touched != scan_timestamp)
+        if type_id is not None:
+            user_query = user_query.where(UserDefinedObject.type_id == type_id)
+        user_objects = session.exec(user_query) if scope in ('all', 'user_objects') else []
         for user_object in user_objects:
             _logger.debug(f'deleting user-defined object {user_object.display_name}')
             session.delete(user_object)

@@ -4,8 +4,9 @@
  * purpose: Workflow handling
  * ---------------------------------------------------------------------------*/
 
+
 import { identity, toWorkflow, type Workflow, type WorkflowSummary } from '$lib/objects';
-import { getUrl, parseResponse, type ApiResult } from '$lib/api';
+import { apiFetch, getUrl, parseResponse, type ApiResult } from '$lib/api';
 
 export type WorkflowSearchCriteria = {
     required_tags: string[];
@@ -16,13 +17,13 @@ export type WorkflowSearchCriteria = {
 export type WorkflowDestination = 'working' | 'archive';
 
 export async function getWorkflows(): Promise<ApiResult<WorkflowSummary[]>> {
-    const response = await fetch(getUrl('/workflows'));
+    const response = await apiFetch(getUrl('/workflows'));
     return await parseResponse(response, identity, 'getWorkflows');
 }
 
 export async function searchWorkflows(criteria: WorkflowSearchCriteria):
     Promise<ApiResult<WorkflowSummary[]>> {
-    const response = await fetch(getUrl('/workflows/search'), {
+    const response = await apiFetch(getUrl('/workflows/search'), {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(criteria)
     });
@@ -30,12 +31,12 @@ export async function searchWorkflows(criteria: WorkflowSearchCriteria):
 }
 
 export async function getWorkflow(id: string): Promise<ApiResult<Workflow>> {
-    const response = await fetch(getUrl(`/workflows/${id}`));
+    const response = await apiFetch(getUrl(`/workflows/${id}`));
     return await parseResponse(response, toWorkflow, 'getWorkflow');
 }
 
 export async function updateWorkflow(workflow: Workflow): Promise<ApiResult<Workflow>> {
-    const response = await fetch(getUrl(`/workflows/${workflow.id}`), {
+    const response = await apiFetch(getUrl(`/workflows/${workflow.id}`), {
         method: 'PUT', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(workflow)
     });
@@ -43,7 +44,7 @@ export async function updateWorkflow(workflow: Workflow): Promise<ApiResult<Work
 }
 
 async function workflowOperation(path: string): Promise<ApiResult<Record<string, any>>> {
-    const response = await fetch(getUrl(path), {method: 'POST'});
+    const response = await apiFetch(getUrl(path), {method: 'POST'});
     return await parseResponse(response, identity, 'workflowOperation');
 }
 
@@ -56,7 +57,7 @@ export async function moveWorkflow(id: string, destination: WorkflowDestination)
 }
 
 export async function updateWorkflowTags(ids: string[], add: string[], remove: string[]) {
-    const response = await fetch(getUrl('/workflows/bulk/tags'), {
+    const response = await apiFetch(getUrl('/workflows/bulk/tags'), {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ids, add, remove})
     });
@@ -65,7 +66,7 @@ export async function updateWorkflowTags(ids: string[], add: string[], remove: s
 }
 
 export async function syncWorkflows(ids: string[]) {
-    const response = await fetch(getUrl('/workflows/bulk/synchronize?simulate=false'), {
+    const response = await apiFetch(getUrl('/workflows/bulk/synchronize?simulate=false'), {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ids})
     });
@@ -73,7 +74,7 @@ export async function syncWorkflows(ids: string[]) {
 }
 
 export async function moveWorkflows(ids: string[], destination: WorkflowDestination) {
-    const response = await fetch(getUrl(
+    const response = await apiFetch(getUrl(
         `/workflows/bulk/move?destination=${destination}&simulate=false`), {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ids})

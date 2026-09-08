@@ -8,7 +8,58 @@
 /* Calling APIs
  * ---------------------------------------------------------------------------*/
 
+import { writable } from 'svelte/store';
+
 const API_PREFIX = '/model-archivist/api';
+export const API_TIMEOUT_MS = 3000;
+export const serverUnresponsive = writable(false);
+let requestSequence = 0;
+let lastFailedRequest = 0;
+
+export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+    const sequence = ++requestSequence;
+    const controller = new AbortController();
+    const cancel = () => controller.abort(init.signal?.reason);
+    init.signal?.addEventListener('abort', cancel, { once: true });
+    if (init.signal?.aborted) cancel();
+
+    const timer = setTimeout(() => controller.abort(new DOMException('Request timed out', 'TimeoutError')),
+        API_TIMEOUT_MS);
+
+    try {
+        const response = await globalThis.fetch(input, { ...init, signal: controller.signal });
+        // Include the response body in the timeout, not just the arrival of headers.
+        const body = await response.arrayBuffer();
+
+        if ([408, 502, 503, 504].includes(response.status)) {
+            lastFailedRequest = Math.max(lastFailedRequest, sequence);
+            serverUnresponsive.set(true);
+        } else if (sequence > lastFailedRequest) {
+            serverUnresponsive.set(false);
+        }
+
+        return new Response([204, 205, 304].includes(response.status) ? null : body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: response.headers
+        });
+    } catch {
+        const cancelled = init.signal?.aborted;
+        if (!cancelled) {
+            lastFailedRequest = Math.max(lastFailedRequest, sequence);
+            serverUnresponsive.set(true);
+        }
+
+        return new Response(JSON.stringify({ detail: cancelled
+            ? 'Request cancelled' : 'The server is not responding' }), {
+            status: cancelled ? 499 : 503,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    } finally {
+        clearTimeout(timer);
+        init.signal?.removeEventListener('abort', cancel);
+    }
+}
 
 export function getUrl(resource: string): URL {
     const origin = typeof window === 'undefined' ? 'http://127.0.0.1' : window.location.origin;

@@ -4,8 +4,9 @@
  * purpose: Interface to admin functionalities
  * ---------------------------------------------------------------------------*/
 
+
 import { identity } from "$lib/objects";
-import {
+import { apiFetch,
     getUrl,
     parseResponse,
     type ApiResult
@@ -38,7 +39,7 @@ function toServerStatus(json: any): ServerStatus {
 
 export async function getServerStatus(): Promise<ApiResult<ServerStatus>> {
     const url = getUrl('/server-status');
-    const response = await fetch(url);
+    const response = await apiFetch(url);
     return await parseResponse(response, toServerStatus, 'getServerStatus')
 }
 
@@ -66,9 +67,15 @@ function toScanStatus(json: any): ScanStatus {
     }
 }
 
-export async function startScan(): Promise<ApiResult<Operation>> {
-    const url = getUrl('/scan');
-    const response = await fetch(url,{
+export type ScanScope = 'all' | 'models' | 'workflows' | 'user_objects';
+
+export async function startScan(startup = false, scope: ScanScope = 'all',
+                                typeId?: string): Promise<ApiResult<Operation>> {
+    const query = new URLSearchParams({startup: String(startup), scope});
+    if (typeId !== undefined) query.set('type_id', typeId);
+
+    const url = getUrl(`/scan?${query}`);
+    const response = await apiFetch(url,{
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
     });
@@ -77,6 +84,6 @@ export async function startScan(): Promise<ApiResult<Operation>> {
 
 export async function getScanStatus(scan_timestamp: string): Promise<ApiResult<ScanStatus>> {
     const url = getUrl(`/scan/${scan_timestamp}`);
-    const response = await fetch(url);
+    const response = await apiFetch(url);
     return await parseResponse(response, toScanStatus, 'getScanStatus');
 }

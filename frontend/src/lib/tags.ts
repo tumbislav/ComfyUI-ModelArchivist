@@ -4,13 +4,14 @@
  * purpose: Tag handling
  * ---------------------------------------------------------------------------*/
 
+
 import {
     type Tag,
     PrimaryObjectType,
     identity
 } from '$lib/objects';
 
-import {
+import { apiFetch,
     type ApiResult,
     getUrl,
     parseResponse
@@ -28,7 +29,7 @@ export type TagSearchCriteria = {
 
 export async function getTag(tag: string): Promise<ApiResult<Tag>> {
     const url = getUrl(`/tags/${tag}`);
-    const response = await fetch(url);
+    const response = await apiFetch(url);
     return await parseResponse(response, identity, 'getTag');
 }
 
@@ -39,7 +40,7 @@ export async function getTags(targets: PrimaryObjectType[], offset?: number, lim
     if (offset) { url.searchParams.append('offset', offset.toString()); }
     if (limit) { url.searchParams.append('limit', limit.toString()); }
 
-    const response = await fetch(url);
+    const response = await apiFetch(url);
     return await parseResponse(response, identity, 'getTags');
 }
 
@@ -58,7 +59,7 @@ let rulesRequest: Promise<void> | null = null;
 export async function loadTagRules(): Promise<void> {
     if (!rulesRequest) {
         rulesRequest = (async () => {
-            const response = await fetch(getUrl('/tags/rules'));
+            const response = await apiFetch(getUrl('/tags/rules'));
             const result = await parseResponse<{pattern: string}>(response, identity, 'tagRules');
 
             if (!result.ok) {
@@ -100,11 +101,11 @@ export type TagRemapResult = {
 };
 
 export async function getTagUsage(): Promise<ApiResult<TagUsage[]>> {
-    return await parseResponse(await fetch(getUrl('/tags/usage')), identity, 'tagUsage');
+    return await parseResponse(await apiFetch(getUrl('/tags/usage')), identity, 'tagUsage');
 }
 
 export async function remapTags(mappings: Record<string, string>): Promise<ApiResult<import('$lib/models').Operation>> {
-    const response = await fetch(getUrl('/tags/remap'), {
+    const response = await apiFetch(getUrl('/tags/remap'), {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({mappings})

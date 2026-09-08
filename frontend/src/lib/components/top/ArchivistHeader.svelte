@@ -12,12 +12,16 @@ import collectionIcon from '$icons/nav/collection24.png';
 import tagIcon from '$icons/nav/tag24.png';
 import settingsIcon from '$icons/nav/settings24.png';
 import lightDarkModeIcon from '$icons/nav/light-dark-mode24.png';
-import logo_pic from '$icons/nav/archivist.png';
+import AboutModal from '$components/top/AboutModal.svelte';
 import downIcon from '$icons/actions/down16.png';
+import refreshIcon from '$icons/actions/refresh24.png';
+import RepositorySummary from '$components/top/RepositorySummary.svelte';
 import SettingsModal, { type SettingsTab } from '$components/top/SettingsModal.svelte';
 import RemapTags from '$components/top/RemapTags.svelte';
 
 import { onMount } from 'svelte';
+import { serverUnresponsive } from '$lib/api';
+import { savedTheme, saveTheme } from '$lib/preferences';
 import { statusMonitor } from '$lib/status.svelte';
 import { userTypeIcon, userTypeState } from '$lib/user-types.svelte';
 
@@ -25,36 +29,69 @@ import { startScan, type ActiveTab } from '$lib/admin';
 let {
     current_tab = $bindable(),
     navigationLocked = false,
+    serverReady,
     remapBlocked = false,
     onTagsRemapped
 }: {
     current_tab: ActiveTab;
     navigationLocked: boolean;
+    serverReady: boolean;
     remapBlocked?: boolean;
     onTagsRemapped: () => void;
 } = $props();
 
 let theme = $state<'light' | 'dark'>('light');
+const logoImages = Object.values(import.meta.glob<string>(
+    '/src/lib/assets/images/logo/Library-*.png',
+    { eager: true, query: '?url', import: 'default' }
+));
+let logoImage = $state(logoImages[0]);
+let aboutOpen = $state(false);
+
+function selectLogo(): void {
+    const candidates = logoImages.filter(image => image !== logoImage);
+    if (candidates.length > 0) {
+        logoImage = candidates[Math.floor(Math.random() * candidates.length)];
+    }
+}
+
+function closeAbout(): void {
+    aboutOpen = false;
+    selectLogo();
+}
+
+let themeLoaded = $state(false);
 let typeMenuOpen = $state(false);
 let settingsOpen = $state(false);
 let remapOpen = $state(false);
+let repositoryOpen = $state(false);
 let scanSubmitting = $state(false);
 let scanBusy = $derived(scanSubmitting ||
     statusMonitor.operation?.state === 'pending' ||
     statusMonitor.operation?.state === 'running');
+let repositoryLabel = $derived.by(() => {
+    if ($serverUnresponsive) return 'Server...';
+    if (!serverReady) return 'Wait...';
+
+    const operation = statusMonitor.operation;
+
+    if (operation?.state === 'pending' || operation?.state === 'running') {
+        if (operation.type === 'scan') return 'Scanning...';
+        if (operation.type.endsWith('_sync')) return 'Syncing...';
+        if (operation.type.endsWith('_move')) return 'Moving...';
+    }
+
+    return scanSubmitting ? 'Scanning...' : 'Repository';
+});
 let settingsInitialTab = $state<SettingsTab>('general');
 let activeTypeIcon = $derived(userTypeState.active
     ? userTypeIcon(userTypeState.active.icon, 24) ?? userDefinedIcon
     : userDefinedIcon);
-let progress = $derived(statusMonitor.operation?.progress ?? null);
-let bytesTotal = $derived(typeof progress?.bytes_total === 'number'
-    ? progress.bytes_total : 0);
-let bytesCompleted = $derived(typeof progress?.bytes_completed === 'number'
-    ? progress.bytes_completed : 0);
-let percent = $derived(bytesTotal > 0
-    ? Math.min(100, Math.round(bytesCompleted * 100 / bytesTotal)) : 0);
-
 onMount(() => {
+    logoImage = logoImages[Math.floor(Math.random() * logoImages.length)];
+    theme = savedTheme();
+    themeLoaded = true;
+
     const stopStatus = statusMonitor.start();
     const closeTypeMenu = (event: PointerEvent) => {
         if (!(event.target as HTMLElement).closest('.nav-user-type')) typeMenuOpen = false;
@@ -104,14 +141,19 @@ function selectUserType(type: typeof userTypeState.active): void {
 }
 
 $effect(() => {
+    if (!themeLoaded) return;
+
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem('theme', theme);
+    saveTheme(theme);
 });
 </script>
 
 <div class="header">
     <div class="app-title">
-        <div class="title-image"><img src={logo_pic} alt="archivist"></div>
+        <button class="title-image" type="button" aria-label="About Model Archivist"
+                aria-haspopup="dialog" onclick={() => aboutOpen = true}>
+            <img src={logoImage} alt="" />
+        </button>
         <span class="app-title-text">Model Archivist</span>
     </div>
     
@@ -178,36 +220,20 @@ $effect(() => {
     </div>
 
     <div class="option-set">
-        <div class="status-box" role="button" tabindex="0"
-             aria-label="Scan repository" aria-disabled={scanBusy}
-             onclick={scanRepository}
-             onkeydown={(event) => {
-                 if (event.key === 'Enter' || event.key === ' ') {
-                     event.preventDefault();
-                     void scanRepository();
-                 }
-             }}>
-            <div class="status-summary">
-                <table class="summary-table">
-                    <tbody>
-                        <tr>
-                            <td title="Models">{statusMonitor.counts.models}</td>
-                            <td title="Workflows">{statusMonitor.counts.workflows}</td>
-                            <td title="User-defined objects">{statusMonitor.counts.user_objects}</td>
-                            <td title="Collections">{statusMonitor.counts.collections}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="progress-bar">
-                {#if statusMonitor.operation?.type === 'scan'}
-                    <span>Scanning</span><span class="status-blinker" aria-hidden="true"></span>
-                {:else if statusMonitor.operation && bytesTotal > 0}
-                    <progress max="100" value={percent} aria-label={`${percent}% complete`}></progress>
-                    <span class="progress-label">{percent}%</span>
-                {/if}
-            </div>
+        <div class="nav-split" role="group" aria-label="Repository">
+            <button class="nav-button nav-split-main" type="button"
+                    disabled={!serverReady && !$serverUnresponsive}
+                    aria-haspopup="dialog" onclick={() => repositoryOpen = true}>
+                <span class="large-button-label" aria-live="polite">{repositoryLabel}</span>
+            </button>
+
+            <button class="nav-split-trigger repository-scan" type="button"
+                    aria-label="Run a full repository scan" title="Run a full scan"
+                    disabled={!serverReady || $serverUnresponsive || scanBusy} onclick={scanRepository}>
+                <img class="action-icon" alt="" src={refreshIcon} />
+            </button>
         </div>
+
         <button class="nav-option"
                 aria-label="tag-editor"
                 title={remapBlocked ? 'Save or discard object changes before remapping tags' : 'Remap tags'}
@@ -239,3 +265,11 @@ $effect(() => {
 
 <style>
 </style>
+
+{#if repositoryOpen}
+    <RepositorySummary onClose={() => repositoryOpen = false} />
+{/if}
+
+{#if aboutOpen}
+    <AboutModal image={logoImage} onClose={closeAbout} />
+{/if}

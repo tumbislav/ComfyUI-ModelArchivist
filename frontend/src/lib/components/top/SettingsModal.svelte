@@ -26,6 +26,7 @@ import { createUserType, deleteUserType, getUserType, updateUserType, userTypeSt
 import { type UserDefinedType } from '$lib/objects';
 import { onMount } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
+import { rememberLastTab, saveRememberLastTab, scanAtStartup, saveScanAtStartup } from '$lib/preferences';
 
 export type SettingsTab = 'general' | 'models' | 'workflows' | 'user-types';
 let { onClose, initialTab = 'general' }: { onClose: () => void; initialTab?: SettingsTab } = $props();
@@ -50,6 +51,8 @@ let userTypes = $state<UserDefinedType[]>([]);
 let savedUserTypes = $state<UserDefinedType[]>([]);
 let deletedUserTypeIds = $state<string[]>([]);
 let loading = $state(true);
+let startupScan = $state(true);
+let rememberTab = $state(false);
 let saving = $state(false);
 let error = $state<string | null>(null);
 let guardTarget = $state<SettingsTab | 'close' | null>(null);
@@ -90,6 +93,8 @@ let activeDirty = $derived(activeTab === 'models' ? modelsDirty : activeTab === 
     ? workflowsDirty : activeTab === 'user-types' ? userTypesDirty : false);
 
 onMount(async () => {
+    startupScan = scanAtStartup();
+    rememberTab = rememberLastTab();
     activeTab = initialTab;
     const repositoryResult = await getRepositorySettings();
     if (!repositoryResult.ok) {
@@ -251,7 +256,31 @@ function removeUserType(type: UserDefinedType, index: number): void {
                     <p>Loading settings…</p>
                 {:else if activeTab === 'general'}
                     <h3>General</h3>
-                    <p>No general settings are currently available.</p>
+                    <div class="settings-form aligned-settings-form">
+                        <label>
+                            <input type="checkbox" bind:checked={startupScan}
+                                onchange={(event) => {
+                                    try {
+                                        saveScanAtStartup(event.currentTarget.checked);
+                                    } catch {
+                                        error = 'Cannot save the startup preference in browser storage';
+                                    }
+                                }} />
+                            Always run a full scan at startup
+                        </label>
+
+                        <label>
+                            <input type="checkbox" bind:checked={rememberTab}
+                                onchange={(event) => {
+                                    try {
+                                        saveRememberLastTab(event.currentTarget.checked);
+                                    } catch {
+                                        error = 'Cannot save the tab preference in browser storage';
+                                    }
+                                }} />
+                            Remember last open tab
+                        </label>
+                    </div>
                 {:else if activeTab === 'models' && settings}
                     <section class="dialog-section model-mapping-assistant">
                         <div class="spaced-horizontally">

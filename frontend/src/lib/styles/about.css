@@ -1,0 +1,115 @@
+/* ------------------------------------------------
+ * system: ModelArchivist
+ * file: about.css
+ * purpose: About dialog, library carousel, and caption tooltips
+ * ----------------------------------------------- */
+
+.about-dialog {
+    box-sizing: border-box;
+    width: calc(1200px + 2 * var(--gap-mid) + 2px);
+    max-width: calc(100vw - 2 * var(--gap-mid));
+    max-height: calc(100vh - 2 * var(--gap-mid));
+    overflow: auto;
+    padding: var(--gap-mid);
+    background: var(--bg-color);
+    color: var(--text-color);
+    border: var(--solid-border);
+    border-radius: var(--radius-mid);
+}
+
+.about-dialog::backdrop {
+    backdrop-filter: blur(2px);
+}
+
+.about-dialog h2 {
+    margin-top: 0;
+}
+
+.about-slide {
+    position: relative;
+}
+
+.about-image {
+    display: block;
+    width: 100%;
+    max-width: 1200px;
+    height: auto;
+    aspect-ratio: 2.5;
+    object-fit: cover;
+}
+
+.about-carousel-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: var(--gap-small);
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    opacity: 0.5;
+    transition: opacity 150ms ease;
+}
+
+.about-carousel-arrow:hover,
+.about-carousel-arrow:focus-visible,
+.about-carousel-arrow:active {
+    opacity: 1;
+    transform: translateY(-50%);
+    background: transparent;
+    box-shadow: none;
+}
+
+.about-carousel-left {
+    left: 0;
+}
+
+.about-carousel-right {
+    right: 0;
+}
+
+.about-caption {
+    min-height: 1em;
+    overflow-wrap: anywhere;
+}
+
+.about-information {
+    margin-top: var(--gap-mid);
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+.about-help {
+    display: flex;
+    justify-content: center;
+    margin-top: var(--gap-mid);
+}
+
+.about-tooltip {
+    position: relative;
+    cursor: help;
+    text-decoration: underline dotted;
+    text-underline-offset: 0.2em;
+}
+
+.about-tooltip-text {
+    position: absolute;
+    z-index: 1;
+    bottom: 100%;
+    left: 0;
+    width: max-content;
+    max-width: min(24rem, 70vw);
+    padding: var(--gap-small);
+    border: var(--solid-border);
+    border-radius: var(--radius-small);
+    background: var(--bg-color);
+    color: var(--text-color);
+    box-shadow: var(--shadow-right);
+    text-align: left;
+    font-weight: normal;
+    visibility: hidden;
+}
+
+.about-tooltip:hover .about-tooltip-text,
+.about-tooltip:focus-within .about-tooltip-text {
+    visibility: visible;
+}

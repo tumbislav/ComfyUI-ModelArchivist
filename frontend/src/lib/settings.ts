@@ -4,7 +4,8 @@
  * purpose: Settings API types and operations
  * ---------------------------------------------------------------------------*/
 
-import { getUrl, parseResponse, type ApiResult } from '$lib/api';
+
+import { apiFetch, getUrl, parseResponse, type ApiResult } from '$lib/api';
 
 export type RepositoryLocation = {
     id?: string;
@@ -35,7 +36,7 @@ export type RepositorySettings = {
 };
 
 async function request<T>(path: string, method = 'GET', body?: unknown): Promise<ApiResult<T>> {
-    const response = await fetch(getUrl(path), {
+    const response = await apiFetch(getUrl(path), {
         method,
         headers: body === undefined ? undefined : {'Content-Type': 'application/json'},
         body: body === undefined ? undefined : JSON.stringify(body)

@@ -59,7 +59,8 @@
 /* Settings dialog
  * ------------------------------------------------*/
 
-.settings-dialog {
+.settings-dialog,
+.repository-summary {
     box-sizing: border-box;
     top: var(--nav-bar-height);
     width: 50rem;
@@ -70,7 +71,8 @@
     flex-direction: column;
 }
 
-.settings-dialog > header h2 {
+.settings-dialog > header h2,
+.repository-summary > header h2 {
     margin-top: 0;
 }
 
@@ -80,6 +82,46 @@
     grid-template-columns: 13rem minmax(0, 1fr);
     flex: 1;
     gap: var(--gap-mid);
+}
+
+.repository-summary {
+    padding: var(--gap-mid);
+    background: var(--bg-color);
+    color: var(--text-color);
+    border: var(--solid-border);
+    border-radius: var(--radius-mid);
+}
+
+.repository-summary::backdrop {
+    backdrop-filter: blur(2px);
+}
+
+.repository-sections {
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.repository-section {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: var(--gap-small) var(--gap-mid);
+    padding: var(--gap-mid) 0;
+    border-bottom: var(--solid-border);
+}
+
+.repository-section h2 {
+    margin-top: 0;
+}
+
+.repository-annotation {
+    margin-top: var(--gap-small);
+}
+
+@media (max-width: 420px) {
+    .repository-section {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 .settings-tabs {

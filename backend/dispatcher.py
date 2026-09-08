@@ -38,7 +38,8 @@ class OperationDispatcher:
         self._operations: dict[str, dict] = {}
         self._active_id: str | None = None
 
-    def submit(self, operation_type: str, target: OperationTarget) -> dict:
+    def submit(self, operation_type: str, target: OperationTarget,
+               progress: dict | None = None) -> dict:
         with self._lock:
             scanner = _get_scanner()
             if self._active_id is not None or (
@@ -52,7 +53,7 @@ class OperationDispatcher:
                 'submitted_at': self._now(),
                 'started_at': None,
                 'finished_at': None,
-                'progress': {'phase': 'pending'},
+                'progress': {'phase': 'pending', **(progress or {})},
                 'result': None,
                 'error': None,
             }
@@ -142,12 +143,12 @@ class OperationDispatcher:
 dispatcher = OperationDispatcher()
 
 
-def submit_scan(rehash: bool = False) -> dict:
+def submit_scan(rehash: bool = False, scope: str = 'all', type_id: str | None = None) -> dict:
     def run(report: Callable[[dict], None]) -> dict:
         scanner = _create_scanner()
         if scanner is None:
             raise OperationBusyError('scan cannot be started')
-        scan_id = scanner.start(rehash)
+        scan_id = scanner.start(rehash, scope, type_id)
         while not scanner.finished:
             report(scanner.progress())
             sleep(0.1)
@@ -155,4 +156,4 @@ def submit_scan(rehash: bool = False) -> dict:
         report(progress)
         return {'scan_id': scan_id, 'progress': progress}
 
-    return dispatcher.submit('scan', run)
+    return dispatcher.submit('scan', run, {'scope': scope, 'type_id': type_id})

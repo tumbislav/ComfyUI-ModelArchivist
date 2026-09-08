@@ -4,7 +4,8 @@
  * purpose: Central repository status and long-running operation monitor
  * ---------------------------------------------------------------------------*/
 
-import { getUrl, parseResponse, type ApiResult } from '$lib/api';
+
+import { apiFetch, getUrl, parseResponse, type ApiResult } from '$lib/api';
 import { type Operation } from '$lib/models';
 
 export type RepositoryCounts = {
@@ -66,14 +67,14 @@ class StatusMonitor {
         if (this.refreshing) return;
         this.refreshing = true;
         try {
-            const response = await fetch(getUrl('/repository-status'));
+            const response = await apiFetch(getUrl('/repository-status'));
             const status = await parseResponse<RepositoryStatus>(response, value => value,
                                                                   'repositoryStatus');
             if (status.ok) {
                 this.counts = status.data.counts;
                 let operation = status.data.operation;
                 if (operation === null && this.trackedId !== null) {
-                    const tracked = await fetch(getUrl(`/operations/${this.trackedId}`));
+                    const tracked = await apiFetch(getUrl(`/operations/${this.trackedId}`));
                     const result = await parseResponse<Operation>(tracked, value => value,
                                                                    'trackedOperation');
                     if (result.ok) operation = result.data;

@@ -123,13 +123,18 @@ class Scanner:
     lock: Lock = Lock()
     barrier: Barrier | None = None
     config: Configuration | None = None
+    scope: str = 'all'
+    type_id: str | None = None
     logger: logging.Logger = field(default_factory=lambda:logging.getLogger('archivist.files'))
 
-    def start(self, rehash: bool = False) -> str | None:
+    def start(self, rehash: bool = False, scope: str = 'all',
+              type_id: str | None = None) -> str | None:
         if self.started:
             self.logger.error(f'attempting to start an already started scanner')
             return None
         self.config = get_config()
+        self.scope = scope
+        self.type_id = type_id
         self.logger.debug(f'starting scan with rehash={rehash}')
 
         self.started = True
@@ -137,13 +142,17 @@ class Scanner:
 
         threads = []
         for name, locations in self.config.model_folders.items():
+            if scope not in ('all', 'models') or (type_id is not None and name != type_id):
+                continue
             for active, archive in locations:
                 threads.append(Thread(target=self.find_models, args=(name, active, archive, rehash)))
 
-        if self.config.workflow_folders:
+        if scope in ('all', 'workflows') and self.config.workflow_folders:
             threads.append(Thread(target=self.find_workflows, args=(self.config.workflow_folders,)))
 
-        user_types = repo.user_types_for_scan()
+        user_types = repo.user_types_for_scan() if scope in ('all', 'user_objects') else []
+        if type_id is not None:
+            user_types = [item for item in user_types if item['id'] == type_id]
         if user_types:
             threads.append(Thread(target=self.find_user_objects, args=(user_types,)))
 
@@ -169,6 +178,8 @@ class Scanner:
         if not self.started:
             return {'started': False}
         progress_dict = {'started': self.started,
+                         'scope': self.scope,
+                         'type_id': self.type_id,
                          'finished': self.finished,
                          'models_scanned': self.models_scanned,
                          'workflows_scanned': self.workflows_scanned,
@@ -194,7 +205,7 @@ class Scanner:
         self.barrier.wait()
         self.logger.debug(f'starting cleanup')
         with repo.lock:
-            repo.scan_cleanup(self.timestamp)
+            repo.scan_cleanup(self.timestamp, self.scope, self.type_id)
         with self.lock:
             self.end_time = datetime.datetime.now(tz=datetime.timezone.utc)
             self.finished = True

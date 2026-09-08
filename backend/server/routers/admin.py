@@ -5,24 +5,72 @@
 # ---------------------------------------------------------------------------
 
 from fastapi import APIRouter, HTTPException
+from threading import Lock
+from typing import Literal
+from pathlib import Path
+import tomllib
 from backend.config import get_config
-from backend.dispatcher import OperationBusyError, submit_scan
+from backend.dispatcher import OperationBusyError, dispatcher, submit_scan
 from backend.files.scanner import get_scanner
-from backend.repository.repository import repo_status
+from backend.repository.repository import repo_status, user_types_for_scan
 
 router = APIRouter()
+_startup_scan_lock = Lock()
+_startup_scan_id: str | None = None
 
 @router.get('/server-status')
 def server_status() -> dict:
     return repo_status()
 
 
+@router.get('/about')
+def about() -> dict[str, str]:
+    project_file = Path(__file__).resolve().parents[3] / 'pyproject.toml'
+    with project_file.open('rb') as source:
+        project = tomllib.load(source)
+    return {'version': project['project']['version'], 'mode': get_config().mode}
+
+
 @router.post('/scan', status_code=202)
-def start_scan(rehash: bool = False) -> dict:
-    if get_config().read_only:
+def start_scan(rehash: bool = False, startup: bool = False,
+               scope: Literal['all', 'models', 'workflows', 'user_objects'] = 'all',
+               type_id: str | None = None) -> dict:
+    global _startup_scan_id
+    config = get_config()
+    if config.read_only:
         raise HTTPException(403, 'Application is read-only')
+    if config.setup_required:
+        raise HTTPException(409, detail={
+            'code': 'setup_required',
+            'message': 'Complete repository setup before scanning',
+            'params': {},
+        })
+    invalid_scope = scope not in ('all', 'models', 'workflows', 'user_objects')
+    if startup and (scope != 'all' or type_id is not None):
+        invalid_scope = True
+    if type_id is not None:
+        if scope == 'models':
+            invalid_scope = invalid_scope or type_id not in config.model_folders
+        elif scope == 'user_objects':
+            invalid_scope = invalid_scope or not any(item['id'] == type_id for item in user_types_for_scan())
+        else:
+            invalid_scope = True
+    if invalid_scope:
+        raise HTTPException(422, detail={
+            'code': 'invalid_scan_scope', 'message': 'Invalid scan scope or type',
+            'params': {'scope': scope, 'type_id': type_id},
+        })
     try:
-        return submit_scan(rehash)
+        if startup:
+            with _startup_scan_lock:
+                if _startup_scan_id is not None:
+                    return dispatcher.get(_startup_scan_id)
+                operation = submit_scan(config.options.always_recalc_hashes)
+                _startup_scan_id = operation['id']
+                return operation
+        if scope == 'all' and type_id is None:
+            return submit_scan(rehash)
+        return submit_scan(rehash, scope, type_id)
     except OperationBusyError as error:
         raise HTTPException(409, str(error))
 

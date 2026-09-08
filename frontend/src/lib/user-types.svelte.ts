@@ -4,18 +4,19 @@
  * purpose: User-defined type API and active front-end selection
  * ---------------------------------------------------------------------------*/
 
-import { getUrl, parseResponse, type ApiResult } from '$lib/api';
+
+import { apiFetch, getUrl, parseResponse, type ApiResult } from '$lib/api';
 import { type UserDefinedType } from '$lib/objects';
 
 const ACTIVE_TYPE_KEY = 'active-user-type';
 
 export async function getUserTypes(): Promise<ApiResult<UserDefinedType[]>> {
-    const response = await fetch(getUrl('/user-types'));
+    const response = await apiFetch(getUrl('/user-types'));
     return await parseResponse<UserDefinedType[]>(response, value => value, 'getUserTypes');
 }
 
 async function userTypeRequest(path: string, method: string, body: unknown): Promise<ApiResult<UserDefinedType>> {
-    const response = await fetch(getUrl(path), {
+    const response = await apiFetch(getUrl(path), {
         method,
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(body)
@@ -24,7 +25,7 @@ async function userTypeRequest(path: string, method: string, body: unknown): Pro
 }
 
 export async function getUserType(id: string): Promise<ApiResult<UserDefinedType>> {
-    const response = await fetch(getUrl(`/user-types/${id}`));
+    const response = await apiFetch(getUrl(`/user-types/${id}`));
     return await parseResponse<UserDefinedType>(response, value => value, 'getUserType');
 }
 
@@ -35,13 +36,13 @@ export const updateUserType = (type: UserDefinedType) =>
     userTypeRequest(`/user-types/${type.id}`, 'PUT', type);
 
 export async function deleteUserType(id: string): Promise<ApiResult<unknown>> {
-    const previewResponse = await fetch(getUrl(`/user-types/${id}/deletion-preview`), {
+    const previewResponse = await apiFetch(getUrl(`/user-types/${id}/deletion-preview`), {
         method: 'POST'
     });
     const preview = await parseResponse<{confirmation_id: string}>(
         previewResponse, value => value, 'previewUserTypeDeletion');
     if (!preview.ok) return preview;
-    const response = await fetch(getUrl(
+    const response = await apiFetch(getUrl(
         `/user-types/${id}?confirmation_id=${encodeURIComponent(preview.data.confirmation_id)}`), {
         method: 'DELETE'
     });

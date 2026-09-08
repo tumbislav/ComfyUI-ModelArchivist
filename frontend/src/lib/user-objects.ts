@@ -4,7 +4,8 @@
  * purpose: User-defined object API access
  * ---------------------------------------------------------------------------*/
 
-import { getUrl, parseResponse, type ApiResult } from '$lib/api';
+
+import { apiFetch, getUrl, parseResponse, type ApiResult } from '$lib/api';
 import { identity, toUserObject, type UserObject, type UserObjectSummary } from '$lib/objects';
 import { type Operation } from '$lib/models';
 
@@ -13,17 +14,17 @@ export type ImmediateOperation = {allowed: boolean; performed?: boolean; errors?
 export type UserObjectOperation = Operation | ImmediateOperation;
 
 export async function getUserObjects(typeId: string): Promise<ApiResult<UserObjectSummary[]>> {
-    const response = await fetch(getUrl(`/user-types/${typeId}/objects`));
+    const response = await apiFetch(getUrl(`/user-types/${typeId}/objects`));
     return await parseResponse(response, identity, 'getUserObjects');
 }
 
 export async function getUserObject(id: string): Promise<ApiResult<UserObject>> {
-    const response = await fetch(getUrl(`/user-objects/${id}`));
+    const response = await apiFetch(getUrl(`/user-objects/${id}`));
     return await parseResponse(response, toUserObject, 'getUserObject');
 }
 
 export async function updateUserObject(item: UserObject): Promise<ApiResult<UserObject>> {
-    const response = await fetch(getUrl(`/user-objects/${item.id}`), {
+    const response = await apiFetch(getUrl(`/user-objects/${item.id}`), {
         method: 'PUT', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({display_name: item.display_name, purpose: item.purpose, tags: item.tags})
     });
@@ -31,14 +32,14 @@ export async function updateUserObject(item: UserObject): Promise<ApiResult<User
 }
 
 export async function syncUserObject(id: string): Promise<ApiResult<UserObjectOperation>> {
-    const response = await fetch(getUrl(`/user-objects/${id}/synchronize?simulate=false`),
+    const response = await apiFetch(getUrl(`/user-objects/${id}/synchronize?simulate=false`),
         {method: 'POST'});
     return await parseResponse(response, identity, 'syncUserObject');
 }
 
 export async function moveUserObject(id: string,
                                      destination: UserObjectDestination): Promise<ApiResult<UserObjectOperation>> {
-    const response = await fetch(getUrl(
+    const response = await apiFetch(getUrl(
         `/user-objects/${id}/move?destination=${destination}&simulate=false`), {method: 'POST'});
     return await parseResponse(response, identity, 'moveUserObject');
 }

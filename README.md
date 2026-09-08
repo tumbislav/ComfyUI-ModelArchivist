@@ -11,6 +11,31 @@ types, accepted extensions, and working/archive location mappings are stored in 
 A new database starts in setup mode and is not scanned until the required mappings have
 been saved.
 
+The backend initializes without scanning. General settings contains “Always run a full
+scan at startup”, enabled by default and saved in this browser's local storage. When
+enabled, opening Archivist requests one startup scan per backend run; refreshing or
+opening another tab does not repeat it. Disabling it opens the existing repository
+immediately. Manual scans remain available from the header. Setup mode and read-only
+repositories do not request startup scans.
+
+The Repository button shows “Wait...” until startup completes. All frontend API
+requests have a 3000 ms timeout, including their response bodies. A timeout or lost
+connection changes the button to “Server...”; its dialog reports that the server is
+not responding. Background polling continues and restores normal status when the
+server responds again.
+
+The Repository dialog shows counts by location for models, workflows, user-defined
+objects, and collections. Working, archive, and synchronized counts are disjoint;
+mixed or mismatched locations remain included in the total. Errors count objects with
+errors, and collections with errors among their transitive members. Collections have
+statistics only. The other sections can refresh independently, with statistics updated
+every 500 ms while the dialog is open. Only one long-running operation can run at once.
+
+Selective scans use `/scan?scope=models`, `scope=workflows`, or `scope=user_objects`.
+An optional `type_id` selects a model type by name or a user type by ID, ready for
+individual-type actions in Settings. Scanning and cleanup are both restricted to the
+selected scope; other types and their records are preserved.
+
 In standalone mode, Archivist manages the working locations and permits exactly one
 working/archive pair for each model type and one pair for workflows. ComfyUI's
 `extra_model_paths.yaml` mechanism is deliberately not supported in standalone mode.

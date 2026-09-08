@@ -18,7 +18,8 @@ const config = {
 			'$lib/*': './src/lib/*',
 			'$components/*': './src/lib/components/*',
 			'$styles/*': './src/lib/styles/*',
-			'$icons/*': './src/lib/assets/icons/*'
+			'$icons/*': './src/lib/assets/icons/*',
+			'$images/*': './src/lib/assets/images/*'
         }
     }
 };

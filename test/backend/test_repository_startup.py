@@ -104,7 +104,7 @@ def test_sql_log_handler_preserves_unicode(tmp_path, monkeypatch):
         config.log_file).read_text(encoding='utf-8')
 
 
-def test_configured_database_loads_paths_and_starts_scan(tmp_path, monkeypatch):
+def test_configured_database_loads_paths_without_starting_scan(tmp_path, monkeypatch):
     db_file = tmp_path / 'database.db'
     engine = create_engine(f'sqlite:///{db_file}')
     repository.update_database_schema(engine)
@@ -119,19 +119,15 @@ def test_configured_database_loads_paths_and_starts_scan(tmp_path, monkeypatch):
         session.commit()
     engine.dispose()
     config = repository_config(db_file, tmp_path / 'database.log')
-    started = []
-
-    class ScannerStub:
-        def start(self, rehash):
-            started.append(rehash)
-
     monkeypatch.setattr(repository, 'get_config', lambda: config)
-    monkeypatch.setattr(repository, 'create_scanner', ScannerStub)
+    monkeypatch.setattr(repository, 'create_scanner',
+                        lambda: pytest.fail('startup must wait for a browser scan request'))
+    monkeypatch.setattr(repository, 'get_scanner', lambda: None)
 
     repository.start_repo()
 
     assert config.model_folders['checkpoints'] == {(working, archive)}
-    assert started == [False]
+    assert repository.repo_status()['ready'] is True
 
 
 def test_schema_update_is_idempotent(tmp_path):

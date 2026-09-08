@@ -160,3 +160,7 @@ p {
 .rule-under {
     border-bottom: var(--solid-border);
 }
+
+.bold-text {
+    font-weight: 600;
+}

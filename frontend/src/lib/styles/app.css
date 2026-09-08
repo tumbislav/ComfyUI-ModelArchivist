@@ -11,5 +11,6 @@
 @import '$styles/panels.css';
 @import '$styles/controls.css';
 @import '$styles/dialogs.css';
+@import '$styles/about.css';
 @import '$styles/filters.css';
 @import '$styles/tables.css';
