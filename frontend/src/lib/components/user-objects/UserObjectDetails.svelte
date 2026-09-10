@@ -8,6 +8,7 @@
 import TagEditor from '$components/controls/TagEditor.svelte';
 import UserObjectFileSet from '$components/user-objects/UserObjectFileSet.svelte';
 import UserObjectCollectionEditor from '$components/user-objects/UserObjectCollectionEditor.svelte';
+import RelativePathEditor from '$components/controls/RelativePathEditor.svelte';
 import closeIcon from '$icons/actions/close8.png';
 import saveIcon from '$icons/actions/save16.png';
 import moveUpIcon from '$icons/actions/move-up16.png';
@@ -17,10 +18,11 @@ import { shortDate } from '$lib/common';
 import type { UserObject } from '$lib/objects';
 
 let { item=$bindable(), changed, saving, operating, operationError, onSave, onClose, onSync,
-    onMove, onCollectionsChanged }: {
+    onMove, onRelocate, relativePaths, onCollectionsChanged }: {
     item: UserObject; changed: boolean; saving: boolean; operating: boolean;
     operationError: string | null; onSave: () => Promise<void>; onClose: () => Promise<boolean>;
     onSync: () => Promise<void>; onMove: (destination: 'working' | 'archive') => Promise<void>;
+    onRelocate: (destination: string) => Promise<void>; relativePaths: string[];
     onCollectionsChanged: () => Promise<void>;
 } = $props();
 
@@ -31,6 +33,16 @@ function objectPath(root: string | undefined, relative: string): string {
 }
 let workingPath = $derived(objectPath(item.type.working_dir, item.relative_path));
 let archivePath = $derived(objectPath(item.type.archive_dir, item.relative_path));
+const directoryOf = (path: string) => path.replace(/[\\/][^\\/]+$/, '').replace(path, '');
+let destinationPath = $state(directoryOf(item.relative_path));
+let destinationObjectId = $state(item.id);
+
+$effect(() => {
+    if (item.id !== destinationObjectId) {
+        destinationObjectId = item.id;
+        destinationPath = directoryOf(item.relative_path);
+    }
+});
 </script>
 
 <div class="space-below spaced-horizontally">
@@ -62,6 +74,11 @@ let archivePath = $derived(objectPath(item.type.archive_dir, item.relative_path)
 </div>
 
 <div class="space-below dialog-section">
+    <RelativePathEditor bind:value={destinationPath} options={relativePaths}
+        disabled={changed || operating || item.read_only}
+        moveDisabled={destinationPath === directoryOf(item.relative_path)}
+        onMove={() => onRelocate(destinationPath)} />
+
     <UserObjectFileSet set={item.working_set} path={workingPath} name="working set" />
     <UserObjectFileSet set={item.archive_set} path={archivePath} name="archive" />
     <div class="spaced-horizontally">

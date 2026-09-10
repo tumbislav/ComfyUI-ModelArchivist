@@ -9,7 +9,7 @@ from threading import Lock
 import logging
 import datetime
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from time import monotonic
 from uuid import uuid4
 
@@ -2142,6 +2142,162 @@ def move_user_object(id: str, destination: DeploymentStatus,
         plan.reject('invalid_destination', str(destination))
         return plan.to_dict()
     return _user_object_operation(id, 'move', simulate, destination, progress)
+
+
+def _relative_directory(value: str) -> str:
+    normalized = value.strip().replace('\\', '/').strip('/')
+    if normalized in ('', '.'):
+        return ''
+    path = PurePosixPath(normalized)
+    if path.is_absolute() or '..' in path.parts:
+        raise ValueError('Relative paths must stay within the configured repository folder')
+    return path.as_posix()
+
+
+def relative_path_choices(object_type: str, type_id: str | None = None) -> list[str]:
+    with Session(_engine) as session:
+        if object_type == 'models':
+            query = select(Model.relative_path)
+            if type_id is not None:
+                query = query.where(Model.type == type_id)
+            values = session.exec(query).all()
+        elif object_type == 'workflows':
+            values = session.exec(select(Workflow.relative_path)).all()
+        elif object_type == 'user_objects':
+            query = select(UserDefinedObject.relative_path)
+            if type_id is not None:
+                query = query.where(UserDefinedObject.type_id == type_id)
+            values = [str(PurePosixPath(value.replace('\\', '/')).parent) for value in session.exec(query).all()]
+        else:
+            raise ValueError(f'unknown object type: {object_type}')
+    return sorted({_relative_directory(value) for value in values}, key=str.casefold)
+
+
+def relocate_objects(object_type: str, ids: list[str], destination: str,
+                     simulate: bool = True) -> dict:
+    destination = _relative_directory(destination)
+    plan = OperationPlan('relocate', object_type, ','.join(ids), simulate)
+    if not ids:
+        plan.reject('empty_selection', 'Select at least one object')
+        return plan.to_dict()
+
+    moves: list[tuple[Path, Path]] = []
+    updates: list[tuple[object, str]] = []
+    with Session(_engine) as session:
+        if _config.read_only:
+            plan.reject('read_only', 'repository is read-only')
+            return plan.to_dict()
+
+        if object_type == 'models':
+            objects = [session.get(Model, id) for id in ids]
+            if any(item is None for item in objects):
+                plan.reject('unknown_model', 'One or more selected models no longer exist')
+                return plan.to_dict()
+            models = [item for item in objects if item is not None]
+            if len({item.type for item in models}) != 1:
+                plan.reject('mixed_model_types', 'Models must have the same type')
+                return plan.to_dict()
+            for item in models:
+                if item.read_only:
+                    plan.reject('read_only', f'{item.file_name} is read-only')
+                    return plan.to_dict()
+                old = _relative_directory(item.relative_path)
+                for component_set in item.component_sets:
+                    for component in component_set.components:
+                        if component.component_type == ComponentType.EXAMPLE:
+                            continue
+                        component_dir = PurePosixPath(component.relative_path.replace('\\', '/'))
+                        try:
+                            suffix = component_dir.relative_to(PurePosixPath(old)) if old else component_dir
+                        except ValueError:
+                            plan.reject('inconsistent_path', component.relative_path)
+                            return plan.to_dict()
+                        new_relative = PurePosixPath(destination) / suffix
+                        source = Path(component.file_dir) / component.file_name
+                        target = Path(component_set.primary_dir) / str(new_relative) / component.file_name
+                        moves.append((source, target))
+                        updates.append((component, _relative_directory(str(new_relative))))
+                updates.append((item, destination))
+        elif object_type == 'workflows':
+            objects = [session.get(Workflow, id) for id in ids]
+            if any(item is None for item in objects):
+                plan.reject('unknown_workflow', 'One or more selected workflows no longer exist')
+                return plan.to_dict()
+            for item in (value for value in objects if value is not None):
+                if item.read_only:
+                    plan.reject('read_only', f'{item.file_name} is read-only')
+                    return plan.to_dict()
+                for component_set in item.component_sets:
+                    for component in component_set.components:
+                        source = Path(component.file_dir) / component.file_name
+                        target = Path(component_set.primary_dir) / destination / component.file_name
+                        moves.append((source, target))
+                        updates.append((component, destination))
+                updates.append((item, destination))
+        elif object_type == 'user_objects':
+            objects = [session.get(UserDefinedObject, id) for id in ids]
+            if any(item is None for item in objects):
+                plan.reject('unknown_user_object', 'One or more selected objects no longer exist')
+                return plan.to_dict()
+            items = [item for item in objects if item is not None]
+            if len({item.type_id for item in items}) != 1:
+                plan.reject('mixed_user_types', 'Objects must have the same user-defined type')
+                return plan.to_dict()
+            for item in items:
+                if item.read_only:
+                    plan.reject('read_only', f'{item.display_name} is read-only')
+                    return plan.to_dict()
+                name = PurePosixPath(item.relative_path.replace('\\', '/')).name
+                new_relative = (PurePosixPath(destination) / name).as_posix()
+                for object_set in item.sets:
+                    root = item.type.working_dir if object_set.where == 'w' else item.type.archive_dir
+                    moves.append((Path(root) / item.relative_path, Path(root) / new_relative))
+                updates.append((item, new_relative))
+        else:
+            plan.reject('invalid_object_type', object_type)
+            return plan.to_dict()
+
+        actual_moves = [(source, target) for source, target in moves if source != target]
+        sources = {source.resolve() for source, _ in actual_moves}
+        targets: set[Path] = set()
+        for source, target in actual_moves:
+            resolved = target.resolve()
+            if resolved in targets or (target.exists() and resolved not in sources):
+                plan.reject('duplicate_filename', str(target))
+                return plan.to_dict()
+            if not source.exists():
+                plan.reject('missing_source', str(source))
+                return plan.to_dict()
+            targets.add(resolved)
+            plan.actions.append(FileAction('move', str(source), str(target),
+                                           FileSnapshot.capture(source, include_hash=False),
+                                           FileSnapshot.capture(target, include_hash=False)))
+
+        if simulate:
+            return plan.to_dict()
+
+        completed: list[tuple[Path, Path]] = []
+        try:
+            for source, target in actual_moves:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                source.rename(target)
+                completed.append((source, target))
+            for item, relative_path in updates:
+                item.relative_path = relative_path
+                session.add(item)
+            session.commit()
+        except (OSError, SQLAlchemyError) as error:
+            session.rollback()
+            for source, target in reversed(completed):
+                try:
+                    source.parent.mkdir(parents=True, exist_ok=True)
+                    target.rename(source)
+                except OSError:
+                    pass
+            plan.reject('execution_failed', str(error))
+            return plan.to_dict()
+        plan.performed = True
+        return plan.to_dict()
 
 
 def _user_type_deletion_state(session: Session, type_id: str) -> tuple:

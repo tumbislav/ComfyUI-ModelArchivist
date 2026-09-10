@@ -8,6 +8,7 @@
 import { onMount } from 'svelte';
 import TagEditor from '$components/controls/TagEditor.svelte';
 import MultiWorkflowCollectionEditor from '$components/workflows/MultiWorkflowCollectionEditor.svelte';
+import RelativePathEditor from '$components/controls/RelativePathEditor.svelte';
 import saveIcon from '$icons/actions/save16.png';
 import moveUpIcon from '$icons/actions/move-up16.png';
 import moveDownIcon from '$icons/actions/move-down16.png';
@@ -15,11 +16,13 @@ import syncIcon from '$icons/actions/move-up-down16.png';
 import closeIcon from '$icons/actions/close8.png';
 import { type Workflow } from '$lib/objects';
 import { getWorkflow, moveWorkflows, syncWorkflows, updateWorkflowTags,
-    type WorkflowDestination } from '$lib/workflows';
+    getWorkflowRelativePaths, relocateWorkflows, type WorkflowDestination } from '$lib/workflows';
+import { confirmBox } from '$lib/confirm.svelte';
 let { workflowIds, onClose, onChanged }: { workflowIds: string[]; onClose: () => void;
     onChanged: () => Promise<void> } = $props();
 let workflows = $state<Workflow[]>([]), addTags = $state<string[]>([]), removeTags = $state<string[]>([]);
 let busy = $state(false), error = $state<string | null>(null);
+let relativePaths = $state<string[]>([]), destinationPath = $state('');
 let removableTags = $derived([...new Set(workflows.flatMap(workflow => workflow.tags))].sort());
 let hasObjectErrors = $derived(workflows.some(workflow => workflow.read_only));
 async function load() {
@@ -27,6 +30,8 @@ async function load() {
     const failed = results.find(result => !result.ok);
     if (failed && !failed.ok) { error = failed.message ?? 'Cannot load workflows'; return; }
     workflows = results.flatMap(result => result.ok ? [result.data] : []); error = null;
+    const paths = await getWorkflowRelativePaths();
+    if (paths.ok) relativePaths = paths.data;
 }
 onMount(load);
 async function refresh() { await load(); await onChanged(); }
@@ -41,6 +46,29 @@ async function run(destination: WorkflowDestination | null) {
     busy = false;
     if (!result.ok || result.data.allowed === false) {
         error = result.ok ? String(result.data.errors ?? 'Workflow operation failed') : result.message ?? 'Workflow operation failed'; return;
+    }
+    await refresh();
+}
+async function relocate() {
+    busy = true; error = null;
+    const preview = await relocateWorkflows(workflowIds, destinationPath, true);
+    busy = false;
+    if (!preview.ok || !preview.data.allowed) {
+        error = preview.ok ? preview.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
+            : preview.message ?? 'Cannot move workflows'; return;
+    }
+    if (!await confirmBox({title: 'Move workflows',
+        message: `Move the selected workflows to ${destinationPath || 'the repository root'}?`})) return;
+    if (new Set(workflows.map(item => item.relative_path)).size > 1 && !await confirmBox({
+        title: 'Different subdirectories',
+        message: 'The workflows are currently in different subdirectories. Are you sure you want to move them to the same subdirectory?'
+    })) return;
+    busy = true;
+    const result = await relocateWorkflows(workflowIds, destinationPath, false);
+    busy = false;
+    if (!result.ok || !result.data.allowed) {
+        error = result.ok ? result.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
+            : result.message ?? 'Cannot move workflows'; return;
     }
     await refresh();
 }
@@ -94,6 +122,10 @@ async function run(destination: WorkflowDestination | null) {
                 <img class="action-icon" alt="archive" src={moveDownIcon} />
                 <span>To archive</span>
             </button>
+        </div>
+        <div class="space-below">
+            <RelativePathEditor bind:value={destinationPath} options={relativePaths}
+                disabled={busy || workflows.length === 0} onMove={relocate} />
         </div>
         {#if workflows.length}
             <MultiWorkflowCollectionEditor {workflows} onChanged={refresh} />

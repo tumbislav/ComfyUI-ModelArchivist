@@ -81,3 +81,16 @@ export async function moveWorkflows(ids: string[], destination: WorkflowDestinat
     });
     return await parseResponse<Record<string, any>>(response, identity, 'moveWorkflows');
 }
+
+export async function getWorkflowRelativePaths(): Promise<ApiResult<string[]>> {
+    const response = await apiFetch(getUrl('/workflows/relative-paths'));
+    return await parseResponse(response, identity, 'getWorkflowRelativePaths');
+}
+
+export async function relocateWorkflows(ids: string[], destination: string, simulate: boolean) {
+    const response = await apiFetch(getUrl(`/workflows/relocate?simulate=${simulate}`), {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ids, destination})
+    });
+    return await parseResponse<Record<string, any>>(response, identity, 'relocateWorkflows');
+}

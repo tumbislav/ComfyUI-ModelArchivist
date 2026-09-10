@@ -1,0 +1,140 @@
+/* ------------------------------------------------
+ * system: ModelArchivist
+ * file: constants.css
+ * purpose: Root level constants that define the look
+ * ----------------------------------------------- */
+
+/* Color modes
+ * ------------------------------------------------*/
+
+/* Light mode -------------------------------------*/
+:root[data-theme='light'] {
+    /* text */
+    --text-color: rgb(50, 50, 50);
+    --text-dim: rgb(85, 85, 85);
+    --text-dimmer: rgb(170, 170, 170);
+    --text-error: rgb(114, 0, 3);
+    --text-warning: rgb(114, 34, 0);
+    --text-title: rgb(120, 50, 50);
+
+    /* background */
+    --bg-color: rgb(256, 256, 256);
+    --bg-disabled: rgb(250, 250, 250);
+    --bg-accent: rgb(245, 245, 245);
+    --bg-intense: rgb(220, 220, 220);
+
+    /* borders */
+    --border-dim: rgb(240, 240, 240);
+    --border-color: rgb(224, 224, 224);
+    --border-highlight: rgb(208, 208, 250);
+    --border-strong: rgb(196, 196, 196);
+    --border-strong-highlight: rgb(196, 196, 250);
+
+    /* other */
+    --progress-color: rgb(0, 256, 0);
+
+    /* shadows */
+    --button-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --highlight-shadow: 0 3px 5px rgba(0, 0, 0, 0.08);
+    --shadow-right: 2px 0px 4px rgba(0, 0, 0, 0.125);
+    --shadow-left: -2px 0px 4px rgba(0, 0, 0, 0.125);
+    --shadow-down: 0px 2px 4px rgba(0, 0, 0, 0.125);
+
+    /* icons */
+    --mode-filter: none;
+    --mode-filter-dim: invert(50%)
+}
+
+/* Dark mode --------------------------------------*/
+:root[data-theme='dark'] {
+    /* text */
+    --text-color: rgb(250, 250, 250);
+    --text-dim: rgb(200, 200, 200);
+    --text-dimmer: rgb(140, 140, 140);
+    --text-error: rgb(216, 78, 81);
+    --text-warning: rgb(218, 120, 97);
+    --text-title: rgb(200, 100, 100);
+
+    /* background */
+    --bg-color: rgb(30, 30, 30);
+    --bg-disabled: rgb(40, 40, 40);
+    --bg-accent: rgb(50, 50, 50);
+    --bg-intense: rgb(70, 70, 70);
+
+    /* borders */
+    --border-dim: rgb(70, 70, 70);
+    --border-color: rgb(90, 90, 90);
+    --border-highlight: rgb(110, 110, 160);
+    --border-strong: rgb(130, 130, 130);
+    --border-strong-highlight: rgb(150, 150, 180);
+
+    /* other */
+    --progress-color: rgb(0, 255, 0);
+
+    /* shadows */
+    --button-shadow: 0 1px 2px rgba(256, 256, 256, 0.05);
+    --highlight-shadow: 0 3px 5px rgba(256, 256, 256, 0.08);
+    --shadow-right: 2px 0px 4px rgba(256, 256, 256, 0.125);
+    --shadow-left: -2px 0px 4px rgba(256, 256, 256, 0.125);
+    --shadow-down: 0px 2px 4px rgba(256, 256, 256, 0.125);
+
+    /* icons */
+    --mode-filter: invert(100%);
+    --mode-filter-dim: invert(50%)
+}
+
+/* Mode independent and derived -------------------*/
+
+:root {
+    --border-thickness: 1px;
+    --solid-border: var(--border-thickness) solid var(--border-color);
+    --light-border: var(--border-thickness) solid var(--border-dim);
+    --ghost-border: var(--border-thickness) solid var(--bg-color);
+    --transparent: rgba(0, 0, 0, 1.);
+}
+
+/* Dimensions
+ * ------------------------------------------------*/
+
+:root {
+    --gap-tiny: 0.25rem;
+    --gap-small: 0.5rem;
+    --gap-mid: 1rem;
+    --gap-large: 2rem;
+    --radius-tiny: 2px;
+    --radius-small: 4px;
+    --radius-mid: 8px;
+    
+    --pill-height: 1.4rem;
+    --pill-radius: calc(0.5 * var(--pill-height));
+    
+    --button-height: 32px;
+    --button-width: 100px;
+    --narrow-button-width: 70px;
+    --button-bar-height: 42px;
+
+    --nav-button-size: 42px;
+    --nav-bar-height: 56px;
+    
+    --min-width-overall: 600px;
+    --min-width-right: 400px;
+    --max-width-left: 300px;
+    --min-width-right: 300px;
+    --max-width-right: 400px;
+    --min-width-center: 400px;
+
+    --table-max-width: 800px;
+}
+
+
+/* Z order
+ * ------------------------------------------------*/
+
+:root {
+    --z-main: -1;       /* main panel */
+    --z-nav: 10;        /* nav bar */
+    --z-commands: 15;   /* command buttons, filter panels */
+    --z-details: 50;    /* detail editor windows */
+    --z-modal: 70;      /* modal dialogs */
+    --z-popup: 100;     /* popups, drop-downs */
+}

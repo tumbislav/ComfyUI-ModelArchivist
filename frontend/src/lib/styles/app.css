@@ -4,13 +4,16 @@
  * purpose: Master css file
  * ----------------------------------------------- */
 
-@import '$styles/settings.css';
+@import '$styles/constants.css';
 @import '$styles/fonts.css';
 @import '$styles/text.css';
 @import '$styles/nav.css';
 @import '$styles/panels.css';
 @import '$styles/controls.css';
 @import '$styles/dialogs.css';
+@import '$styles/settings.css';
+@import '$styles/repository.css';
+@import '$styles/tags.css';
 @import '$styles/about.css';
 @import '$styles/filters.css';
 @import '$styles/tables.css';

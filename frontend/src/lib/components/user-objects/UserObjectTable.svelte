@@ -55,13 +55,13 @@ function toggleAll() {
                     </ColumnFilter>
                 </th>
                 <th class="indicator-column">
-                    <ColumnFilter tab="user" columnKey="has_tags" rows={allRows}>
+                    <ColumnFilter tab="user" columnKey="tag_values" rows={allRows}>
                         <img class="indicator-icon action-icon"
                         src={tagIcon} alt="Does the object have tags?" />
                     </ColumnFilter>
                 </th>
                 <th class="indicator-column">
-                    <ColumnFilter tab="user" columnKey="has_collections" rows={allRows}>
+                    <ColumnFilter tab="user" columnKey="collection_names" rows={allRows}>
                         <img class="indicator-icon action-icon"
                         src={collectionIcon} alt="Is the object in collection(s)?" />
                     </ColumnFilter>
@@ -72,7 +72,7 @@ function toggleAll() {
                     </ColumnFilter>
                 </th>
                 <th class="error-column">
-                    <ColumnFilter tab="user" columnKey="errors" rows={allRows}>
+                    <ColumnFilter tab="user" columnKey="error_values" rows={allRows}>
                         E
                     </ColumnFilter>
                 </th>

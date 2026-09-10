@@ -7,13 +7,16 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import TagEditor from '$components/controls/TagEditor.svelte';
+    import RelativePathEditor from '$components/controls/RelativePathEditor.svelte';
     import closeIcon from '$icons/actions/close8.png';
     import saveIcon from '$icons/actions/save16.png';
     import { getUserObject, updateUserObject, syncUserObject, moveUserObject, isLongOperation,
+        getUserObjectRelativePaths, relocateUserObjects,
         type UserObjectDestination } from '$lib/user-objects';
     import { getCollections, updateCollectionUserObjects } from '$lib/collections';
     import { statusMonitor } from '$lib/status.svelte';
     import type { UserObject, CollectionOverview } from '$lib/objects';
+    import { confirmBox } from '$lib/confirm.svelte';
 
     let { ids, onClose, onChanged }: {
         ids: string[]; onClose: () => void; onChanged: () => Promise<void>;
@@ -28,6 +31,8 @@
     let loading = $state(true);
     let error = $state<string | null>(null);
     let outcome = $state('');
+    let relativePaths = $state<string[]>([]);
+    let destinationPath = $state('');
     let blocked = $derived(busy || loading || items.length !== ids.length || items.some(item => item.read_only)
         || statusMonitor.operation?.state === 'pending' || statusMonitor.operation?.state === 'running');
     let removableTags = $derived([...new Set(items.flatMap(item => item.tags))].sort());
@@ -40,6 +45,10 @@
             return false;
         }
         items = results.flatMap(result => result.ok ? [result.data] : []);
+        if (items.length > 0 && items[0].type?.id) {
+            const paths = await getUserObjectRelativePaths(items[0].type.id);
+            if (paths.ok) relativePaths = paths.data;
+        }
         return true;
     }
 
@@ -107,6 +116,39 @@
             }
         }
     }
+
+    async function relocate(): Promise<void> {
+        if (blocked) return;
+        busy = true;
+        error = null;
+        const preview = await relocateUserObjects(ids, destinationPath, true);
+        busy = false;
+        if (!preview.ok || !preview.data.allowed) {
+            error = preview.ok
+                ? preview.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
+                : preview.message ?? 'Cannot move objects';
+            return;
+        }
+        if (!await confirmBox({title: 'Move objects',
+            message: `Move the selected objects to ${destinationPath || 'the repository root'}?`})) return;
+        const directories = items.map(item => item.relative_path.replace(/[/\\][^/\\]+$/, '')
+            .replace(item.relative_path, ''));
+        if (new Set(directories).size > 1 && !await confirmBox({
+            title: 'Different subdirectories',
+            message: 'The objects are currently in different subdirectories. Are you sure you want to move them to the same subdirectory?'
+        })) return;
+        busy = true;
+        const result = await relocateUserObjects(ids, destinationPath, false);
+        busy = false;
+        if (!result.ok || !result.data.allowed) {
+            error = result.ok
+                ? result.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
+                : result.message ?? 'Cannot move objects';
+            return;
+        }
+        await load();
+        await onChanged();
+    }
 </script>
 
 <dialog class="user-multi-dialog" bind:this={dialog} data-user-multi aria-label="Edit selected user objects"
@@ -132,6 +174,10 @@
         <button class="button-with-text" disabled={blocked} onclick={() => perform('working')}>To working set</button>
         <button class="button-with-text" disabled={blocked} onclick={() => perform('sync')}>Sync</button>
         <button class="button-with-text" disabled={blocked} onclick={() => perform('archive')}>To archive</button>
+    </div>
+    <div class="space-below">
+        <RelativePathEditor bind:value={destinationPath} options={relativePaths}
+            disabled={blocked} onMove={relocate} />
     </div>
     <label>Collection
         <select class="text-input" bind:value={collectionId} disabled={blocked}>

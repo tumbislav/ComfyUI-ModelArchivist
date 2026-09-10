@@ -8,9 +8,16 @@
     import { onMount, tick } from 'svelte';
     import { SvelteMap } from 'svelte/reactivity';
     import closeIcon from '$icons/actions/close8.png';
+    import modelIcon from '$icons/indicators/model16.png';
+    import workflowIcon from '$icons/indicators/workflow16.png';
+    import udtIcon from '$icons/indicators/udt16.png';
+    import collectionIcon from '$icons/indicators/collection16.png';
+
+
     import { getTagsContext, getTagUsage, loadTagRules, normalizeTag, remapTags,
         type TagUsage, type TagRemapResult } from '$lib/tags';
     import { statusMonitor } from '$lib/status.svelte';
+    import { modalDialog } from '$lib/modal-dialog';
 
     let { onClose, onRemapped }: {
         onClose: () => void;
@@ -18,7 +25,6 @@
     } = $props();
 
     const tagsContext = getTagsContext();
-    let dialog = $state<HTMLDialogElement>();
     let rows = $state<TagUsage[]>([]);
     const entries = new SvelteMap<string, string>();
     let loading = $state(true);
@@ -30,7 +36,6 @@
     let dirty = $derived([...entries.values()].some(value => value !== ''));
 
     onMount(() => {
-        dialog?.showModal();
         void load();
     });
 
@@ -120,12 +125,11 @@
     }
 </script>
 
-<dialog class="remap-tags-dialog" bind:this={dialog} aria-labelledby="remap-tags-title"
-        oncancel={event => {
-            event.preventDefault();
-            requestClose();
-        }}>
-    <header class="spaced-horizontally">
+<dialog class="nav-dialog"
+        use:modalDialog
+        aria-labelledby="remap-tags-title"
+        oncancel={event => { event.preventDefault(); requestClose(); }}>
+    <header class="dialog-header spaced-horizontally">
         <h2 id="remap-tags-title">Remap tags</h2>
         <button class="round" aria-label="Close tag remapping" disabled={busy} onclick={requestClose}>
             <img class="action-icon" alt="" src={closeIcon} />
@@ -143,18 +147,6 @@
         </div>
     {/if}
 
-    <div class="spaced-horizontally space-below">
-        <button class="button-with-text" disabled={busy || loading || !dirty || confirmClose}
-                onclick={() => apply(false)}>Remap</button>
-        <button class="button-with-text" disabled={busy || loading || !dirty || confirmClose}
-                onclick={() => apply(true)}>Remap and close</button>
-        <button class="button-with-text" disabled={busy || !dirty || confirmClose}
-                onclick={() => {
-                    entries.clear();
-                    outcome = '';
-                }}>Reset</button>
-    </div>
-
     {#if error}
         <p class="error-message remap-message" role="alert">{error}</p>
     {/if}
@@ -162,15 +154,15 @@
         <p role="status">{outcome}</p>
     {/if}
 
-    <div class="remap-tags-scroll">
+    <div class="remap-tags-scroll space-below">
         <table class="main-table remap-tags-table">
             <thead>
                 <tr class="table-head table-section">
                     <th>Tag</th>
-                    <th>Models</th>
-                    <th>Workflows</th>
-                    <th>User types</th>
-                    <th>Collections</th>
+                    <th><img class="indicator-icon action-icon" src={modelIcon} alt="Models"/></th>
+                    <th><img class="indicator-icon action-icon" src={workflowIcon} alt="Workflows"/></th>
+                    <th><img class="indicator-icon action-icon" src={udtIcon} alt="User types"/></th>
+                    <th><img class="indicator-icon action-icon" src={collectionIcon} alt="Collections"/></th>
                     <th>Remap to</th>
                 </tr>
             </thead>
@@ -200,5 +192,26 @@
                 {/each}
             </tbody>
         </table>
+    </div>
+
+    <div class="spaced-horizontally space-below">
+        <button class="button-with-text"
+                disabled={busy || loading || !dirty || confirmClose}
+                onclick={() => apply(false)}>
+            Remap
+        </button>
+        <button class="button-with-text"
+                disabled={busy || loading || !dirty || confirmClose}
+                onclick={() => apply(true)}>
+            Remap and close
+        </button>
+        <button class="button-with-text"
+                disabled={busy || !dirty || confirmClose}
+                onclick={() => {
+                    entries.clear();
+                    outcome = '';
+                }}>
+            Reset
+        </button>
     </div>
 </dialog>

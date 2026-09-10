@@ -47,3 +47,16 @@ export async function moveUserObject(id: string,
 export function isLongOperation(operation: UserObjectOperation): operation is Operation {
     return 'state' in operation && 'id' in operation;
 }
+
+export async function getUserObjectRelativePaths(typeId: string): Promise<ApiResult<string[]>> {
+    const response = await apiFetch(getUrl(`/user-types/${typeId}/relative-paths`));
+    return await parseResponse(response, identity, 'getUserObjectRelativePaths');
+}
+
+export async function relocateUserObjects(ids: string[], destination: string, simulate: boolean) {
+    const response = await apiFetch(getUrl(`/user-objects/relocate?simulate=${simulate}`), {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ids, destination})
+    });
+    return await parseResponse<Record<string, any>>(response, identity, 'relocateUserObjects');
+}

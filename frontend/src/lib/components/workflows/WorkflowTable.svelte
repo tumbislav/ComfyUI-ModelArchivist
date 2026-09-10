@@ -50,13 +50,13 @@ function toggleAllVisible() {
             </ColumnFilter>
         </th>
         <th class="indicator-column">
-            <ColumnFilter tab="workflows" columnKey="has_tags" rows={allRows}>
+            <ColumnFilter tab="workflows" columnKey="tag_values" rows={allRows}>
                 <img class="indicator-icon action-icon" src={tagIcon}
                 alt="Does the workflow have tags?">
             </ColumnFilter>
         </th>
         <th class="indicator-column">
-            <ColumnFilter tab="workflows" columnKey="has_collections" rows={allRows}>
+            <ColumnFilter tab="workflows" columnKey="collection_names" rows={allRows}>
                 <img class="indicator-icon action-icon" src={collectionIcon}
                 alt="Is the workflow in collection(s)?">
             </ColumnFilter>
@@ -67,7 +67,7 @@ function toggleAllVisible() {
             </ColumnFilter>
         </th>
         <th class="error-column">
-            <ColumnFilter tab="workflows" columnKey="errors" rows={allRows}>
+            <ColumnFilter tab="workflows" columnKey="error_values" rows={allRows}>
                 E
             </ColumnFilter>
         </th>

@@ -68,6 +68,28 @@ def test_create_user_type_normalizes_extensions_and_creates_roots(user_type_repo
     assert Path(result['archive_dir']).is_dir()
 
 
+def test_relocate_user_object_keeps_name_and_updates_path(user_type_repository):
+    engine, tmp_path = user_type_repository
+    user_type = repository.create_user_type(type_input(tmp_path))
+    source = tmp_path / 'working' / 'nested' / 'readme.txt'
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_text('contents', encoding='utf-8')
+    object_id = add_object(engine, user_type['id'])
+
+    result = repository.relocate_objects('user_objects', [object_id], 'reference', False)
+
+    assert result['performed'] is True
+    assert (tmp_path / 'working' / 'reference' / 'readme.txt').is_file()
+    assert repository.get_user_object(object_id)['relative_path'] == 'reference/readme.txt'
+
+
+def test_relative_path_rejects_parent_traversal(user_type_repository):
+    _engine, _tmp_path = user_type_repository
+
+    with pytest.raises(ValueError):
+        repository.relocate_objects('user_objects', ['unused'], '../outside', True)
+
+
 def test_small_type_rejects_limit_over_one_mib(user_type_repository):
     _engine, tmp_path = user_type_repository
 

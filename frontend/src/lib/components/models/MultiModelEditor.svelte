@@ -9,6 +9,7 @@ import { onMount } from 'svelte';
 import TagEditor from '$components/controls/TagEditor.svelte';
 import BaseModelEditor from '$components/controls/BaseModelEditor.svelte';
 import MultiModelCollectionEditor from '$components/models/MultiModelCollectionEditor.svelte';
+import RelativePathEditor from '$components/controls/RelativePathEditor.svelte';
 import saveIcon from '$icons/actions/save16.png';
 import moveUpIcon from '$icons/actions/move-up16.png';
 import moveDownIcon from '$icons/actions/move-down16.png';
@@ -17,6 +18,8 @@ import closeIcon from '$icons/actions/close8.png';
 import { type Model } from '$lib/objects';
 import {
     getModel,
+    getModelRelativePaths,
+    relocateModels,
     moveModels,
     syncModels,
     updateModelBaseModels,
@@ -24,6 +27,7 @@ import {
     type ModelDestination
 } from '$lib/models';
 import { statusMonitor } from '$lib/status.svelte';
+import { confirmBox } from '$lib/confirm.svelte';
 
 let {
     modelIds,
@@ -42,6 +46,8 @@ let baseModel = $state('');
 let baseModelInitialized = $state(false);
 let busy = $state(false);
 let error = $state<string | null>(null);
+let relativePaths = $state<string[]>([]);
+let destinationPath = $state('');
 let removableTags = $derived([...new Set(models.flatMap(model => model.tags))].sort());
 let hasObjectErrors = $derived(models.some(model => model.read_only));
 
@@ -53,6 +59,10 @@ async function loadModels() {
         return;
     }
     models = responses.flatMap(response => response.ok ? [response.data] : []);
+    if (models.length > 0 && models.every(model => model.raw_type === models[0].raw_type)) {
+        const paths = await getModelRelativePaths(models[0].raw_type);
+        if (paths.ok) relativePaths = paths.data;
+    }
     if (!baseModelInitialized && models.length > 0) {
         const first = models[0].base_model;
         baseModel = models.every(model => model.base_model === first) ? first : '';
@@ -111,6 +121,38 @@ async function runOperation(destination: ModelDestination | null) {
         error = completed.ok
             ? completed.data.error?.message ?? 'Model operation failed'
             : completed.message ?? 'Cannot retrieve model operation';
+        return;
+    }
+    await refresh();
+}
+
+async function relocate() {
+    if (new Set(models.map(model => model.raw_type)).size !== 1) {
+        error = 'Models of different types cannot be moved together.';
+        return;
+    }
+    busy = true;
+    error = null;
+    const preview = await relocateModels(modelIds, destinationPath, true);
+    busy = false;
+    if (!preview.ok || !preview.data.allowed) {
+        error = preview.ok
+            ? preview.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
+            : preview.message ?? 'Cannot move models';
+        return;
+    }
+    if (!await confirmBox({title: 'Move models',
+        message: `Move the selected models to ${destinationPath || 'the repository root'}?`})) return;
+    if (new Set(models.map(model => model.relative_path)).size > 1 && !await confirmBox({
+        title: 'Different subdirectories',
+        message: 'The models are currently in different subdirectories. Are you sure you want to move them to the same subdirectory?'
+    })) return;
+    busy = true;
+    const result = await relocateModels(modelIds, destinationPath, false);
+    busy = false;
+    if (!result.ok || !result.data.allowed) {
+        error = result.ok ? result.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
+            : result.message ?? 'Cannot move models';
         return;
     }
     await refresh();
@@ -182,6 +224,12 @@ async function runOperation(destination: ModelDestination | null) {
             <button class="button-with-text" disabled={busy} onclick={() => runOperation('archive')}>
                 <img class="action-icon" alt="to archive" src={moveDownIcon} /><span>To archive</span>
             </button>
+        </div>
+
+        <div class="space-below">
+            <RelativePathEditor bind:value={destinationPath} options={relativePaths}
+                disabled={busy || models.length === 0 || new Set(models.map(model => model.raw_type)).size !== 1}
+                onMove={relocate} />
         </div>
 
         {#if models.length > 0}

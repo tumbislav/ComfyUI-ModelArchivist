@@ -42,6 +42,11 @@ class UserObjectSearchCriteria(BaseModel):
     forbidden_tags: list[str] = Field(default_factory=list)
 
 
+class UserObjectRelocation(BaseModel):
+    ids: list[str]
+    destination: str
+
+
 def handle(error: ArcException) -> HTTPException:
     if error.code == ArcException.Code.INVALID_TAG:
         return HTTPException(400, {'code': 'invalid_tag', 'message': error.message, 'params': {}})
@@ -125,6 +130,24 @@ async def list_user_objects(id: str) -> list[dict]:
         return repo.list_user_objects(id)
     except ArcException as error:
         raise handle(error)
+
+
+@router.get('/user-types/{id}/relative-paths')
+async def get_user_object_relative_paths(id: str) -> list[str]:
+    return repo.relative_path_choices('user_objects', id)
+
+
+@router.post('/user-objects/relocate')
+async def relocate_user_objects(data: UserObjectRelocation, simulate: bool = True) -> dict:
+    try:
+        with dispatcher.configuration_change():
+            return repo.relocate_objects('user_objects', data.ids, data.destination, simulate)
+    except OperationBusyError as error:
+        raise HTTPException(409, detail={
+            'code': 'operation_busy', 'message': str(error), 'params': {}}) from error
+    except ValueError as error:
+        raise HTTPException(400, detail={
+            'code': 'invalid_relative_path', 'message': str(error), 'params': {}}) from error
 
 
 @router.post('/user-types/{id}/objects/search')

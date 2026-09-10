@@ -69,6 +69,27 @@ let scanSubmitting = $state(false);
 let scanBusy = $derived(scanSubmitting ||
     statusMonitor.operation?.state === 'pending' ||
     statusMonitor.operation?.state === 'running');
+let repositoryProgress = $derived.by(() => {
+    const operation = statusMonitor.operation;
+
+    if (scanSubmitting || operation?.type === 'scan') return null;
+    if (operation?.state !== 'pending' && operation?.state !== 'running') return null;
+
+    const progress = operation.progress;
+    const totals = [
+        [progress.bytes_completed, progress.bytes_total],
+        [progress.files_completed, progress.files_total],
+        [progress.models_completed, progress.models_total]
+    ];
+
+    for (const [completed, total] of totals) {
+        if (typeof completed === 'number' && typeof total === 'number' && total > 0) {
+            return Math.max(0, Math.min(100, completed / total * 100));
+        }
+    }
+
+    return null;
+});
 let repositoryLabel = $derived.by(() => {
     if ($serverUnresponsive) return 'Server...';
     if (!serverReady) return 'Wait...';
@@ -221,10 +242,26 @@ $effect(() => {
 
     <div class="option-set">
         <div class="nav-split" role="group" aria-label="Repository">
-            <button class="nav-button nav-split-main" type="button"
+            <button class="nav-button nav-split-main repository-status" type="button"
                     disabled={!serverReady && !$serverUnresponsive}
                     aria-haspopup="dialog" onclick={() => repositoryOpen = true}>
-                <span class="large-button-label" aria-live="polite">{repositoryLabel}</span>
+                {#if scanBusy}
+                    <span class:progress-infinite={repositoryProgress === null}
+                          class="repository-progress"
+                          style:width={repositoryProgress === null ? '100%' : `${repositoryProgress}%`}
+                          role="progressbar"
+                          aria-label={repositoryProgress === null
+                              ? 'Repository operation in progress'
+                              : `Repository operation ${Math.round(repositoryProgress)}% complete`}
+                          aria-valuemin="0"
+                          aria-valuemax="100"
+                          aria-valuenow={repositoryProgress === null ? undefined : Math.round(repositoryProgress)}>
+                    </span>
+                {/if}
+
+                <span class="large-button-label repository-status-label" aria-live="polite">
+                    {repositoryLabel}
+                </span>
             </button>
 
             <button class="nav-split-trigger repository-scan" type="button"

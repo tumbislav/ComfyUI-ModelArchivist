@@ -101,12 +101,12 @@ function toggleSection(type: string) {
                 </ColumnFilter>
             </th>
             <th class="indicator-column">
-                <ColumnFilter tab="models" columnKey="has_tags" rows={allRows}>
+                <ColumnFilter tab="models" columnKey="tag_values" rows={allRows}>
                     <img class="indicator-icon action-icon" src={tagIcon} alt="Does the model have tags?">
                 </ColumnFilter>
             </th>
             <th class="indicator-column">
-                <ColumnFilter tab="models" columnKey="has_collections" rows={allRows}>
+                <ColumnFilter tab="models" columnKey="collection_names" rows={allRows}>
                     <img class="indicator-icon action-icon" src={collectionIcon} alt="Is the model in collection(s)?">
                 </ColumnFilter>
             </th>
@@ -116,7 +116,7 @@ function toggleSection(type: string) {
                 </ColumnFilter>
             </th>
             <th class="error-column">
-                <ColumnFilter tab="models" columnKey="errors" rows={allRows}>
+                <ColumnFilter tab="models" columnKey="error_values" rows={allRows}>
                     E
                 </ColumnFilter>
             </th>

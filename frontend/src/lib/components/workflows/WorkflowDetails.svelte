@@ -8,6 +8,7 @@
 import FileSet from '$components/controls/FileSet.svelte';
 import TagEditor from '$components/controls/TagEditor.svelte';
 import WorkflowCollectionEditor from '$components/workflows/WorkflowCollectionEditor.svelte';
+import RelativePathEditor from '$components/controls/RelativePathEditor.svelte';
 import moveDownIcon from '$icons/actions/move-down16.png';
 import moveUpIcon from '$icons/actions/move-up16.png';
 import syncIcon from '$icons/actions/move-up-down16.png';
@@ -16,15 +17,25 @@ import closeIcon from '$icons/actions/close8.png';
 import { shortDate } from '$lib/common';
 import { type ComponentSet, type Workflow } from '$lib/objects';
 let { workflow=$bindable(), changed, saving, operating, operationError, onSave, onClose,
-    onSync, onMove, onCollectionsChanged }: {
+    onSync, onMove, onRelocate, relativePaths, onCollectionsChanged }: {
     workflow: Workflow; changed: boolean; saving: boolean; operating: boolean;
     operationError: string | null; onSave: () => Promise<void>; onClose: () => Promise<boolean>;
     onSync: () => Promise<void>; onMove: (destination: 'working'|'archive') => Promise<void>;
+    onRelocate: (destination: string) => Promise<void>; relativePaths: string[];
     onCollectionsChanged: () => Promise<void>;
 } = $props();
 let tags = $derived([...workflow.tags]);
 let workingSet = $derived<ComponentSet | undefined>(workflow.working_set);
 let archiveSet = $derived<ComponentSet | undefined>(workflow.archive_set);
+let destinationPath = $state(workflow.relative_path);
+let destinationWorkflowId = $state(workflow.id);
+
+$effect(() => {
+    if (workflow.id !== destinationWorkflowId) {
+        destinationWorkflowId = workflow.id;
+        destinationPath = workflow.relative_path;
+    }
+});
 </script>
 
 <div class="space-below spaced-horizontally">
@@ -65,6 +76,12 @@ let archiveSet = $derived<ComponentSet | undefined>(workflow.archive_set);
     </button>
 </div>
 <FileSet set={workingSet} path={workflow.working_path} name="working set" />
+<div class="space-below">
+    <RelativePathEditor bind:value={destinationPath} options={relativePaths}
+        disabled={changed || operating || workflow.read_only}
+        moveDisabled={destinationPath === workflow.relative_path}
+        onMove={() => onRelocate(destinationPath)} />
+</div>
 <div class="space-below spaced-horizontally">
     <button class="button-with-text"
             disabled={operating || workflow.read_only || !['archive','synced'].includes(workflow.deployment)}

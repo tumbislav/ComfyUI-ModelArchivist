@@ -38,6 +38,10 @@ class ModelBaseModelUpdate(ModelIds):
     base_model: str = ''
 
 
+class ModelRelocation(ModelIds):
+    destination: str
+
+
 @router.get('/models')
 async def get_models() -> list[dict]:
     return repo.list_models(True)
@@ -46,6 +50,24 @@ async def get_models() -> list[dict]:
 @router.get('/models/base-models')
 async def get_base_models() -> list[str]:
     return repo.list_base_models()
+
+
+@router.get('/models/relative-paths')
+async def get_model_relative_paths(type_id: str | None = None) -> list[str]:
+    return repo.relative_path_choices('models', type_id)
+
+
+@router.post('/models/relocate')
+async def relocate_models(data: ModelRelocation, simulate: bool = True) -> dict:
+    try:
+        with dispatcher.configuration_change():
+            return repo.relocate_objects('models', data.ids, data.destination, simulate)
+    except OperationBusyError as error:
+        raise HTTPException(409, detail={
+            'code': 'operation_busy', 'message': str(error), 'params': {}}) from error
+    except ValueError as error:
+        raise HTTPException(400, detail={
+            'code': 'invalid_relative_path', 'message': str(error), 'params': {}}) from error
 
 
 @router.get('/models/{id}')

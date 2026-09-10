@@ -130,3 +130,18 @@ export async function moveModels(ids: string[],
     });
     return await parseResponse(response, identity, 'moveModels');
 }
+
+export async function getModelRelativePaths(typeId: string): Promise<ApiResult<string[]>> {
+    const response = await apiFetch(getUrl(
+        `/models/relative-paths?type_id=${encodeURIComponent(typeId)}`));
+    return await parseResponse(response, identity, 'getModelRelativePaths');
+}
+
+export async function relocateModels(ids: string[], destination: string, simulate: boolean) {
+    const response = await apiFetch(getUrl(`/models/relocate?simulate=${simulate}`), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ids, destination})
+    });
+    return await parseResponse<Record<string, any>>(response, identity, 'relocateModels');
+}

@@ -16,7 +16,8 @@ import { confirmBox } from '$lib/confirm.svelte';
 import { statusMonitor } from '$lib/status.svelte';
 import { userTypeState } from '$lib/user-types.svelte';
 import { getUserObject, getUserObjects, isLongOperation, moveUserObject, syncUserObject,
-    updateUserObject, type UserObjectDestination } from '$lib/user-objects';
+    updateUserObject, getUserObjectRelativePaths, relocateUserObjects,
+    type UserObjectDestination } from '$lib/user-objects';
 import type { UserObject, UserObjectSummary } from '$lib/objects';
 
 let { multiEditorOpen=$bindable(false), remapBlocked=$bindable(false), tagRevision=0 }: {
@@ -43,6 +44,7 @@ let selectedId = $state<string | null>(null), selectedIds = $state(new Set<strin
 let activeId = $state<string | null>(null), active = $state<UserObject | null>(null);
 let snapshot = $state(''), saving = $state(false), operating = $state(false);
 let operationError = $state<string | null>(null), loadedTypeId = $state<string | null>(null);
+let relativePaths = $state<string[]>([]);
 // svelte-ignore non_reactive_update
 let sidebar: HTMLElement;
 let changed = $derived(active !== null && snapshot !== JSON.stringify({name: active.display_name,
@@ -61,6 +63,8 @@ async function changeType(typeId: string | null) {
     await closeDetails(); selectedIds = new Set(); objects = [];
     if (typeId === null) return;
     await refresh();
+    const paths = await getUserObjectRelativePaths(typeId);
+    if (paths.ok) relativePaths = paths.data;
 }
 async function refresh() {
     if (!loadedTypeId) return false;
@@ -103,6 +107,24 @@ async function runOperation(destination: UserObjectDestination | null) {
         await refreshActive();
     } finally { operating = false; }
 }
+async function relocate(destination: string) {
+    if (!active || operating) return;
+    if (!await confirmBox({title: 'Move object',
+        message: `Move this object to ${destination || 'the repository root'}?`})) return;
+    operating = true;
+    operationError = null;
+    const preview = await relocateUserObjects([active.id], destination, true);
+    const result = preview.ok && preview.data.allowed
+        ? await relocateUserObjects([active.id], destination, false) : preview;
+    operating = false;
+    if (!result.ok || !result.data.allowed) {
+        operationError = result.ok
+            ? result.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
+            : result.message ?? 'Cannot move object';
+        return;
+    }
+    await refreshActive();
+}
 async function refreshActive() {
     if (!activeId) return;
     const result = await getUserObject(activeId);
@@ -136,6 +158,7 @@ async function clickOutside(event: MouseEvent) {
             bind:this={sidebar} transition:fly={sidebar_in_out}>
             <UserObjectDetails bind:item={active} {changed} {saving} {operating} {operationError}
                 onSave={save} onClose={closeDetails} onSync={() => runOperation(null)} onMove={runOperation}
+                onRelocate={relocate} {relativePaths}
                 onCollectionsChanged={refreshActive} />
         </aside>
     {/if}

@@ -31,16 +31,18 @@ const column = (key: string, label: string, kind: FilterColumn['kind']): FilterC
     negative: booleanLabels[key]?.[1]
 });
 const common = [column('relative_path', 'Relative path', 'multi'),
-    column('has_tags', 'Tags', 'boolean'), column('has_collections', 'Collections', 'boolean'),
-    column('deployment', 'Location', 'multi'), column('errors', 'Error', 'boolean')];
+    column('tag_values', 'Tags', 'multi'), column('collection_names', 'Collections', 'multi'),
+    column('deployment', 'Location', 'multi'), column('error_values', 'Error', 'multi')];
 export const filterColumns: Record<FilterTab, FilterColumn[]> = {
     models: [column('internal_name', 'Model name', 'prefix'), common[0],
         column('file_format', 'Format', 'multi'), column('base_model_abbreviation', 'Base', 'multi'), ...common.slice(1)],
     workflows: [column('internal_name', 'Name', 'prefix'), ...common],
     user: [column('display_name', 'Name', 'prefix'), ...common],
     collections: [column('name', 'Name', 'prefix'), column('deployment', 'Location', 'multi'),
-        ...['has_tags', 'has_models', 'has_workflows', 'has_user_objects', 'has_children', 'errors'].map((key, i) =>
-            column(key, ['Tags', 'Models', 'Workflows', 'User types', 'Collections', 'Error'][i], 'boolean'))]
+        ...['tag_values', 'model_names', 'workflow_names', 'user_object_names',
+            'child_collection_names'].map((key, i) =>
+            column(key, ['Tags', 'Models', 'Workflows', 'User types', 'Collections'][i], 'multi')),
+        column('error_values', 'Error', 'multi')]
 };
 const preferenceKey = 'archivist.rememberFilters';
 const stateKey = 'archivist.columnFilters';
@@ -105,13 +107,10 @@ export function toggleFilters(tab: FilterTab): void {
     filterStates.update(states => ({ ...states, [tab]: { ...states[tab], enabled: !states[tab].enabled } }));
 }
 
-export function columnValue(row: object, key: string): string | boolean {
+export function columnValue(row: object, key: string): string | string[] | boolean {
     const data = row as Record<string, any>;
-    if (key === 'errors') {
-        if (typeof data.error_count === 'number') return data.error_count > 0;
-        return typeof data.read_only === 'boolean' ? data.read_only : (data.errors?.length ?? 0) > 0;
-    }
     if (key.startsWith('has_')) return Boolean(data[key]);
+    if (Array.isArray(data[key])) return data[key].length > 0 ? data[key].map(String) : [''];
     return String(data[key] ?? '');
 }
 
@@ -119,7 +118,10 @@ export function filteredRows<T extends object>(rows: T[], state: FilterState): T
     if (!state.enabled) return rows;
     return rows.filter(row => Object.entries(state.columns).every(([key, rule]) => {
         const value = columnValue(row, key);
-        if (Array.isArray(rule)) return rule.includes(String(value));
+        if (Array.isArray(rule)) {
+            const values = Array.isArray(value) ? value : [String(value)];
+            return values.some(item => rule.includes(item));
+        }
         if (typeof rule === 'boolean') return value === rule;
         return String(value).toLocaleLowerCase().startsWith(rule.toLocaleLowerCase());
     }));

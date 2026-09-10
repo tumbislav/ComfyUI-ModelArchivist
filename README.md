@@ -133,9 +133,31 @@ Before publishing Model Archivist:
 
 Items deliberately postponed during the current implementation pass:
 
+- Clean up dialogs: common css and common treatment of modals
+- Clean up tables: common css
+- Clean up modal controls/popups: common css and common treatment of modals
+- Improve support for cleaning up duplicates in models and workflows
+- Clarify actions in object editors (move, save etc) from the UX point of view
+- Finalize library stories
 - Add internationalization and localization support once interface text stabilizes.
 - Complete visual/CSS cleanup and final icon coverage.
 - Rebuild the Alembic baseline after the pre-release database schema stabilizes.
+
+# Roadmap V1
+
+The following tasks must be completed for the program to enter V1:
+
+* Review functionality in practice and define a minimal necessary set of functional extensions
+* Implement remaining functional extensions
+* Complete deferred work (see)
+* Do a complete code cleanup
+* Write user documentation
+* Do pre-release testing and implement changes
+* Prepare the repository for production, set up bug reporting
+* Add ComfyUI-specific metadata
+* Release
+  * Register on ComfyUI
+  * Write and publish an introduction on Civitai
 
 # Roadmap V2
 

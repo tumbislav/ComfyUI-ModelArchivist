@@ -37,12 +37,13 @@ export type RepositorySettings = {
     workflow_locations: RepositoryLocation[];
 };
 
-async function request<T>(path: string, method = 'GET', body?: unknown): Promise<ApiResult<T>> {
+async function request<T>(path: string, method = 'GET', body?: unknown,
+                          timeoutMs?: number | null): Promise<ApiResult<T>> {
     const response = await apiFetch(getUrl(path), {
         method,
         headers: body === undefined ? undefined : {'Content-Type': 'application/json'},
         body: body === undefined ? undefined : JSON.stringify(body)
-    });
+    }, timeoutMs);
     return await parseResponse<T>(response, value => value, path);
 }
 
@@ -58,7 +59,7 @@ export const saveWorkflowSettings = (workflow_locations: RepositoryLocation[]) =
     request<RepositorySettings>('/config/workflows', 'PUT', {workflow_locations});
 
 export const pickDirectory = (initial_path: string) =>
-    request<{path: string | null}>('/config/pick-directory', 'POST', {initial_path});
+    request<{path: string | null}>('/config/pick-directory', 'POST', {initial_path}, null);
 
 export const getModelMappingRoots = () =>
     request<string[]>('/config/model-mapping-roots');

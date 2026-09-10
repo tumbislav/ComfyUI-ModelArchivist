@@ -4,37 +4,23 @@
  * purpose: About dialog, library carousel, and caption tooltips
  * ----------------------------------------------- */
 
-.about-dialog {
+.about-contents {
     box-sizing: border-box;
-    width: calc(1200px + 2 * var(--gap-mid) + 2px);
-    max-width: calc(100vw - 2 * var(--gap-mid));
-    max-height: calc(100vh - 2 * var(--gap-mid));
-    overflow: auto;
-    padding: var(--gap-mid);
-    background: var(--bg-color);
-    color: var(--text-color);
-    border: var(--solid-border);
-    border-radius: var(--radius-mid);
-}
-
-.about-dialog::backdrop {
-    backdrop-filter: blur(2px);
-}
-
-.about-dialog h2 {
-    margin-top: 0;
+    width: 800px;
+    height: 680px;
 }
 
 .about-slide {
     position: relative;
+    z-index: 1;
+    width: 800px;
+    height: 320px;
 }
 
 .about-image {
     display: block;
-    width: 100%;
-    max-width: 1200px;
-    height: auto;
-    aspect-ratio: 2.5;
+    width: 800px;
+    height: 320px;
     object-fit: cover;
 }
 
@@ -68,7 +54,11 @@
 }
 
 .about-caption {
-    min-height: 1em;
+    position: relative;
+    z-index: 2;
+    max-height: 160px;
+    overflow-x: hidden;
+    overflow-y: auto;
     overflow-wrap: anywhere;
 }
 
@@ -91,13 +81,16 @@
     text-underline-offset: 0.2em;
 }
 
+.about-caption p:has(> .about-tooltip) {
+    margin-bottom: 0;
+}
+
 .about-tooltip-text {
-    position: absolute;
-    z-index: 1;
-    bottom: 100%;
-    left: 0;
-    width: max-content;
-    max-width: min(24rem, 70vw);
+    box-sizing: border-box;
+    display: none;
+    width: fit-content;
+    max-width: 50%;
+    margin: 0 0 var(--gap-small);
     padding: var(--gap-small);
     border: var(--solid-border);
     border-radius: var(--radius-small);
@@ -106,10 +99,13 @@
     box-shadow: var(--shadow-right);
     text-align: left;
     font-weight: normal;
-    visibility: hidden;
+    overflow-wrap: anywhere;
+    white-space: normal;
 }
 
-.about-tooltip:hover .about-tooltip-text,
-.about-tooltip:focus-within .about-tooltip-text {
-    visibility: visible;
+.about-caption p:has(> .about-tooltip:hover) + .about-tooltip-text,
+.about-caption p:has(> .about-tooltip:focus) + .about-tooltip-text,
+.about-tooltip-text:hover,
+.about-tooltip-text:focus-within {
+    display: block;
 }

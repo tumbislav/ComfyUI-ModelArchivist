@@ -185,6 +185,7 @@ class Model(SQLModel, table=True):
         self.relative_path = other.relative_path
         self.deployment = other.deployment
         self.touched = other.touched
+        self.errors = list(other.errors)
 
     def summary(self, type_map: dict) -> dict:
         return { 'id': self.id,
@@ -195,6 +196,9 @@ class Model(SQLModel, table=True):
                  'base_model_abbreviation': abbreviate_base_model(self.base_model),
                  'relative_path': self.relative_path.replace('\\', '/'),
                  'deployment': self.deployment,
+                 'tag_values': sorted(tag.tag for tag in self.tags),
+                 'collection_names': sorted(collection.name for collection in self.collections),
+                 'error_values': sorted(self.errors),
                  'has_tags': bool(self.tags),
                  'has_collections': bool(self.collections),
                  'errors': self.errors,
@@ -267,6 +271,9 @@ class Workflow(SQLModel, table=True):
                  'purpose': self.purpose,
                  'relative_path': self.relative_path.replace('\\', '/'),
                  'deployment': self.deployment,
+                 'tag_values': sorted(tag.tag for tag in self.tags),
+                 'collection_names': sorted(collection.name for collection in self.collections),
+                 'error_values': sorted(self.errors),
                  'has_tags': bool(self.tags),
                  'has_collections': bool(self.collections),
                  'errors': self.errors,
@@ -365,7 +372,10 @@ class UserDefinedObject(SQLModel, table=True):
                 'deployment': self.deployment, 'size': self.size,
                 'modified_at_ns': self.modified_at_ns, 'errors': self.errors,
                 'read_only': self.read_only, 'has_tags': bool(self.tags),
-                'has_collections': bool(self.collections)}
+                'has_collections': bool(self.collections),
+                'tag_values': sorted(tag.tag for tag in self.tags),
+                'collection_names': sorted(collection.name for collection in self.collections),
+                'error_values': sorted(self.errors)}
 
     def representation(self) -> dict:
         sets = {item.where: item.representation() for item in self.sets}
@@ -419,6 +429,12 @@ class Collection(SQLModel, table=True):
                 'has_workflows': bool(self.workflows),
                 'has_user_objects': bool(self.user_objects),
                 'has_children': bool(self.children),
+                'tag_values': sorted(tag.tag for tag in self.tags),
+                'model_names': sorted(model.internal_name for model in self.models),
+                'workflow_names': sorted(workflow.internal_name for workflow in self.workflows),
+                'user_object_names': sorted(item.display_name for item in self.user_objects),
+                'child_collection_names': sorted(collection.name for collection in self.children),
+                'error_values': sorted({error for item in leaves for error in item.errors}),
                 'error_count': error_count,
                 'read_only': error_count > 0,
                 'has_archive': any(item.deployment in ('archive', 'synced') for item in leaves),

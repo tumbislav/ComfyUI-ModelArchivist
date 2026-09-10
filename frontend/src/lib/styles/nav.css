@@ -15,6 +15,7 @@
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
+    background: var(--bg-accent);
 }
 
 .nav-set {
@@ -63,6 +64,50 @@
 
 .repository-scan {
     width: var(--nav-button-size);
+}
+
+.repository-status {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.repository-status-label {
+    position: relative;
+    z-index: 1;
+}
+
+.repository-progress {
+    position: absolute;
+    z-index: 0;
+    inset: 0 auto 0 0;
+    pointer-events: none;
+    background: var(--progress-color);
+}
+
+.progress-infinite {
+    background: linear-gradient(
+        -45deg,
+        var(--progress-color),
+        var(--bg-color),
+        var(--progress-color)
+    );
+    background-size: 400% 400%;
+    animation: gradient-shift 8s ease infinite;
+}
+
+@keyframes gradient-shift {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
 }
 
 .user-type-menu {
@@ -209,5 +254,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .status-blinker { animation: none; }
+    .status-blinker,
+    .progress-infinite {
+        animation: none;
+    }
 }

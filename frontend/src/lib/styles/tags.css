@@ -1,0 +1,33 @@
+/* ------------------------------------------------
+ * system: ModelArchivist
+ * file: tags.css
+ * purpose: Global tag remapping dialog
+ * ----------------------------------------------- */
+
+.remap-tags-scroll {
+    max-height: 60vh;
+    overflow: auto;
+    border-left: var(--solid-border);
+    border-right: var(--solid-border);
+    border-bottom: var(--solid-border);
+}
+
+.remap-tags-table {
+    width: 100%;
+}
+
+.remap-tags-table td:first-child {
+    overflow-wrap: anywhere;
+}
+
+.remap-tags-table :is(th, td):nth-child(n + 2):nth-child(-n + 5) {
+    text-align: right;
+}
+
+.remap-tags-table td:last-child {
+    min-width: 12rem;
+}
+
+.remap-message {
+    white-space: pre-wrap;
+}

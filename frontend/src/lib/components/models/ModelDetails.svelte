@@ -11,6 +11,7 @@ import FileSet from '$components/controls/FileSet.svelte'
 import TagEditor from '$components/controls/TagEditor.svelte'
 import BaseModelEditor from '$components/controls/BaseModelEditor.svelte'
 import ModelCollectionEditor from '$components/models/ModelCollectionEditor.svelte'
+import RelativePathEditor from '$components/controls/RelativePathEditor.svelte';
 import moveDownIcon from '$icons/actions/move-down16.png';
 import moveUpIcon from '$icons/actions/move-up16.png';
 import moveUpDownIcon from '$icons/actions/move-up-down16.png';
@@ -34,6 +35,8 @@ let {
     onClose,
     onSync,
     onMove,
+    onRelocate,
+    relativePaths,
     onCollectionsChanged,
 }: {
     model: Model;
@@ -45,12 +48,23 @@ let {
     onClose: () => Promise<boolean>;
     onSync: () => Promise<void>;
     onMove: (destination: 'working' | 'archive') => Promise<void>;
+    onRelocate: (destination: string) => Promise<void>;
+    relativePaths: string[];
     onCollectionsChanged: () => Promise<void>;
 } = $props();
 
 let tags = $derived<string[]>([...model.tags]);
 let archive_set = $derived<ComponentSet | undefined>(model.archive_set);
 let working_set = $derived<ComponentSet | undefined>(model.working_set);
+let destinationPath = $state(model.relative_path);
+let destinationModelId = $state(model.id);
+
+$effect(() => {
+    if (model.id !== destinationModelId) {
+        destinationModelId = model.id;
+        destinationPath = model.relative_path;
+    }
+});
 
 
 async function handleEnter(event: KeyboardEvent) {
@@ -142,6 +156,11 @@ async function handleEnter(event: KeyboardEvent) {
 </div>
 
 <div class="space-below dialog-section">
+    <RelativePathEditor bind:value={destinationPath} options={relativePaths}
+        disabled={changed || operating || model.read_only}
+        moveDisabled={destinationPath === model.relative_path}
+        onMove={() => onRelocate(destinationPath)} />
+
     <FileSet set={working_set} path={model.working_path} name="working set" />
 
     <FileSet set={archive_set} path={model.archive_path} name="archive" />

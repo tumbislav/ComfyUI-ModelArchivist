@@ -66,6 +66,9 @@ export type ModelSummary = {
     deployment: string;
     has_tags: boolean;
     has_collections: boolean;
+    tag_values: string[];
+    collection_names: string[];
+    error_values: string[];
     errors: string[];
     read_only: boolean;
 };
@@ -128,6 +131,9 @@ export function toModelSummary(model: any): ModelSummary {
         deployment: model.deployment,
         has_tags: model.has_tags ?? (model.tags?.length > 0),
         has_collections: model.has_collections ?? (model.collections?.length > 0),
+        tag_values: model.tag_values ?? model.tags ?? [],
+        collection_names: model.collection_names ?? model.collections?.map((item: any) => item.name) ?? [],
+        error_values: model.error_values ?? model.errors ?? [],
         errors: model.errors ?? [],
         read_only: model.read_only ?? false
     }
@@ -145,6 +151,9 @@ export type WorkflowSummary = {
     deployment: string;
     has_tags: boolean;
     has_collections: boolean;
+    tag_values: string[];
+    collection_names: string[];
+    error_values: string[];
     errors: string[];
     read_only: boolean;
 }
@@ -197,6 +206,10 @@ export function toWorkflowSummary(workflow: any): WorkflowSummary {
         deployment: workflow.deployment,
         has_tags: workflow.has_tags ?? (workflow.tags?.length > 0),
         has_collections: workflow.has_collections ?? (workflow.collections?.length > 0),
+        tag_values: workflow.tag_values ?? workflow.tags ?? [],
+        collection_names: workflow.collection_names
+            ?? workflow.collections?.map((item: any) => item.name) ?? [],
+        error_values: workflow.error_values ?? workflow.errors ?? [],
         errors: workflow.errors ?? [],
         read_only: workflow.read_only ?? false
     };
@@ -233,6 +246,9 @@ export type UserObjectSummary = {
     read_only: boolean;
     has_tags: boolean;
     has_collections: boolean;
+    tag_values: string[];
+    collection_names: string[];
+    error_values: string[];
 }
 
 export type UserObjectEntry = {
@@ -288,6 +304,12 @@ export type CollectionOverview = CollectionSummary & {
     has_workflows: boolean;
     has_user_objects: boolean;
     has_children: boolean;
+    tag_values: string[];
+    model_names: string[];
+    workflow_names: string[];
+    user_object_names: string[];
+    child_collection_names: string[];
+    error_values: string[];
     error_count: number;
     read_only: boolean;
     has_archive: boolean;

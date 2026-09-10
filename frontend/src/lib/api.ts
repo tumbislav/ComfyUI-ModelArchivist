@@ -16,15 +16,17 @@ export const serverUnresponsive = writable(false);
 let requestSequence = 0;
 let lastFailedRequest = 0;
 
-export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {},
+                               timeoutMs: number | null = API_TIMEOUT_MS): Promise<Response> {
     const sequence = ++requestSequence;
     const controller = new AbortController();
     const cancel = () => controller.abort(init.signal?.reason);
     init.signal?.addEventListener('abort', cancel, { once: true });
     if (init.signal?.aborted) cancel();
 
-    const timer = setTimeout(() => controller.abort(new DOMException('Request timed out', 'TimeoutError')),
-        API_TIMEOUT_MS);
+    const timer = timeoutMs === null ? null : setTimeout(
+        () => controller.abort(new DOMException('Request timed out', 'TimeoutError')),
+        timeoutMs);
 
     try {
         const response = await globalThis.fetch(input, { ...init, signal: controller.signal });
@@ -56,7 +58,7 @@ export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {})
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        clearTimeout(timer);
+        if (timer !== null) clearTimeout(timer);
         init.signal?.removeEventListener('abort', cancel);
     }
 }

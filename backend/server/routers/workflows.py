@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from backend.exception import ArcException
 from backend.repository.tables import DeploymentStatus
+from backend.dispatcher import OperationBusyError, dispatcher
 
 router = APIRouter()
 
@@ -29,10 +30,32 @@ class WorkflowTagUpdate(WorkflowIds):
     remove: list[str]
 
 
+class WorkflowRelocation(WorkflowIds):
+    destination: str
+
+
 @router.get('/workflows')
 async def get_workflows() -> list[dict]:
     workflows = repo.list_workflows(True)
     return workflows
+
+
+@router.get('/workflows/relative-paths')
+async def get_workflow_relative_paths() -> list[str]:
+    return repo.relative_path_choices('workflows')
+
+
+@router.post('/workflows/relocate')
+async def relocate_workflows(data: WorkflowRelocation, simulate: bool = True) -> dict:
+    try:
+        with dispatcher.configuration_change():
+            return repo.relocate_objects('workflows', data.ids, data.destination, simulate)
+    except OperationBusyError as error:
+        raise HTTPException(409, detail={
+            'code': 'operation_busy', 'message': str(error), 'params': {}}) from error
+    except ValueError as error:
+        raise HTTPException(400, detail={
+            'code': 'invalid_relative_path', 'message': str(error), 'params': {}}) from error
 
 @router.get('/workflows/{id}')
 async def get_workflow(id: str) -> dict | None:

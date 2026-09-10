@@ -114,6 +114,14 @@ th, td {
     width: 1rem;
 }
 
+table .indicator-icon {
+    display: block;
+    width: 16px;
+    height: 16px;
+    margin: auto;
+}
+
+
 .model-table .indicator-icon {
     display: block;
     width: 16px;

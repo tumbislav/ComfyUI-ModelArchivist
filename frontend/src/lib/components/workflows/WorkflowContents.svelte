@@ -15,7 +15,8 @@ import { sidebar_in_out } from '$lib/common';
 import { confirmBox } from '$lib/confirm.svelte';
 import { type Workflow, type WorkflowSummary } from '$lib/objects';
 import { getWorkflow, getWorkflows, moveWorkflow, syncWorkflow,
-    updateWorkflow, type WorkflowDestination } from '$lib/workflows';
+    updateWorkflow, getWorkflowRelativePaths, relocateWorkflows,
+    type WorkflowDestination } from '$lib/workflows';
 
 let { multiEditorOpen=$bindable(false), remapBlocked=$bindable(false), tagRevision=0 }: {
     multiEditorOpen: boolean;
@@ -40,6 +41,7 @@ let selected_id = $state<string | null>(null), selected_ids = $state<Set<string>
 let active_id = $state<string | null>(null), active = $state<Workflow | null>(null);
 let snapshot = $state<WorkflowSnapshot | null>(null), saving = $state(false), operating = $state(false);
 let operationError = $state<string | null>(null);
+let relativePaths = $state<string[]>([]);
 // svelte-ignore non_reactive_update
 let sidebar: HTMLElement;
 type WorkflowSnapshot = {file_name: string; internal_name: string; purpose: string; tags: string[]};
@@ -48,7 +50,11 @@ const makeSnapshot = (workflow: Workflow): WorkflowSnapshot => ({file_name: work
 let changed = $derived(active !== null && snapshot !== null &&
     (active.file_name !== snapshot.file_name || active.internal_name !== snapshot.internal_name ||
      active.purpose !== snapshot.purpose || active.tags.join('\0') !== snapshot.tags.join('\0')));
-onMount(refreshWorkflows);
+onMount(async () => {
+    await refreshWorkflows();
+    const paths = await getWorkflowRelativePaths();
+    if (paths.ok) relativePaths = paths.data;
+});
 $effect(() => { if (selected_id && selected_id !== active_id) void openDetails(selected_id); });
 $effect(() => { if (active && sidebar) sidebar.focus(); });
 
@@ -86,6 +92,24 @@ async function runOperation(destination: WorkflowDestination | null) {
     }
     await refreshWorkflows(); await refreshActive();
 }
+async function relocate(destination: string) {
+    if (!active || operating) return;
+    if (!await confirmBox({title: 'Move workflow',
+        message: `Move this workflow to ${destination || 'the repository root'}?`})) return;
+    operating = true;
+    operationError = null;
+    const preview = await relocateWorkflows([active.id], destination, true);
+    const result = preview.ok && preview.data.allowed
+        ? await relocateWorkflows([active.id], destination, false) : preview;
+    operating = false;
+    if (!result.ok || !result.data.allowed) {
+        operationError = result.ok
+            ? result.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
+            : result.message ?? 'Cannot move workflow';
+        return;
+    }
+    await refreshActive();
+}
 async function refreshActive() {
     if (!active_id) return;
     const result = await getWorkflow(active_id);
@@ -115,7 +139,8 @@ async function clickOutside(event: MouseEvent) {
             bind:this={sidebar} transition:fly={sidebar_in_out}>
             <WorkflowDetails bind:workflow={active} {changed} {saving} {operating} {operationError}
                 onSave={save} onClose={closeDetails} onSync={() => runOperation(null)}
-                onMove={runOperation} onCollectionsChanged={refreshActive} />
+                onMove={runOperation} onRelocate={relocate} {relativePaths}
+                onCollectionsChanged={refreshActive} />
         </aside>
     {/if}
     {#if multiEditorOpen}<MultiWorkflowEditor workflowIds={[...selected_ids]} onClose={closeMulti}

@@ -99,6 +99,35 @@ def test_model_representation_includes_actual_and_prospective_paths(model_reposi
     assert 'component_sets' not in result
 
 
+def test_relocate_model_moves_components_but_not_examples(model_repository):
+    engine, working, _archive = model_repository
+    add_working_model(engine, working)
+
+    preview = repository.relocate_objects('models', [MODEL_ID], 'organized', True)
+    result = repository.relocate_objects('models', [MODEL_ID], 'organized', False)
+
+    assert preview['allowed'] is True
+    assert result['performed'] is True
+    assert (working / 'organized' / 'model.safetensors').is_file()
+    assert (working / 'organized' / 'model.archivist.json').is_file()
+    assert (working.parent / 'examples' / MODEL_ID / 'preview.png').is_file()
+    assert repository.get_model(MODEL_ID)['relative_path'] == 'organized'
+
+
+def test_relocate_model_rejects_duplicate_filename(model_repository):
+    engine, working, _archive = model_repository
+    add_working_model(engine, working)
+    destination = working / 'organized' / 'model.safetensors'
+    destination.parent.mkdir()
+    destination.write_bytes(b'another model')
+
+    result = repository.relocate_objects('models', [MODEL_ID], 'organized', False)
+
+    assert result['allowed'] is False
+    assert result['errors'][0]['code'] == 'duplicate_filename'
+    assert (working / 'nested' / 'model.safetensors').is_file()
+
+
 def test_update_model_base_model_updates_database_and_archivist_sidecar(model_repository):
     engine, working, _ = model_repository
     add_working_model(engine, working)

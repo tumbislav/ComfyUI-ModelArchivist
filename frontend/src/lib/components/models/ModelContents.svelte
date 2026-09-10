@@ -31,6 +31,8 @@ import {
     updateModel,
     syncModel,
     moveModel,
+    getModelRelativePaths,
+    relocateModels,
     type ModelDestination,
 } from "$lib/models";
 
@@ -89,6 +91,7 @@ let active_snapshot = $state<ModelSnapshot | null>(null);
 let saving_active = $state(false);
 let operating_active = $state(false);
 let operation_error = $state<string | null>(null);
+let relativePaths = $state<string[]>([]);
 
 type ModelSnapshot = {
     file_name: string;
@@ -145,6 +148,8 @@ async function openDetails(model_id: string) {
         operation_error = null;
         active_snapshot = modelSnapshot(envelope.data);
         active_model = envelope.data;
+        const paths = await getModelRelativePaths(envelope.data.raw_type);
+        if (paths.ok) relativePaths = paths.data;
         active_id = model_id;
         selected_id = model_id;
     }
@@ -252,6 +257,30 @@ async function runModelOperation(destination: ModelDestination | null) {
     }
 }
 
+async function relocateModel(destination: string) {
+    if (!active_model || operating_active) return;
+    if (!await confirmBox({
+        title: 'Move model',
+        message: `Move this model to ${destination || 'the repository root'}?`
+    })) return;
+
+    operating_active = true;
+    operation_error = null;
+    const preview = await relocateModels([active_model.id], destination, true);
+    const result = preview.ok && preview.data.allowed
+        ? await relocateModels([active_model.id], destination, false)
+        : preview;
+    operating_active = false;
+
+    if (!result.ok || !result.data.allowed) {
+        operation_error = result.ok
+            ? result.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
+            : result.message ?? 'Cannot move model';
+        return;
+    }
+    await refreshActiveModel();
+}
+
 async function refreshActiveModel() {
     if (active_id === null) return;
     const refreshed = await getModel(active_id);
@@ -324,6 +353,8 @@ async function refreshAfterMultiEdit() {
                       onClose={closeDetails}
                       onSync={() => runModelOperation(null)}
                       onMove={runModelOperation}
+                      onRelocate={relocateModel}
+                      {relativePaths}
                       onCollectionsChanged={refreshActiveModel} />
     </aside>
 {/if}

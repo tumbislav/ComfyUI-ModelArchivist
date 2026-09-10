@@ -523,6 +523,14 @@ def test_collection_overview_uses_direct_indicators_and_transitive_status(collec
     assert parent['has_user_objects'] is False
     assert parent['has_children'] is True
     assert parent['has_tags'] is False
+    assert parent['tag_values'] == []
+    assert parent['model_names'] == []
+    assert parent['workflow_names'] == []
+    assert parent['child_collection_names'] == ['Child']
+    assert parent['error_values'] == ['missing_file']
+    assert child['tag_values'] == ['child_tag']
+    assert child['model_names'] == ['Model']
+    assert child['workflow_names'] == ['Workflow']
     assert parent['deployment'] == 'mixed'
     assert parent['has_archive'] is True
     assert parent['has_working'] is True

@@ -78,7 +78,7 @@ button:disabled {
 }
 
 .nav-button[aria-checked="true"] {
-    background-color: var(--bg-accent);
+    background-color: var(--bg-intense);
 }
 
  .nav-option {
@@ -245,6 +245,9 @@ button.help-button {
     width: 100%;
 }
 
+/* Base model editor
+ * ------------------------------------------------*/
+
 .base-model-row {
     display: grid;
     grid-template-columns: 4rem minmax(0, 1fr);
@@ -366,7 +369,84 @@ button.help-button {
 .pill-input:focus-visible {
     outline: 0;
 }
-/* Inline member actions share the same size and focus behavior across tables. */
-.inline-button { display: inline-flex; align-items: center; justify-content: center;
-    padding: var(--gap-tiny); border: 0; background: transparent; color: inherit; cursor: pointer; }
-.inline-button:disabled { cursor: default; opacity: 0.5; }
+
+/* Inline member actions share the same size and focus behavior across tables.
+ * ------------------------------------------------*/
+
+.inline-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--gap-tiny);
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+ }
+
+.inline-button:disabled {
+    cursor: default;
+    opacity: 0.5;
+}
+
+/* Icon picker
+ * ------------------------------------------------*/
+
+
+.icon-picker {
+    position: relative;
+    width: max-content;
+    margin: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+
+.icon-picker summary {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--button-height);
+    height: var(--button-height);
+    padding: 0;
+    border: var(--solid-border);
+    border-radius: var(--radius-small);
+    background: var(--bg-color);
+    box-shadow: var(--shadow-right);
+    list-style: none;
+}
+
+.icon-picker summary::-webkit-details-marker {
+    display: none;
+}
+
+.icon-picker-options {
+    position: absolute;
+    z-index: var(--z-popup);
+    top: calc(100% + var(--gap-tiny));
+    left: 0;
+    display: grid;
+    grid-template-columns: repeat(4, var(--button-height));
+    gap: var(--gap-tiny);
+    padding: var(--gap-small);
+    background: var(--bg-color);
+    border: var(--solid-border);
+    border-radius: var(--radius-small);
+    box-shadow: var(--shadow-right);
+}
+
+.icon-picker-options button {
+    width: var(--button-height);
+    height: var(--button-height);
+    padding: 0;
+}
+
+.icon-picker-options button.active {
+    background: var(--bg-accent);
+}
+
+.settings-actions {
+    justify-content: flex-end;
+    margin-top: var(--gap-mid);
+}
+

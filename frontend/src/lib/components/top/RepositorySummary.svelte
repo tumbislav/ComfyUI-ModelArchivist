@@ -12,6 +12,7 @@
     import { startScan, type ScanScope } from '$lib/admin';
     import type { Operation } from '$lib/models';
     import { statusMonitor } from '$lib/status.svelte';
+    import { modalDialog } from '$lib/modal-dialog';
 
     type Counts = { working: number; archive: number; synced: number; total: number; errors: number };
     type Summary = {
@@ -21,7 +22,6 @@
     };
 
     let { onClose }: { onClose: () => void } = $props();
-    let dialog = $state<HTMLDialogElement>();
     let summary = $state<Summary | null>(null);
     let error = $state<string | null>(null);
     let submitting = $state<ScanScope | null>(null);
@@ -43,7 +43,6 @@
     }
 
     onMount(() => {
-        dialog?.showModal();
         let cancelled = false;
         let timer: ReturnType<typeof setTimeout>;
 
@@ -101,12 +100,12 @@
     }
 </script>
 
-<dialog class="repository-summary" bind:this={dialog} aria-label="Repository summary"
+<dialog class="nav-dialog repository-summary" use:modalDialog aria-label="Repository summary"
         oncancel={event => {
             event.preventDefault();
             onClose();
         }}>
-    <header class="spaced-horizontally">
+    <header class="dialog-header spaced-horizontally">
         <h2>Repository</h2>
         <button class="round" type="button" aria-label="Close repository summary" onclick={onClose}>
             <img class="action-icon" alt="" src={closeIcon} />
@@ -134,7 +133,9 @@
                             <div class:error-details={counts.errors > 0}>{counts.errors} errors</div>
 
                             {#if section.individual}
-                                <div class="annotation repository-annotation">Individual types can be scanned from settings</div>
+                                <div class="annotation repository-annotation">
+                                    Individual types can be scanned from the Settings dialog
+                                </div>
                             {/if}
                         </div>
 

@@ -22,7 +22,10 @@
     let y = $state(0);
     let height = $state(300);
     let definition = $derived(filterColumns[tab].find(column => column.key === columnKey)!);
-    let options = $derived([...new Set(rows.map(row => String(columnValue(row, columnKey))))]
+    let options = $derived([...new Set(rows.flatMap(row => {
+        const value = columnValue(row, columnKey);
+        return Array.isArray(value) ? value : [String(value)];
+    }))]
         .sort((a, b) => a.localeCompare(b)));
     let isOpen = $derived($openFilter === id);
     let allSelected = $derived(options.every(value => selected.includes(value)));

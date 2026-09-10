@@ -80,6 +80,18 @@ def test_synchronize_workflow_simulation_does_not_copy(workflow_repository):
     assert not (archive / 'nested' / 'workflow.json').exists()
 
 
+def test_relocate_workflow_moves_file_and_updates_path(workflow_repository):
+    engine, working, _archive = workflow_repository
+    workflow_id = add_workflow(engine, working, 'w', '{"working": true}')
+
+    result = repository.relocate_objects('workflows', [workflow_id], 'sorted', False)
+
+    assert result['performed'] is True
+    assert (working / 'sorted' / 'workflow.json').is_file()
+    assert not (working / 'nested' / 'workflow.json').exists()
+    assert repository.get_workflow(workflow_id)['relative_path'] == 'sorted'
+
+
 def test_synchronize_workflow_executes_plan_and_updates_database(workflow_repository):
     engine, working, archive = workflow_repository
     workflow_id = add_workflow(engine, working, 'w', '{"working": true}')
