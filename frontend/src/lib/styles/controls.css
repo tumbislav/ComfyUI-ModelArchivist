@@ -66,6 +66,12 @@ button:disabled {
     border-radius: var(--radius-small);
 }
 
+.button-placeholder {
+    height: var(--button-height);
+    min-width: var(--button-width);
+    visibility: hidden;
+}
+
 /* Large navbar buttons
  * ----------------------------------------------- */
 
@@ -243,6 +249,14 @@ button.help-button {
 
 .full-width {
     width: 100%;
+}
+
+.input-with-action {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: var(--gap-small);
+    align-items: center;
 }
 
 /* Base model editor

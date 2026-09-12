@@ -1,10 +1,12 @@
 <!---------------------------------------------------
  ! system: ModelArchivist
  ! file: MultiModelEditor.svelte
- ! purpose: Modal editor for multiple selected models
+ ! purpose: Sidebar editor for multiple selected models
  ! -------------------------------------------------->
 
 <script lang="ts">
+    import { locale } from '$lib/locale.svelte';
+
 import { onMount } from 'svelte';
 import TagEditor from '$components/controls/TagEditor.svelte';
 import BaseModelEditor from '$components/controls/BaseModelEditor.svelte';
@@ -28,6 +30,7 @@ import {
 } from '$lib/models';
 import { statusMonitor } from '$lib/status.svelte';
 import { confirmBox } from '$lib/confirm.svelte';
+import { unsavedChangesBox } from '$lib/unsaved-changes.svelte';
 
 let {
     modelIds,
@@ -39,23 +42,17 @@ let {
     onChanged: () => Promise<void>;
 } = $props();
 
-let models = $state<Model[]>([]);
-let addTags = $state<string[]>([]);
-let removeTags = $state<string[]>([]);
-let baseModel = $state('');
-let baseModelInitialized = $state(false);
-let busy = $state(false);
-let error = $state<string | null>(null);
-let relativePaths = $state<string[]>([]);
+let models = $state<Model[]>([]); let addTags = $state<string[]>([]); let removeTags = $state<string[]>([]); let baseModel = $state(''); let savedBaseModel = $state(''); let baseModelInitialized = $state(false); let busy = $state(false); let error = $state<string | null>(null); let relativePaths = $state<string[]>([]);
 let destinationPath = $state('');
 let removableTags = $derived([...new Set(models.flatMap(model => model.tags))].sort());
 let hasObjectErrors = $derived(models.some(model => model.read_only));
+let baseModelDirty = $derived(baseModel !== savedBaseModel);
 
 async function loadModels() {
     const responses = await Promise.all(modelIds.map(getModel));
     const failed = responses.find(response => !response.ok);
     if (failed && !failed.ok) {
-        error = failed.message ?? 'Cannot load selected models';
+        error = failed.message ?? locale.t('ui.multi_model_editor.cannot_load_selected_models');
         return;
     }
     models = responses.flatMap(response => response.ok ? [response.data] : []);
@@ -66,6 +63,7 @@ async function loadModels() {
     if (!baseModelInitialized && models.length > 0) {
         const first = models[0].base_model;
         baseModel = models.every(model => model.base_model === first) ? first : '';
+        savedBaseModel = baseModel;
         baseModelInitialized = true;
     }
     error = null;
@@ -84,7 +82,7 @@ async function saveTags() {
     const response = await updateModelTags(modelIds, addTags, removeTags);
     busy = false;
     if (!response.ok) {
-        error = response.message ?? 'Cannot update model tags';
+        error = response.message ?? locale.t('ui.multi_model_editor.cannot_update_model_tags');
         return;
     }
     addTags = [];
@@ -92,15 +90,37 @@ async function saveTags() {
     await refresh();
 }
 
+export async function requestClose(): Promise<void> {
+    if (busy) return;
+
+    if (baseModelDirty || addTags.length > 0 || removeTags.length > 0) {
+        const result = await unsavedChangesBox({
+            message: locale.t('messages.save_multi_model_changes_before_continuing')
+        });
+        if (result === 'cancel') return;
+        if (result === 'save') {
+            if (baseModelDirty) {
+                await saveBaseModel();
+            }
+            if (addTags.length > 0 || removeTags.length > 0) {
+                await saveTags();
+            }
+            if (baseModelDirty || addTags.length > 0 || removeTags.length > 0) return;
+        }
+    }
+    onClose();
+}
+
 async function saveBaseModel() {
     busy = true;
     const response = await updateModelBaseModels(modelIds, baseModel);
     busy = false;
     if (!response.ok) {
-        error = response.message ?? 'Cannot update base model';
+        error = response.message ?? locale.t('ui.multi_model_editor.cannot_update_base_model');
         return;
     }
     baseModel = response.data[0]?.base_model ?? '';
+    savedBaseModel = baseModel;
     await refresh();
 }
 
@@ -111,7 +131,7 @@ async function runOperation(destination: ModelDestination | null) {
         ? await syncModels(modelIds)
         : await moveModels(modelIds, destination);
     if (!started.ok) {
-        error = started.message ?? 'Cannot start model operation';
+        error = started.message ?? locale.t('ui.multi_model_editor.cannot_start_model_operation');
         busy = false;
         return;
     }
@@ -119,8 +139,8 @@ async function runOperation(destination: ModelDestination | null) {
     busy = false;
     if (!completed.ok || completed.data.state === 'failed') {
         error = completed.ok
-            ? completed.data.error?.message ?? 'Model operation failed'
-            : completed.message ?? 'Cannot retrieve model operation';
+            ? completed.data.error?.message ?? locale.t('ui.multi_model_editor.model_operation_failed')
+            : completed.message ?? locale.t('ui.multi_model_editor.cannot_retrieve_model_operation');
         return;
     }
     await refresh();
@@ -128,7 +148,7 @@ async function runOperation(destination: ModelDestination | null) {
 
 async function relocate() {
     if (new Set(models.map(model => model.raw_type)).size !== 1) {
-        error = 'Models of different types cannot be moved together.';
+        error = locale.t('ui.multi_model_editor.models_of_different_types_cannot_be_moved_together');
         return;
     }
     busy = true;
@@ -138,106 +158,129 @@ async function relocate() {
     if (!preview.ok || !preview.data.allowed) {
         error = preview.ok
             ? preview.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
-            : preview.message ?? 'Cannot move models';
+            : preview.message ?? locale.t('ui.multi_model_editor.cannot_move_models');
         return;
     }
-    if (!await confirmBox({title: 'Move models',
-        message: `Move the selected models to ${destinationPath || 'the repository root'}?`})) return;
+    if (!await confirmBox({
+        message: locale.t('messages.move_selected_models', {
+            destination: destinationPath || locale.t('dynamic.repository_root').toLocaleLowerCase(locale.language)
+        })})) return;
     if (new Set(models.map(model => model.relative_path)).size > 1 && !await confirmBox({
-        title: 'Different subdirectories',
-        message: 'The models are currently in different subdirectories. Are you sure you want to move them to the same subdirectory?'
+        message: locale.t('ui.multi_model_editor.the_models_are_currently_in_different_subdirectories_are_you_sure_you_want_to_move_them_to_the_same_subdirectory')
     })) return;
     busy = true;
     const result = await relocateModels(modelIds, destinationPath, false);
     busy = false;
     if (!result.ok || !result.data.allowed) {
         error = result.ok ? result.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
-            : result.message ?? 'Cannot move models';
+            : result.message ?? locale.t('ui.multi_model_editor.cannot_move_models');
         return;
     }
     await refresh();
 }
 </script>
 
-<div class="content-modal-backdrop">
-    <div class="multi-model-editor" role="dialog" data-model-details
-             aria-modal="true" aria-label="Edit selected models">
-        <div class="space-below spaced-horizontally">
-            <p class="annotation">{modelIds.length} models selected</p>
-            <button type="button" class="round" aria-label="Close model editor"
-                    disabled={busy} onclick={onClose}>
-                <img class="action-icon" alt="" src={closeIcon} />
-            </button>
-        </div>
+<div class="space-below spaced-horizontally">
+    <p class="annotation">{modelIds.length} models selected</p>
+    <button type="button"
+            class="round"
+            aria-label={locale.t('ui.multi_model_editor.close_model_editor')}
+            disabled={busy}
+            onclick={() => void requestClose()}>
+        <img class="action-icon" alt="" src={closeIcon} />
+    </button>
+</div>
 
-        <div class="multi-model-list space-below">
-            {#each models as model (model.id)}
-                <p>{model.internal_name}</p>
-            {/each}
-        </div>
+<h2>{locale.t('ui.multi_model_editor.selected_models')}</h2>
+<div class="multi-model-list space-below">
+    {#each models as model (model.id)}
+        <p>{model.internal_name}</p>
+    {/each}
+</div>
 
-        {#if error}<p class="error-message">{error}</p>{/if}
+{#if error}
+    <p class="error-message">{error}</p>
+{/if}
 
-        {#if hasObjectErrors}
-            <p class="error-details">Some selected models have errors. Editing is disabled.</p>
-        {:else}
-        <div class="space-below">
-            <h2>Set base model</h2>
-            <BaseModelEditor value={baseModel} disabled={busy}
-                placeholder="Type a base model name"
+{#if hasObjectErrors}
+    <p class="error-details">
+        {locale.t('ui.multi_model_editor.some_selected_models_have_errors_editing_is_disabled')}
+    </p>
+{:else}
+    <div class="dialog-section space-below">
+        <div class="dialog-section-blank">
+            <h2>{locale.t('ui.multi_model_editor.set_base_model')}</h2>
+            <BaseModelEditor
+                value={baseModel}
+                disabled={busy}
+                placeholder={locale.t('ui.multi_model_editor.type_a_base_model_name')}
                 onChanged={(value) => baseModel = value} />
             <div class="spaced-horizontally">
                 <div></div>
-                <button class="button-with-text" disabled={busy || models.length === 0}
+                <button class="button-with-text"
+                        disabled={busy || models.length === 0}
                         onclick={saveBaseModel}>
-                    <img class="action-icon" alt="save" src={saveIcon} />
-                    <span>Apply base model</span>
+                    <img class="action-icon" alt={locale.t('ui.multi_model_editor.save')} src={saveIcon} />
+                    <span class="button-label">{locale.t('ui.multi_model_editor.apply_base_model')}</span>
                 </button>
             </div>
         </div>
 
         <div class="space-below">
-            <TagEditor title="Add tags" tags={addTags} disabled={busy} editable={true}
-                       onChanged={tags => addTags = tags} />
+            <TagEditor
+                title={locale.t('ui.multi_model_editor.add_tags')}
+                tags={addTags}
+                disabled={busy}
+                editable={true}
+                onChanged={tags => addTags = tags} />
         </div>
         <div class="space-below">
-            <TagEditor title="Remove tags" tags={removeTags} disabled={busy} editable={false}
-                       availableTags={removableTags}
-                       onChanged={tags => removeTags = tags} />
+            <TagEditor
+                title={locale.t('ui.multi_model_editor.remove_tags')}
+                tags={removeTags}
+                disabled={busy}
+                editable={false}
+                availableTags={removableTags}
+                onChanged={tags => removeTags = tags} />
         </div>
-        <div class="space-below spaced-horizontally">
+        <div class="spaced-horizontally">
             <div></div>
             <button class="button-with-text"
                     disabled={busy || (addTags.length === 0 && removeTags.length === 0)}
                     onclick={saveTags}>
-                <img class="action-icon" alt="save" src={saveIcon} /><span>Apply tags</span>
+                <img class="action-icon" alt={locale.t('ui.multi_model_editor.save')} src={saveIcon} />
+                <span class="button-label">{locale.t('ui.multi_model_editor.apply_tags')}</span>
             </button>
+        </div>
+    </div>
+
+    <div class="dialog-section">
+        <div class="space-below">
+            <RelativePathEditor
+                bind:value={destinationPath}
+                options={relativePaths}
+                disabled={busy || models.length === 0 ||
+                    new Set(models.map(model => model.raw_type)).size !== 1}
+                onMove={relocate} />
         </div>
 
         <div class="space-below multi-model-deployment-actions">
             <button class="button-with-text" disabled={busy} onclick={() => runOperation('working')}>
-                <img class="action-icon" alt="to working set" src={moveUpIcon} /><span>To working set</span>
+                <img class="action-icon" alt={locale.t('ui.multi_model_editor.to_working_set')} src={moveUpIcon} />
+                <span class="button-label">{locale.t('ui.multi_model_editor.to_working_set_2')}</span>
             </button>
             <button class="button-with-text" disabled={busy} onclick={() => runOperation(null)}>
-                <img class="action-icon" alt="sync" src={syncIcon} /><span>Sync</span>
+                <img class="action-icon" alt={locale.t('ui.multi_model_editor.sync')} src={syncIcon} />
+                <span class="button-label">{locale.t('ui.multi_model_editor.sync_2')}</span>
             </button>
             <button class="button-with-text" disabled={busy} onclick={() => runOperation('archive')}>
-                <img class="action-icon" alt="to archive" src={moveDownIcon} /><span>To archive</span>
+                <img class="action-icon" alt={locale.t('ui.multi_model_editor.to_archive')} src={moveDownIcon} />
+                <span class="button-label">{locale.t('ui.multi_model_editor.to_archive_2')}</span>
             </button>
         </div>
-
-        <div class="space-below">
-            <RelativePathEditor bind:value={destinationPath} options={relativePaths}
-                disabled={busy || models.length === 0 || new Set(models.map(model => model.raw_type)).size !== 1}
-                onMove={relocate} />
-        </div>
-
-        {#if models.length > 0}
-            <MultiModelCollectionEditor {models} onChanged={refresh} />
-        {/if}
-        {/if}
     </div>
-</div>
 
-<style>
-</style>
+    {#if models.length > 0}
+        <MultiModelCollectionEditor {models} onChanged={refresh} />
+    {/if}
+{/if}

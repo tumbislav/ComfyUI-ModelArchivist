@@ -5,6 +5,8 @@
  ! -------------------------------------------------------------------------- -->
 
 <script lang="ts">
+    import { locale } from '$lib/locale.svelte';
+
 import ColumnFilter from '$components/controls/ColumnFilter.svelte';
 import { filteredRows, filterStates } from '$lib/column-filters';
 import type { CollectionOverview } from '$lib/objects';
@@ -24,11 +26,11 @@ let {collections: allRows, selectedId, disabled=false, onOpen}: {
     disabled?: boolean; onOpen: (id: string) => Promise<void>;
 } = $props();
 const indicators = [
-    {key: 'tag_values', present: 'has_tags', name: 'Tags', yes: tagIcon, no: noTagIcon},
-    {key: 'model_names', present: 'has_models', name: 'Direct models', yes: modelIcon, no: noModelIcon},
-    {key: 'workflow_names', present: 'has_workflows', name: 'Direct workflows', yes: workflowIcon, no: noWorkflowIcon},
-    {key: 'user_object_names', present: 'has_user_objects', name: 'Direct UDT objects', yes: udtIcon, no: noUdtIcon},
-    {key: 'child_collection_names', present: 'has_children', name: 'Direct collections', yes: collectionIcon, no: noCollectionIcon}
+    {key: 'tag_values', present: 'has_tags', name: locale.t('ui.collection_table.tags'), yes: tagIcon, no: noTagIcon},
+    {key: 'model_names', present: 'has_models', name: locale.t('ui.collection_table.direct_models'), yes: modelIcon, no: noModelIcon},
+    {key: 'workflow_names', present: 'has_workflows', name: locale.t('ui.collection_table.direct_workflows'), yes: workflowIcon, no: noWorkflowIcon},
+    {key: 'user_object_names', present: 'has_user_objects', name: locale.t('ui.collection_table.direct_udt_objects'), yes: udtIcon, no: noUdtIcon},
+    {key: 'child_collection_names', present: 'has_children', name: locale.t('ui.collection_table.direct_collections'), yes: collectionIcon, no: noCollectionIcon}
 ] as const;
 let collections = $derived(filteredRows(allRows, $filterStates.collections));
 </script>
@@ -37,10 +39,10 @@ let collections = $derived(filteredRows(allRows, $filterStates.collections));
     <thead><tr class="table-head table-section">
         <th>
             <ColumnFilter tab="collections" columnKey="name" rows={allRows}>
-                Name
+                {locale.t('ui.collection_table.name')}
             </ColumnFilter>
         </th>
-        <th>Purpose</th>
+        <th>{locale.t('ui.collection_table.purpose')}</th>
         {#each indicators as indicator}
             <th class="indicator-column">
                 <ColumnFilter tab="collections" columnKey={indicator.key} rows={allRows}>
@@ -51,12 +53,12 @@ let collections = $derived(filteredRows(allRows, $filterStates.collections));
         {/each}
         <th class="location-column">
             <ColumnFilter tab="collections" columnKey="deployment" rows={allRows}>
-                Location
+                {locale.t('ui.collection_table.location')}
             </ColumnFilter>
         </th>
         <th class="error-column">
             <ColumnFilter tab="collections" columnKey="error_values" rows={allRows}>
-                E
+                {locale.t('ui.collection_table.e')}
             </ColumnFilter>
         </th>
     </tr></thead>
@@ -79,9 +81,9 @@ let collections = $derived(filteredRows(allRows, $filterStates.collections));
                 {/each}
                 <td>{item.deployment}</td>
                 <td class="error-column">{#if item.error_count > 0}
-                    <span class="error-message" title={`${item.error_count} members have errors`}>E</span>
+                    <span class="error-message" title={`${item.error_count} members have errors`}>{locale.t('ui.collection_table.e')}</span>
                 {/if}</td>
             </tr>
-        {:else}<tr><td colspan="9">No collections.</td></tr>{/each}
+        {:else}<tr><td colspan="9">{locale.t('ui.collection_table.no_collections')}</td></tr>{/each}
     </tbody>
 </table>

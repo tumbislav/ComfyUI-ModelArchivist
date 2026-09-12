@@ -152,11 +152,7 @@
 
 .model-settings-actions {
     flex: 0 0 auto;
-    margin-bottom: var(--gap-small);
-}
-
-.model-settings-actions .settings-actions {
-    margin-top: 0;
+    margin-bottom: var(--gap-mid);
 }
 
 .model-type-list {
@@ -175,11 +171,7 @@
 
 .settings-tab-actions {
     flex: 0 0 auto;
-    margin-bottom: var(--gap-small);
-}
-
-.settings-tab-actions .settings-actions {
-    margin-top: 0;
+    margin-bottom: var(--gap-mid);
 }
 
 .model-type-actions {
@@ -198,15 +190,6 @@
 
 .settings-content details:has(> .user-type-help) > summary {
     padding-right: calc(var(--pill-height) + 2 * var(--gap-small));
-}
-
-.nested-settings-guard {
-    z-index: calc(var(--z-modal) + 1);
-    background: rgb(0 0 0 / 15%);
-}
-
-.settings-guard {
-    min-width: 24rem;
 }
 
 @media (max-width: 700px) {
@@ -243,6 +226,8 @@
 }
 
 .collection-picker {
+    position: fixed;
+    margin: 0;
     box-sizing: border-box;
     max-height: calc(100vh - var(--dialog-top, var(--gap-mid)) - var(--gap-mid));
     overflow-y: auto;
@@ -256,24 +241,4 @@
     min-height: 5rem;
     resize: vertical;
     margin-bottom: var(--gap-mid);
-}
-
-.user-multi-dialog {
-    width: min(48rem, calc(100vw - 2rem));
-    max-height: calc(100vh - 2rem);
-    box-sizing: border-box;
-    overflow: auto;
-    padding: var(--gap-mid);
-    border: var(--solid-border);
-    border-radius: var(--radius-mid);
-    background: var(--bg-color);
-    color: var(--text-color);
-}
-
-.user-multi-dialog > * {
-    margin-bottom: var(--gap-mid);
-}
-
-.user-multi-dialog::backdrop {
-    backdrop-filter: blur(2px);
 }

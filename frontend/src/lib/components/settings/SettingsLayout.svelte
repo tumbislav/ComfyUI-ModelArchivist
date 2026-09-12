@@ -11,6 +11,7 @@
     import modelIcon from '$icons/nav/model16.png';
     import workflowIcon from '$icons/nav/workflow16.png';
     import userTypeIcon from '$icons/nav/user-defined16.png';
+    import { locale } from '$lib/locale.svelte';
 
     type SettingsTab = 'general' | 'models' | 'workflows' | 'user-types';
 
@@ -28,28 +29,27 @@
         loading: boolean;
         disabled: boolean;
         error: string | null;
-        onTab: (tab: SettingsTab) => void;
-        children: Snippet<[SettingsTab]>;
+        onTab: (tab: SettingsTab) => void; children: Snippet<[SettingsTab]>;
     } = $props();
 
     const tabs: { id: SettingsTab; label: string; icon: string }[] = [
-        { id: 'general', label: 'General', icon: generalIcon },
-        { id: 'models', label: 'Models', icon: modelIcon },
-        { id: 'workflows', label: 'Workflows', icon: workflowIcon },
-        { id: 'user-types', label: 'User types', icon: userTypeIcon }
+        { id: 'general', label: 'settings.sections.general', icon: generalIcon },
+        { id: 'models', label: 'settings.sections.models', icon: modelIcon },
+        { id: 'workflows', label: 'settings.sections.workflows', icon: workflowIcon },
+        { id: 'user-types', label: 'settings.sections.user_types', icon: userTypeIcon }
     ];
 </script>
 
 <div class="settings-layout">
-    <nav class="settings-tabs" aria-label="Settings sections">
+    <nav class="settings-tabs" aria-label={locale.t('ui.settings_layout.settings_sections')}>
         {#each tabs as tab}
             <button type="button" class:active={activeTab === tab.id} onclick={() => onTab(tab.id)}>
                 <img class="action-icon-small" src={tab.icon} alt="" />
                 <span class="button-label">
-                    {tab.label}
+                    {locale.t(tab.label)}
 
                     {#if dirty[tab.id]}
-                        <span aria-label="Unsaved">•</span>
+                        <span aria-label={locale.t('ui.settings_layout.unsaved')}>•</span>
                     {/if}
                 </span>
             </button>
@@ -60,7 +60,7 @@
              class:structured-settings-content={activeTab !== 'general'}>
         <fieldset class="settings-edit-controls" {disabled}>
             {#if loading}
-                <p>Loading settings…</p>
+                <p>{locale.t('ui.settings_layout.loading_settings')}</p>
             {:else}
                 {@render children(activeTab)}
             {/if}

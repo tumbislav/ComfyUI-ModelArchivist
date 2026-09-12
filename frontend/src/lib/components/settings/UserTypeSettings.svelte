@@ -5,6 +5,8 @@
  ! -------------------------------------------------------------------------- -->
 
 <script lang="ts">
+    import { locale } from '$lib/locale.svelte';
+
     import type { SvelteMap } from 'svelte/reactivity';
 
     import addIcon from '$icons/actions/add16.png';
@@ -51,19 +53,17 @@
 
 <div class="spaced-horizontally settings-tab-actions">
     <button class="button-with-text" onclick={onAddType}>
-        <img class="action-icon" alt="add" src={addIcon} />
-        <span class="button-label">Add type</span>
+        <img class="action-icon" alt={locale.t('ui.user_type_settings.add')} src={addIcon} />
+        <span class="button-label">{locale.t('ui.user_type_settings.add_type')}</span>
     </button>
-    <div class="settings-actions">
-        <button class="button-with-text" disabled={!dirty || saving} onclick={onUndo}>
-            <img class="action-icon" alt="undo" src={resetIcon} />
-            <span class="button-label">Undo</span>
-        </button>
-        <button class="button-with-text" disabled={!dirty || saving} onclick={onSave}>
-            <img class="action-icon" alt="save" src={saveIcon} />
-            <span class="button-label">{saving ? 'Saving…' : 'Save'}</span>
-        </button>
-    </div>
+    <button class="button-with-text" disabled={!dirty || saving} onclick={onUndo}>
+        <img class="action-icon" alt={locale.t('ui.user_type_settings.undo')} src={resetIcon} />
+        <span class="button-label">{locale.t('ui.user_type_settings.undo_2')}</span>
+    </button>
+    <button class="button-with-text" disabled={!dirty || saving} onclick={onSave}>
+        <img class="action-icon" alt={locale.t('ui.user_type_settings.save')} src={saveIcon} />
+        <span class="button-label">{locale.t(saving ? 'dynamic.saving' : 'dynamic.save')}</span>
+    </button>
 </div>
 
 <div class="settings-item-list">
@@ -71,39 +71,39 @@
         <details class:unsaved={!type.id}
                  bind:open={() => expandedTypes.get(type) ?? !type.id,
                             open => expandedTypes.set(type, open)}>
-            <summary>{type.name || 'New user-defined type'}</summary>
+            <summary>{type.name || locale.t('dynamic.new_user_type')}</summary>
             <div class="user-type-help">
                 <HelpButton text="" />
             </div>
 
             <div class="settings-form aligned-settings-form">
                 <label class="dialog-label">
-                    Name
+                    {locale.t('ui.user_type_settings.name')}
                     <input class="text-input" bind:value={type.name} />
                 </label>
                 <label class="dialog-label">
-                    Short name
+                    {locale.t('ui.user_type_settings.short_name')}
                     <input class="text-input" maxlength="8" bind:value={type.short_name} />
                 </label>
                 <label class="dialog-label">
-                    Icon
+                    {locale.t('ui.user_type_settings.icon')}
                     <IconPicker bind:value={type.icon} options={iconNames} />
                 </label>
                 <label class="dialog-label">
-                    Purpose
+                    {locale.t('ui.user_type_settings.purpose')}
                     <textarea class="text-input" bind:value={type.purpose}></textarea>
                 </label>
                 <label class="dialog-label">
-                    Content
+                    {locale.t('ui.user_type_settings.content')}
                     <select class="text-input" bind:value={type.object_class} disabled={type.object_count > 0}>
-                        <option value="file">Single file</option>
-                        <option value="folder">Directory tree</option>
+                        <option value="file">{locale.t('ui.user_type_settings.single_file')}</option>
+                        <option value="folder">{locale.t('ui.user_type_settings.directory_tree')}</option>
                     </select>
                 </label>
 
                 {#if type.object_class === 'file'}
                     <label class="dialog-label">
-                        Extensions
+                        {locale.t('ui.user_type_settings.extensions')}
                         <input class="text-input" value={type.extensions.join(', ')}
                                oninput={event => type.extensions = event.currentTarget.value
                                    .split(',').map(value => value.trim()).filter(Boolean)} />
@@ -111,20 +111,20 @@
                 {/if}
 
                 <label class="dialog-label">
-                    Working folder
+                    {locale.t('ui.user_type_settings.working_folder')}
                     <PathInput bind:value={type.working_dir} onError={onError} />
                 </label>
                 <label class="dialog-label">
-                    Archive folder
+                    {locale.t('ui.user_type_settings.archive_folder')}
                     <PathInput bind:value={type.archive_dir} onError={onError} />
                 </label>
                 <label class="dialog-label">
-                    Size limit (bytes)
+                    {locale.t('ui.user_type_settings.size_limit_bytes')}
                     <input class="text-input" type="number" min="1"
                            disabled={type.small} bind:value={type.size_limit} />
                 </label>
                 <label class="dialog-label checkbox-label">
-                    Small-object type
+                    {locale.t('ui.user_type_settings.small_object_type')}
                     <input type="checkbox" checked={type.small}
                            onchange={event => {
                                type.small = event.currentTarget.checked;
@@ -136,20 +136,18 @@
 
             <div class="spaced-horizontally settings-item-actions">
                 <button class="button-with-text danger" onclick={() => onRemoveType(type, typeIndex)}>
-                    <img class="action-icon" alt="remove" src={removeIcon} />
-                    <span class="button-label">Delete type</span>
+                    <img class="action-icon" alt={locale.t('ui.user_type_settings.remove')} src={removeIcon} />
+                    <span class="button-label">{locale.t('ui.user_type_settings.delete_type')}</span>
                 </button>
-                <div class="settings-actions">
-                    <button class="button-with-text" disabled={!isDirty(type)}
-                            onclick={() => onSaveType(type, false)}>
-                        <img class="action-icon" alt="" src={saveIcon} />
-                        <span class="button-label">Save</span>
-                    </button>
-                    <button class="button-with-text" onclick={() => onSaveType(type, true)}>
-                        <img class="action-icon" alt="" src={refreshIcon} />
-                        <span class="button-label">{isDirty(type) ? 'Save and scan' : 'Refresh'}</span>
-                    </button>
-                </div>
+                <button class="button-with-text" disabled={!isDirty(type)}
+                        onclick={() => onSaveType(type, false)}>
+                    <img class="action-icon" alt="" src={saveIcon} />
+                    <span class="button-label">{locale.t('ui.user_type_settings.save_2')}</span>
+                </button>
+                <button class="button-with-text" onclick={() => onSaveType(type, true)}>
+                    <img class="action-icon" alt="" src={refreshIcon} />
+                    <span class="button-label">{locale.t(isDirty(type) ? 'dynamic.save_and_scan' : 'dynamic.refresh')}</span>
+                </button>
             </div>
         </details>
     {/each}

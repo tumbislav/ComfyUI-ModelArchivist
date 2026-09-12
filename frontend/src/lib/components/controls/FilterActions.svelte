@@ -5,6 +5,8 @@
  ! -------------------------------------------------------------------------- -->
 
 <script lang="ts">
+    import { locale } from '$lib/locale.svelte';
+
     import filterIcon from '$icons/actions/filter16.png';
     import filterOffIcon from '$icons/actions/filter-off16.png';
     import openIcon from '$icons/actions/open16.png';
@@ -19,13 +21,13 @@
     {#if onOpenMulti}
         <div class="model-selection-actions">
             <button class="image-button" type="button" disabled={selectedCount < 2}
-                    onclick={onOpenMulti} aria-label="Edit selected objects">
+                    onclick={onOpenMulti} aria-label={locale.t('ui.filter_actions.edit_selected_objects')}>
                 <img class="action-icon" src={openIcon} alt="" />
             </button>
         </div>
     {/if}
     <div class="filter-buttons">
-        <button class="image-button" type="button" aria-label="filter-on-off"
+        <button class="image-button" type="button" aria-label={locale.t('ui.filter_actions.filter_on_off')}
                 aria-pressed={$filterStates[tab].enabled} onclick={() => toggleFilters(tab)}>
             <img class="action-icon" src={$filterStates[tab].enabled ? filterIcon : filterOffIcon} alt="" />
         </button>

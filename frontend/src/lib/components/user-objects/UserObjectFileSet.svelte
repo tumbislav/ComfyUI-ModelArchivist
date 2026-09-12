@@ -5,6 +5,8 @@
  ! -------------------------------------------------------------------------- -->
 
 <script lang="ts">
+    import { locale } from '$lib/locale.svelte';
+
 import type { UserObjectSet } from '$lib/objects';
 let { set, path, name }: {set: UserObjectSet | undefined; path: string; name: string} = $props();
 let entries = $derived(set?.entries ?? []);
@@ -15,7 +17,7 @@ let root = $derived(entries.find(entry => entry.relative_path === '') ?? entries
     <h2 class="tight-vertical">Files in {name}</h2>
     <p class="path-preview fine-print rule-under no-top-margin" title={path}>{path}</p>
     {#if root}
-        <p class="labeled"><span>{root.entry_type === 'directory' ? 'Folder:' : 'File:'}</span>
+        <p class="labeled"><span>{locale.t(root.entry_type === 'directory' ? 'dynamic.folder' : 'dynamic.file')}</span>
             {root.relative_path || '.'}</p>
         {#if root.entry_type === 'directory'}
             <p class="annotation">{Math.max(0, entries.length - 1)} contained entries; {set?.size ?? 0} bytes</p>

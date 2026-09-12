@@ -5,6 +5,8 @@
  ! -------------------------------------------------->
 
 <script lang="ts">
+    import { locale } from '$lib/locale.svelte';
+
     let {
         onClose,
         initialTab = 'general'
@@ -13,15 +15,14 @@
         initialTab?: SettingsTab;
     } = $props();
 
-    import cancelIcon from '$icons/actions/cancel16.png';
-    import resetIcon from '$icons/actions/reset16.png';
-    import saveIcon from '$icons/actions/save16.png';
     import closeIcon from '$icons/actions/close8.png';
 
     import { startScan, type ScanScope } from '$lib/admin';
     import { statusMonitor } from '$lib/status.svelte';
     import { serverUnresponsive } from '$lib/api';
     import { modalDialog } from '$lib/modal-dialog';
+    import { confirmBox } from '$lib/confirm.svelte';
+    import { unsavedChangesBox } from '$lib/unsaved-changes.svelte';
 
     import GeneralSettings from '$components/settings/GeneralSettings.svelte';
     import ModelSettings from '$components/settings/ModelSettings.svelte';
@@ -58,33 +59,7 @@
 
     export type SettingsTab = 'general' | 'models' | 'workflows' | 'user-types';
     const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
-    const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
-
-    let activeTab = $state<SettingsTab>('general');
-    let settings = $state<RepositorySettings | null>(null);
-    let savedModels = $state<ModelTypeSetting[]>([]);
-    let savedExtensions = $state<string[]>([]);
-    let savedWorkflows = $state<RepositoryLocation[]>([]);
-    let userTypes = $state<UserDefinedType[]>([]);
-    let savedUserTypes = $state<UserDefinedType[]>([]);
-    let deletedUserTypeIds = $state<string[]>([]);
-    let loading = $state(true);
-    let startupScan = $state(true);
-    let rememberTab = $state(false);
-    let saving = $state(false);
-    let error = $state<string | null>(null);
-    let guardTarget = $state<SettingsTab | 'close' | null>(null);
-    let modelMappingRoots = $state<string[]>([]);
-    let mappingWorkingRoot = $state('');
-    let mappingArchiveRoot = $state('');
-    let mappingExtensions = $state('.safetensors, .ckpt, .pt, .pth, .bin, .gguf');
-    let operationActive = $derived(statusMonitor.operation?.state === 'pending'
-        || statusMonitor.operation?.state === 'running');
-    let editingLocked = $derived(saving || operationActive || $serverUnresponsive);
-    const modelOriginalNames = new SvelteMap<object, string>();
-    const expandedTypes = new SvelteMap<object, boolean>();
-
-    function preserveExpansion<T extends object>(previous: T[], next: T[], key: (type: T) => string): void {
+    const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right); let activeTab = $state<SettingsTab>('general'); let settings = $state<RepositorySettings | null>(null); let savedModels = $state<ModelTypeSetting[]>([]); let savedExtensions = $state<string[]>([]); let savedWorkflows = $state<RepositoryLocation[]>([]); let userTypes = $state<UserDefinedType[]>([]); let savedUserTypes = $state<UserDefinedType[]>([]); let deletedUserTypeIds = $state<string[]>([]); let loading = $state(true); let startupScan = $state(true); let rememberTab = $state(false); let saving = $state(false); let error = $state<string | null>(null); let guardTarget = $state<SettingsTab | 'close' | null>(null); let modelMappingRoots = $state<string[]>([]); let mappingWorkingRoot = $state(''); let mappingArchiveRoot = $state(''); let mappingExtensions = $state('.safetensors, .ckpt, .pt, .pth, .bin, .gguf'); let operationActive = $derived(statusMonitor.operation?.state === 'pending' || statusMonitor.operation?.state === 'running'); let editingLocked = $derived(saving || operationActive || $serverUnresponsive); const modelOriginalNames = new SvelteMap<object, string>(); const expandedTypes = new SvelteMap<object, boolean>(); function preserveExpansion<T extends object>(previous: T[], next: T[], key: (type: T) => string): void {
         for (const type of next) {
             const old = previous.find(candidate => key(candidate) === key(type));
 
@@ -130,7 +105,7 @@
         const repositoryResult = await getRepositorySettings();
 
         if (!repositoryResult.ok) {
-            error = repositoryResult.message ?? 'Cannot load repository settings';
+            error = repositoryResult.message ?? locale.t('ui.settings_modal.cannot_load_repository_settings');
             loading = false;
             return;
         }
@@ -163,20 +138,47 @@
         loading = false;
     });
 
+    async function resolveGuard(target: SettingsTab | 'close'): Promise<void> {
+        guardTarget = target;
+        const result = await unsavedChangesBox({
+            message: locale.t('ui.settings_modal.save_changes_to_this_tab_before_continuing'),
+            saveDisabled: editingLocked
+        });
+
+        if (result === 'save' && !await save()) {
+            guardTarget = null;
+            return;
+        }
+        if (result === 'discard') {
+            undo();
+        }
+        if (result !== 'cancel') {
+            continueGuard();
+        } else {
+            guardTarget = null;
+        }
+    }
+
     function requestTab(tab: SettingsTab): void {
         if (saving || tab === activeTab) return;
         if (operationActive) {
             activeTab = tab;
             return;
         }
-        if (activeDirty) guardTarget = tab; else activeTab = tab;
+        if (activeDirty) void resolveGuard(tab); else activeTab = tab;
     }
     function requestClose(): void {
         if (saving) return;
-        if (activeDirty) { guardTarget = 'close'; return; }
+        if (activeDirty) {
+            void resolveGuard('close');
+            return;
+        }
         const dirtyTab: SettingsTab | null = modelsDirty ? 'models' : workflowsDirty ? 'workflows'
             : userTypesDirty ? 'user-types' : extensionsDirty ? 'general' : null;
-        if (dirtyTab !== null) { activeTab = dirtyTab; guardTarget = 'close'; }
+        if (dirtyTab !== null) {
+            activeTab = dirtyTab;
+            void resolveGuard('close');
+        }
         else onClose();
     }
     function continueGuard(): void {
@@ -225,7 +227,7 @@
         const result = target ? await saveModelType(target, originalName)
             : await saveModelSettings(settings.model_types);
         if (!result.ok) {
-            error = result.message ?? 'Cannot save model settings';
+            error = result.message ?? locale.t('ui.settings_modal.cannot_save_model_settings');
             return null;
         }
 
@@ -254,7 +256,7 @@
             for (const id of [...deletedUserTypeIds]) {
                 const result = await deleteUserType(id);
                 if (!result.ok) {
-                    error = result.message ?? 'Cannot delete user-defined type';
+                    error = result.message ?? locale.t('ui.settings_modal.cannot_delete_user_defined_type');
                     return null;
                 }
                 deletedUserTypeIds = deletedUserTypeIds.filter(item => item !== id);
@@ -266,7 +268,7 @@
             if (userDirty(type)) {
                 const result = type.id ? await updateUserType(type) : await createUserType(type);
                 if (!result.ok) {
-                    error = result.message ?? `Cannot save ${type.name}`;
+                    error = result.message ?? locale.t('messages.cannot_save_named', {name: type.name});
                     return null;
                 }
                 Object.assign(type, clone(result.data));
@@ -293,7 +295,7 @@
                 if (extensionsDirty) {
                     const result = await saveModelExtensions(settings.model_extensions);
                     if (!result.ok) {
-                        error = result.message ?? 'Cannot save model extensions';
+                        error = result.message ?? locale.t('ui.settings_modal.cannot_save_model_extensions');
                         return false;
                     }
                     settings.model_extensions = clone(result.data.model_extensions);
@@ -310,7 +312,7 @@
                 if (workflowsDirty) {
                     const result = await saveWorkflowSettings(settings.workflow_locations);
                     if (!result.ok) {
-                        error = result.message ?? 'Cannot save workflow settings';
+                        error = result.message ?? locale.t('ui.settings_modal.cannot_save_workflow_settings');
                         return false;
                     }
                     settings.workflow_locations = clone(result.data.workflow_locations);
@@ -324,14 +326,14 @@
                 const result = await startScan(false, scope,
                     scope === 'all' || scope === 'workflows' ? undefined : ids);
                 if (!result.ok) {
-                    error = result.message ?? 'Settings saved, but the scan could not start';
+                    error = result.message ?? locale.t('ui.settings_modal.settings_saved_but_the_scan_could_not_start');
                     return false;
                 }
                 statusMonitor.track(result.data);
             }
             return true;
         } catch (cause) {
-            error = cause instanceof Error ? cause.message : 'Cannot save settings';
+            error = cause instanceof Error ? cause.message : locale.t('ui.settings_modal.cannot_save_settings');
             return false;
         } finally {
             saving = false;
@@ -341,8 +343,6 @@
     async function save(): Promise<boolean> {
         return runSave(activeTab);
     }
-    async function saveAndContinue(): Promise<void> { if (await save()) continueGuard(); }
-    function discardAndContinue(): void { undo(); continueGuard(); }
     function addModelType(): void {
         settings?.model_types.unshift({name: '', display_name: '', extensions: [],
             locations: [{working_dir: '', archive_dir: ''}], _new: true});
@@ -354,7 +354,7 @@
         const result = await previewModelMappings(
             mappingWorkingRoot, mappingArchiveRoot, extensions);
         if (!result.ok) {
-            error = result.message ?? 'Cannot discover model mappings';
+            error = result.message ?? locale.t('ui.settings_modal.cannot_discover_model_mappings');
             return;
         }
         const newTypes: ModelTypeSetting[] = [];
@@ -375,22 +375,28 @@
             icon: 'folder', purpose: '', size_limit: 10 * 1024 * 1024, small: false,
             object_count: 0, working_dir: '', archive_dir: ''});
     }
-    function removeUserType(type: UserDefinedType, index: number): void {
-        if (type.id && !confirm(`Delete the user-defined type “${type.name}”? Files will not be deleted.`)) return;
-        if (type.id && !confirm(`This will remove ${type.object_count} object(s) from the repository and all collections. Are you really sure?`)) return;
+    async function removeUserType(type: UserDefinedType, index: number): Promise<void> {
+        if (type.id && !await confirmBox({
+            message: locale.t('messages.delete_user_type', {name: type.name})
+        })) return;
+        if (type.id && !await confirmBox({
+            message: locale.plural('messages.delete_user_type_objects', type.object_count)
+        })) return;
         if (type.id) deletedUserTypeIds.push(type.id);
         userTypes.splice(index, 1);
     }
 </script>
 
-<dialog class="nav-dialog" use:modalDialog aria-label="Settings"
-        oncancel={event => {
-            event.preventDefault();
-            requestClose();
-        }}>
+<dialog class="nav-dialog"
+        use:modalDialog
+        aria-label={locale.t('ui.settings_modal.settings')}
+        oncancel={event => { event.preventDefault(); requestClose(); }}>
     <header class="dialog-header spaced-horizontally">
-        <h2>Settings</h2>
-        <button type="button" class="round" aria-label="Close settings" onclick={requestClose}>
+        <h2>{locale.t('ui.settings_modal.settings')}</h2>
+        <button type="button"
+                class="round"
+                aria-label={locale.t('ui.settings_modal.close_settings')}
+                onclick={requestClose}>
             <img class="action-icon" alt="" src={closeIcon} />
         </button>
     </header>
@@ -451,7 +457,7 @@
                     {expandedTypes}
                     isDirty={userDirty}
                     onAddType={addUserType}
-                    onRemoveType={removeUserType}
+                    onRemoveType={(type, index) => void removeUserType(type, index)}
                     onUndo={undo}
                     onSave={save}
                     onSaveType={(type, scan) => runSave('user-types', scan, undefined, type)}
@@ -459,26 +465,4 @@
             {/if}
         {/snippet}
     </SettingsLayout>
-    {#if guardTarget !== null}
-        <div class="modal-backdrop nested-settings-guard" role="presentation">
-            <div class="modal-dialog settings-guard" role="alertdialog" aria-modal="true" aria-label="Unsaved settings">
-                <h3>Unsaved changes</h3>
-                <p>Save changes to this tab before continuing?</p>
-                <div class="settings-actions">
-                    <button class="button-with-text" onclick={() => guardTarget = null}>
-                        <img class="action-icon" alt="cancel" src={cancelIcon} />
-                        <span class="button-label">Cancel</span>
-                    </button>
-                    <button class="button-with-text" onclick={discardAndContinue}>
-                        <img class="action-icon" alt="discard" src={resetIcon} />
-                        <span class="button-label">Discard</span>
-                    </button>
-                    <button class="button-with-text" disabled={editingLocked} onclick={saveAndContinue}>
-                        <img class="action-icon" alt="save" src={saveIcon} />
-                        <span class="button-label">Save</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    {/if}
 </dialog>

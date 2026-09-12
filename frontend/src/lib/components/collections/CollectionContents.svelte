@@ -5,6 +5,8 @@
  ! -------------------------------------------------->
 
 <script lang="ts">
+    import { locale } from '$lib/locale.svelte';
+
 import { onMount, tick, untrack } from 'svelte';
 import { fly } from 'svelte/transition';
 import FilterActions from '$components/controls/FilterActions.svelte';
@@ -12,6 +14,8 @@ import CollectionTable from '$components/collections/CollectionTable.svelte';
 import CollectionDetails from '$components/collections/CollectionDetails.svelte';
 import { sidebar_in_out } from '$lib/common';
 import { confirmBox, confirmState } from '$lib/confirm.svelte';
+import { modalControl } from '$lib/modal-control';
+import { unsavedChangesBox, unsavedChangesState } from '$lib/unsaved-changes.svelte';
 import { statusMonitor } from '$lib/status.svelte';
 import { collectionInput, getCollection, getCollections, getCollectionMembers, updateCollection,
     operateCollection, type MemberSegment, type CollectionMember, type CollectionOperationResult } from '$lib/collections';
@@ -35,32 +39,29 @@ $effect(() => {
         });
     }
 });
-let collections = $state<CollectionOverview[]>([]), active = $state<Collection | null>(null);
-let segments = $state<MemberSegment[]>([]);
-let snapshot = $state(''), busy = $state(false), loading = $state(false);
-let error = $state<string | null>(null), detailError = $state<string | null>(null);
-let warning = $state<string | null>(null), popup = $state<MemberSegment | null>(null);
-let search = $state('');
-let sidebar = $state<HTMLElement>();
-let dialog = $state<HTMLDialogElement>();
+let collections = $state<CollectionOverview[]>([]), active = $state<Collection | null>(null); let segments = $state<MemberSegment[]>([]); let snapshot = $state(''), busy = $state(false), loading = $state(false); let error = $state<string | null>(null), detailError = $state<string | null>(null); let warning = $state<string | null>(null), popup = $state<MemberSegment | null>(null); let search = $state(''); let sidebar = $state<HTMLElement>();
 const metadata = (item: Collection) => ({name: item.name, purpose: item.purpose, tags: [...item.tags]});
 let changed = $derived(active !== null && JSON.stringify(metadata(active)) !== snapshot);
 let candidates = $derived((popup?.candidates ?? []).filter(item => item.name.toLocaleLowerCase().includes(search.toLocaleLowerCase())));
-$effect(() => {navigationLocked = changed || busy || loading || popup !== null || confirmState.open;});
-$effect(() => {if (popup && dialog && !dialog.open) dialog.showModal();});
+$effect(() => {navigationLocked = changed || busy || loading || popup !== null || confirmState.open || unsavedChangesState.open;});
 onMount(() => {void refresh();});
 
 async function refresh() {
     try {
         const result = await getCollections();
-        if (!result.ok) {error = result.message ?? 'Cannot load collections'; return;}
+        if (!result.ok) {error = result.message ?? locale.t('ui.collection_contents.cannot_load_collections'); return;}
         collections = result.data;
         error = null;
     } catch (cause) {error = message(cause);}
 }
-function message(cause: unknown) {return cause instanceof Error ? cause.message : 'Request failed';}
+function message(cause: unknown) {return cause instanceof Error ? cause.message : locale.t('ui.collection_contents.request_failed');}
 async function mayClose() {
-    return !changed || await confirmBox({title: 'Unsaved changes', message: 'Discard collection metadata changes?'});
+    if (!changed) return true;
+
+    const result = await unsavedChangesBox({
+        message: locale.t('ui.collection_contents.save_collection_changes_before_continuing')
+    });
+    return result === 'discard' || (result === 'save' && await save());
 }
 async function close() {
     if (busy || loading || popup || !await mayClose()) return;
@@ -68,12 +69,13 @@ async function close() {
 }
 async function open(id: string) {
     if (busy || loading || popup || active?.id === id) return;
+    if (!await mayClose()) return;
+
     loading = true;
     try {
-        if (!await mayClose()) return;
         const [result, members] = await Promise.all([getCollection(id), getCollectionMembers(id)]);
-        if (!result.ok) {error = result.message ?? 'Cannot load collection'; return;}
-        if (!members.ok) {error = members.message ?? 'Cannot load members'; return;}
+        if (!result.ok) {error = result.message ?? locale.t('ui.collection_contents.cannot_load_collection'); return;}
+        if (!members.ok) {error = members.message ?? locale.t('ui.collection_contents.cannot_load_members'); return;}
         active = result.data; segments = members.data; snapshot = JSON.stringify(metadata(active));
         detailError = null; warning = null; await tick(); sidebar?.focus();
     } catch (cause) {error = message(cause);} finally {loading = false;}
@@ -82,40 +84,47 @@ async function refreshActive(preserveDraft = false) {
     if (!active) return;
     const draft = preserveDraft && changed ? metadata(active) : null;
     const [result, members] = await Promise.all([getCollection(active.id), getCollectionMembers(active.id)]);
-    if (!result.ok) throw new Error(result.message ?? 'Cannot refresh collection');
-    if (!members.ok) throw new Error(members.message ?? 'Cannot refresh members');
+    if (!result.ok) throw new Error(result.message ?? locale.t('ui.collection_contents.cannot_refresh_collection'));
+    if (!members.ok) throw new Error(members.message ?? locale.t('ui.collection_contents.cannot_refresh_members'));
     active = result.data; snapshot = JSON.stringify(metadata(active)); segments = members.data;
     if (draft) active = {...active, ...draft};
     await refresh();
 }
-async function save() {
-    if (!active || busy) return;
+async function save(): Promise<boolean> {
+    if (!active || busy) return false;
     busy = true; detailError = null;
     try {
         // Retrieve current membership so a metadata save does not replace newer links.
         const current = await getCollection(active.id);
-        if (!current.ok) throw new Error(current.message ?? 'Cannot load collection');
+        if (!current.ok) throw new Error(current.message ?? locale.t('ui.collection_contents.cannot_load_collection'));
         const result = await updateCollection(active.id, {...collectionInput(current.data), ...metadata(active)});
-        if (!result.ok) throw new Error(result.message ?? 'Cannot save collection');
+        if (!result.ok) throw new Error(result.message ?? locale.t('ui.collection_contents.cannot_save_collection'));
         await refreshActive();
-    } catch (cause) {detailError = message(cause);} finally {busy = false;}
+        return true;
+    } catch (cause) {
+        detailError = message(cause);
+        return false;
+    } finally {
+        busy = false;
+    }
 }
 async function changeMember(segment: MemberSegment, member: CollectionMember, add: boolean) {
     if (!active || busy) return;
     busy = true; detailError = null;
     try {
         const current = await getCollection(active.id);
-        if (!current.ok) throw new Error(current.message ?? 'Cannot load collection');
+        if (!current.ok) throw new Error(current.message ?? locale.t('ui.collection_contents.cannot_load_collection'));
         const input = collectionInput(current.data);
         const ids = input[segment.field] ?? [];
         input[segment.field] = add ? [...ids, member.id] : ids.filter(id => id !== member.id);
         const result = await updateCollection(active.id, input);
-        if (!result.ok) throw new Error(result.message ?? 'Cannot change membership');
+        if (!result.ok) throw new Error(result.message ?? locale.t('ui.collection_contents.cannot_change_membership'));
         closePopup(); await refreshActive(true);
     } catch (cause) {detailError = message(cause);} finally {busy = false;}
 }
 async function remove(segment: MemberSegment, member: CollectionMember) {
-    if (await confirmBox({title: 'Remove member', message: `Remove ${member.name} from this collection? Files and nested collection contents will remain unchanged.`})) {
+    if (await confirmBox({title: locale.t('ui.collection_contents.remove_member'),
+        message: locale.t('messages.remove_member', {name: member.name})})) {
         await changeMember(segment, member, false);
     }
 }
@@ -124,11 +133,11 @@ async function openAdd(segment: MemberSegment) {
     busy = true; detailError = null;
     try {
         const result = await getCollectionMembers(active.id);
-        if (!result.ok) throw new Error(result.message ?? 'Cannot load candidates');
+        if (!result.ok) throw new Error(result.message ?? locale.t('ui.collection_contents.cannot_load_candidates'));
         segments = result.data; search = ''; popup = segments.find(item => item.id === segment.id) ?? null;
     } catch (cause) {detailError = message(cause);} finally {busy = false;}
 }
-function closePopup() {dialog?.close(); popup = null; search = '';}
+function closePopup() {popup = null; search = '';}
 function operationMessages(result: CollectionOperationResult, field: 'errors' | 'warnings'): string[] {
     return [...(result[field] ?? []).map(issue => issue.message),
         ...(result.members ?? []).flatMap(member => operationMessages(member, field))];
@@ -138,17 +147,17 @@ async function operate(destination: 'working' | 'archive' | null) {
     busy = true; detailError = null; warning = null;
     try {
         const result = await operateCollection(active.id, destination);
-        if (!result.ok) throw new Error(result.message ?? 'Cannot perform collection operation');
+        if (!result.ok) throw new Error(result.message ?? locale.t('ui.collection_contents.cannot_perform_collection_operation'));
         let plan: CollectionOperationResult;
         if ('state' in result.data) {
             const completed = await statusMonitor.waitForOperation(result.data);
-            if (!completed.ok) throw new Error(completed.message ?? 'Cannot retrieve operation');
-            if (completed.data.state === 'failed') throw new Error(completed.data.error?.message ?? 'Collection operation failed');
+            if (!completed.ok) throw new Error(completed.message ?? locale.t('ui.collection_contents.cannot_retrieve_operation'));
+            if (completed.data.state === 'failed') throw new Error(completed.data.error?.message ?? locale.t('ui.collection_contents.collection_operation_failed'));
             plan = completed.data.result as CollectionOperationResult;
-            if (!plan) throw new Error('Collection operation returned no result');
+            if (!plan) throw new Error(locale.t('ui.collection_contents.collection_operation_returned_no_result'));
         } else {plan = result.data;}
         const errors = operationMessages(plan, 'errors');
-        if (!plan.allowed || !plan.performed) detailError = errors.join('\n') || 'Collection operation did not complete.';
+        if (!plan.allowed || !plan.performed) detailError = errors.join('\n') || locale.t('ui.collection_contents.collection_operation_did_not_complete');
         warning = [...new Set(operationMessages(plan, 'warnings'))].join('\n') || null;
     } catch (cause) {detailError = message(cause);} finally {
         // Partial operations may already have changed some members.
@@ -163,7 +172,7 @@ function escape(event: KeyboardEvent) {
 
 <div class="object-view">
     <FilterActions tab="collections" />
-    {#if error}<p class="error-message">{error} <button class="blank-button" onclick={refresh}>Retry</button></p>{/if}
+    {#if error}<p class="error-message">{error} <button class="blank-button" onclick={refresh}>{locale.t('ui.collection_contents.retry')}</button></p>{/if}
     <div class="object-results"><main><CollectionTable {collections} selectedId={active?.id ?? null}
         disabled={busy || loading || popup !== null} onOpen={open} /></main></div>
     {#if active}
@@ -177,19 +186,19 @@ function escape(event: KeyboardEvent) {
     {/if}
 </div>
 {#if popup}
-    <dialog class="collection-member-picker" bind:this={dialog} aria-labelledby="collection-picker-title"
+    <dialog class="collection-member-picker" use:modalControl aria-labelledby="collection-picker-title"
         oncancel={event => {event.preventDefault(); if (!busy) closePopup();}}>
         <h2 id="collection-picker-title">Add: {popup.name}</h2>
         {#if detailError}<p class="error-message">{detailError}</p>{/if}
 
-            <label class="dialog-label">Search names<input disabled={busy} class="text-input full-width" bind:value={search} /></label>
+            <label class="dialog-label">{locale.t('ui.collection_contents.search_names')}<input disabled={busy} class="text-input full-width" bind:value={search} /></label>
             <div class="collection-options">
                 {#each candidates as member (member.id)}
                     <button disabled={busy} class="blank-button" title={member.name}
                         onclick={() => {if (popup) void changeMember(popup, member, true);}}>{member.name}</button>
-                {:else}<p class="annotation">No available members match.</p>{/each}
+                {:else}<p class="annotation">{locale.t('ui.collection_contents.no_available_members_match')}</p>{/each}
             </div>
-            <button disabled={busy} class="button-with-text" onclick={closePopup}>Cancel</button>
+            <button disabled={busy} class="button-with-text" onclick={closePopup}>{locale.t('ui.collection_contents.cancel')}</button>
 
     </dialog>
 {/if}

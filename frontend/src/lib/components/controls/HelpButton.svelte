@@ -5,6 +5,8 @@
  ! -------------------------------------------------->
 
 <script lang="ts">
+    import { locale } from '$lib/locale.svelte';
+
 let { text }: { text: string } = $props();
 let pinned = $state(false);
 let hovered = $state(false);
@@ -14,7 +16,7 @@ let visible = $derived(pinned || hovered || focused);
 
 <span class="help-control">
     <button type="button" class="round help-button"
-            aria-label="Help" aria-expanded={text.length > 0 && visible}
+            aria-label={locale.t('ui.help_button.help')} aria-expanded={text.length > 0 && visible}
             onclick={() => pinned = !pinned}
             onmouseenter={() => hovered = true}
             onmouseleave={() => hovered = false}

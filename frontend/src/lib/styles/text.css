@@ -15,7 +15,7 @@
 
 * {
     font: inherit;
-    font-family: OpenSans;
+    font-family: var(--app-font-family, OpenSans, sans-serif);
     color: var(--text-color);
     font-size: var(--medium-font-size);
 }
@@ -26,7 +26,7 @@
 h1 {
     font-size: var(--large-font-size);
     color: var(--text-color);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 h2 {
@@ -144,6 +144,10 @@ p {
 
 .no-top-margin {
     margin-top: 0;
+}
+
+.slim-margin {
+    margin: var(--gap-small) 0;
 }
 
 .text-small {

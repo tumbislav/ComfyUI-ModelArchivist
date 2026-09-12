@@ -6,6 +6,7 @@
 
 
 import { apiFetch, getUrl, parseResponse, type ApiResult } from '$lib/api';
+import { locale } from '$lib/locale.svelte';
 import { type UserDefinedType } from '$lib/objects';
 
 const ACTIVE_TYPE_KEY = 'active-user-type';
@@ -59,7 +60,7 @@ class UserTypeState {
         const result = await getUserTypes();
         this.loaded = true;
         if (!result.ok) {
-            this.error = result.message ?? 'Cannot retrieve user-defined types';
+            this.error = result.message ?? locale.t('errors.retrieve_user_types');
             return;
         }
         this.types = result.data;

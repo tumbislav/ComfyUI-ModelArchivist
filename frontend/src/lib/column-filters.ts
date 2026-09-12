@@ -5,6 +5,7 @@
  * ---------------------------------------------------------------------------*/
 
 import { writable, get } from 'svelte/store';
+import { locale } from '$lib/locale.svelte';
 
 export type FilterTab = 'models' | 'workflows' | 'user' | 'collections';
 export type ColumnRule = string | string[] | boolean;
@@ -17,32 +18,39 @@ export type FilterColumn = {
     negative?: string;
 };
 const booleanLabels: Record<string, [string, string]> = {
-    has_tags: ['Has tags', 'Does not have tags'],
-    has_collections: ['In collection', 'Not in collection'],
-    errors: ['Has errors', 'No errors'],
-    has_models: ['Contains models', 'No models'],
-    has_workflows: ['Contains workflows', 'No workflows'],
-    has_user_objects: ['Contains user object', 'No user objects'],
-    has_children: ['Contains collections', 'No collections']
+    has_tags: ['filters.boolean.has_tags', 'filters.boolean.no_tags'],
+    has_collections: ['filters.boolean.in_collection', 'filters.boolean.not_in_collection'],
+    errors: ['filters.boolean.has_errors', 'filters.boolean.no_errors'],
+    has_models: ['filters.boolean.has_models', 'filters.boolean.no_models'],
+    has_workflows: ['filters.boolean.has_workflows', 'filters.boolean.no_workflows'],
+    has_user_objects: ['filters.boolean.has_user_objects', 'filters.boolean.no_user_objects'],
+    has_children: ['filters.boolean.has_collections', 'filters.boolean.no_collections']
 };
-const column = (key: string, label: string, kind: FilterColumn['kind']): FilterColumn => ({
-    key, label, kind,
-    positive: booleanLabels[key]?.[0],
-    negative: booleanLabels[key]?.[1]
+const column = (key: string, labelKey: string, kind: FilterColumn['kind']): FilterColumn => ({
+    key,
+    get label() { return locale.t(labelKey); },
+    kind,
+    get positive() { return booleanLabels[key] ? locale.t(booleanLabels[key][0]) : undefined; },
+    get negative() { return booleanLabels[key] ? locale.t(booleanLabels[key][1]) : undefined; }
 });
-const common = [column('relative_path', 'Relative path', 'multi'),
-    column('tag_values', 'Tags', 'multi'), column('collection_names', 'Collections', 'multi'),
-    column('deployment', 'Location', 'multi'), column('error_values', 'Error', 'multi')];
+const common = [column('relative_path', 'filters.labels.relative_path', 'multi'),
+    column('tag_values', 'filters.labels.tags', 'multi'),
+    column('collection_names', 'filters.labels.collections', 'multi'),
+    column('deployment', 'filters.labels.location', 'multi'),
+    column('error_values', 'filters.labels.error', 'multi')];
 export const filterColumns: Record<FilterTab, FilterColumn[]> = {
-    models: [column('internal_name', 'Model name', 'prefix'), common[0],
-        column('file_format', 'Format', 'multi'), column('base_model_abbreviation', 'Base', 'multi'), ...common.slice(1)],
-    workflows: [column('internal_name', 'Name', 'prefix'), ...common],
-    user: [column('display_name', 'Name', 'prefix'), ...common],
-    collections: [column('name', 'Name', 'prefix'), column('deployment', 'Location', 'multi'),
+    models: [column('internal_name', 'filters.labels.model_name', 'prefix'), common[0],
+        column('file_format', 'filters.labels.format', 'multi'),
+        column('base_model_abbreviation', 'filters.labels.base', 'multi'), ...common.slice(1)],
+    workflows: [column('internal_name', 'filters.labels.name', 'prefix'), ...common],
+    user: [column('display_name', 'filters.labels.name', 'prefix'), ...common],
+    collections: [column('name', 'filters.labels.name', 'prefix'),
+        column('deployment', 'filters.labels.location', 'multi'),
         ...['tag_values', 'model_names', 'workflow_names', 'user_object_names',
             'child_collection_names'].map((key, i) =>
-            column(key, ['Tags', 'Models', 'Workflows', 'User types', 'Collections'][i], 'multi')),
-        column('error_values', 'Error', 'multi')]
+            column(key, ['filters.labels.tags', 'filters.labels.models', 'filters.labels.workflows',
+                'filters.labels.user_types', 'filters.labels.collections'][i], 'multi')),
+        column('error_values', 'filters.labels.error', 'multi')]
 };
 const preferenceKey = 'archivist.rememberFilters';
 const stateKey = 'archivist.columnFilters';
@@ -130,9 +138,13 @@ export function filteredRows<T extends object>(rows: T[], state: FilterState): T
 export function filterSummary(tab: FilterTab, state: FilterState): string {
     const parts = filterColumns[tab].filter(column => column.key in state.columns).map(column => {
         const rule = state.columns[column.key];
-        const value = Array.isArray(rule) ? (rule.length ? rule.map(value => value || '(blank)').join(', ') : 'none')
-            : typeof rule === 'boolean' ? (rule ? 'yes' : 'no') : rule;
+        const value = Array.isArray(rule)
+            ? (rule.length ? rule.map(value => value || locale.t('common.blank')).join(', ')
+                : locale.t('common.none'))
+            : typeof rule === 'boolean' ? locale.t(rule ? 'common.yes' : 'common.no') : rule;
         return `${column.label}: ${value}`;
     });
-    return parts.length ? `${state.enabled ? '' : '(filter off) '}${parts.join('; ')}` : 'No filters';
+    return parts.length
+        ? `${state.enabled ? '' : `${locale.t('common.filter_off')} `}${parts.join('; ')}`
+        : locale.t('common.no_filters');
 }

@@ -5,6 +5,8 @@
  ! -------------------------------------------------------------------------- -->
 
 <script lang="ts">
+    import { locale } from '$lib/locale.svelte';
+
     import type { SvelteMap } from 'svelte/reactivity';
 
     import addIcon from '$icons/actions/add16.png';
@@ -57,10 +59,9 @@
 {#if settings}
     <section class="dialog-section model-mapping-assistant">
         <div class="spaced-horizontally">
-            <h4 class="tight-vertical">Map model directories</h4>
-            <HelpButton text={settings.mode === 'comfyui'
-                ? 'Working folders and extensions are supplied by ComfyUI.'
-                : 'Each model type has one working/archive location pair.'} />
+            <h2 class="tight-vertical">{locale.t('ui.model_settings.map_model_directories')}</h2>
+            <HelpButton text={locale.t(settings.mode === 'comfyui'
+                ? 'dynamic.comfyui_model_help' : 'dynamic.standalone_model_help')} />
         </div>
 
         <div class="settings-form model-settings-form">
@@ -77,13 +78,13 @@
                 {/if}
             </label>
             <label class="dialog-label">
-                Archive root
+                {locale.t('ui.model_settings.archive_root')}
                 <PathInput bind:value={mappingArchiveRoot} onError={onError} />
             </label>
 
             {#if settings.mode === 'standalone'}
                 <label class="dialog-label">
-                    Model extensions
+                    {locale.t('ui.model_settings.model_extensions')}
                     <input class="text-input" bind:value={mappingExtensions} />
                 </label>
             {/if}
@@ -94,31 +95,29 @@
             <button class="button-with-text"
                     disabled={!mappingWorkingRoot || !mappingArchiveRoot}
                     onclick={onAddMappings}>
-                <img class="action-icon" alt="add" src={addIcon} />
-                <span class="button-label">Add mappings</span>
+                <img class="action-icon" alt={locale.t('ui.model_settings.add')} src={addIcon} />
+                <span class="button-label">{locale.t('ui.model_settings.add_mappings')}</span>
             </button>
         </div>
     </section>
 
     <div class="spaced-horizontally model-settings-actions">
-        <div>
-            {#if settings.mode === 'standalone'}
-                <button class="button-with-text" onclick={onAddType}>
-                    <img class="action-icon" alt="add" src={addIcon} />
-                    <span class="button-label">Add type</span>
-                </button>
-            {/if}
-        </div>
-        <div class="settings-actions">
-            <button class="button-with-text" disabled={!dirty || saving} onclick={onUndo}>
-                <img class="action-icon" alt="undo" src={resetIcon} />
-                <span class="button-label">Undo</span>
+        {#if settings.mode === 'standalone'}
+            <button class="button-with-text" onclick={onAddType}>
+                <img class="action-icon" alt={locale.t('ui.model_settings.add')} src={addIcon} />
+                <span class="button-label">{locale.t('ui.model_settings.add_type')}</span>
             </button>
-            <button class="button-with-text" disabled={!dirty || saving} onclick={onSave}>
-                <img class="action-icon" alt="save" src={saveIcon} />
-                <span class="button-label">{saving ? 'Saving…' : 'Save'}</span>
-            </button>
-        </div>
+        {:else}
+            <div class="button-placeholder"></div>
+        {/if}
+        <button class="button-with-text" disabled={!dirty || saving} onclick={onUndo}>
+            <img class="action-icon" alt={locale.t('ui.model_settings.undo')} src={resetIcon} />
+            <span class="button-label">{locale.t('ui.model_settings.undo_2')}</span>
+        </button>
+        <button class="button-with-text" disabled={!dirty || saving} onclick={onSave}>
+            <img class="action-icon" alt={locale.t('ui.model_settings.save')} src={saveIcon} />
+            <span class="button-label">{locale.t(saving ? 'dynamic.saving' : 'dynamic.save')}</span>
+        </button>
     </div>
 
     <div class="model-type-list">
@@ -126,20 +125,20 @@
             <details class:unsaved={type._new === true}
                      bind:open={() => expandedTypes.get(type) ?? type._new === true,
                                 open => expandedTypes.set(type, open)}>
-                <summary>{type.display_name || type.name || 'New model type'}</summary>
+                <summary>{type.display_name || type.name || locale.t('dynamic.new_model_type')}</summary>
 
                 <div class="settings-form model-settings-form">
                     <label class="dialog-label">
-                        Type key
+                        {locale.t('ui.model_settings.type_key')}
                         <input class="text-input" bind:value={type.name}
                                disabled={settings.mode === 'comfyui'} />
                     </label>
                     <label class="dialog-label">
-                        Display name
+                        {locale.t('ui.model_settings.display_name')}
                         <input class="text-input" bind:value={type.display_name} />
                     </label>
                     <label class="dialog-label">
-                        Extensions
+                        {locale.t('ui.model_settings.extensions')}
                         <input class="text-input" value={type.extensions.join(', ')}
                                disabled={settings.mode === 'comfyui'}
                                oninput={event => type.extensions = event.currentTarget.value
@@ -148,13 +147,13 @@
 
                     {#each type.locations as location}
                         <label class="dialog-label">
-                            Working folder
+                            {locale.t('ui.model_settings.working_folder')}
                             <PathInput bind:value={location.working_dir}
                                        disabled={settings.mode === 'comfyui'}
                                        onError={onError} />
                         </label>
                         <label class="dialog-label">
-                            Archive folder
+                            {locale.t('ui.model_settings.archive_folder')}
                             <PathInput bind:value={location.archive_dir} onError={onError} />
                         </label>
                     {/each}
@@ -164,17 +163,17 @@
                     {#if settings.mode === 'standalone'}
                         <button class="button-with-text danger" onclick={() => onRemoveType(typeIndex)}>
                             <img class="action-icon" alt="" src={removeIcon} />
-                            <span class="button-label">Remove type</span>
+                            <span class="button-label">{locale.t('ui.model_settings.remove_type')}</span>
                         </button>
                     {/if}
                     <button class="button-with-text" disabled={!isDirty(type)}
                             onclick={() => onSaveType(type, false)}>
                         <img class="action-icon" alt="" src={saveIcon} />
-                        <span class="button-label">Save</span>
+                        <span class="button-label">{locale.t('ui.model_settings.save_2')}</span>
                     </button>
                     <button class="button-with-text" onclick={() => onSaveType(type, true)}>
                         <img class="action-icon" alt="" src={refreshIcon} />
-                        <span class="button-label">{isDirty(type) ? 'Save and scan' : 'Refresh'}</span>
+                        <span class="button-label">{locale.t(isDirty(type) ? 'dynamic.save_and_scan' : 'dynamic.refresh')}</span>
                     </button>
                 </div>
             </details>

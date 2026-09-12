@@ -5,13 +5,15 @@
  ! -------------------------------------------------->
 
 <script lang="ts">
+    import { locale } from '$lib/locale.svelte';
+
 import { onMount } from 'svelte';
 import { getBaseModels } from '$lib/models';
 
 let {
     value,
     disabled = false,
-    placeholder = 'Base model',
+    placeholder = locale.t('ui.base_model_editor.base_model'),
     inputId,
     onChanged
 }: {

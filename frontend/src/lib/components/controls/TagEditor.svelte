@@ -5,6 +5,8 @@
  ! -------------------------------------------------->
 
 <script lang="ts">
+    import { locale } from '$lib/locale.svelte';
+
     import closeIcon from '$icons/actions/close8.png';
     import { getTagsContext, loadTagRules, normalizeTag } from '$lib/tags';
     import { onMount } from 'svelte';
@@ -19,7 +21,7 @@
             await loadTagRules();
             rulesReady = true;
         } catch (error) {
-            validationError = error instanceof Error ? error.message : 'Cannot load tag rules';
+            validationError = error instanceof Error ? error.message : locale.t('ui.tag_editor.cannot_load_tag_rules');
         }
     });
 
@@ -121,7 +123,7 @@
 </script>
 
 {#if title}
-    <label class="dialog-label" for={inputId}>{title}</label>
+    <h2 class="slim-margin">{title}</h2>
 {/if}
 
 <div class="multi-select">
@@ -132,7 +134,7 @@
                 <button type="button"
                         class="round"
                         onclick={() => removeTag(tag)}
-                        aria-label={`Remove ${tag}`}
+                        aria-label={locale.t('messages.remove_tag', {tag})}
                         disabled={disabled}>
                     <img class="action-icon" alt="" src={closeIcon} />
                 </button>
@@ -146,7 +148,7 @@
                    onfocus={positionDropdown}
                    oninput={positionDropdown}
                    onkeydown={handleKeydown}
-                   placeholder={disabled ? ". . ." : (editable ? "Add tag" : "Find tag")}
+                   placeholder={disabled ? ". . ." : locale.t(editable ? 'dynamic.add_tag' : 'dynamic.find_tag')}
                    disabled={disabled} />
         </div>
     </div>
@@ -175,8 +177,7 @@
     <p class="error-message">{validationError}</p>
 {:else if editable && rulesReady && query && normalizeTag(query) === null}
     <p class="error-message">
-        Start with a letter, underscore, or digit (0–9). Use name characters or spaces;
-        ASCII colon (:) and dash (-) are allowed only inside the tag.
+        {locale.t('ui.tag_editor.start_with_a_letter_underscore_or_digit_0_9_use_name_characters_or_spaces_ascii_colon_and_dash_are_allowed_only_inside_the_tag')}
     </p>
 {/if}
 

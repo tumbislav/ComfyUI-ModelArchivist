@@ -5,6 +5,8 @@
  ! -------------------------------------------------------------------------- -->
 
 <script lang="ts">
+    import { locale } from '$lib/locale.svelte';
+
     import resetIcon from '$icons/actions/reset16.png';
     import saveIcon from '$icons/actions/save16.png';
 
@@ -33,12 +35,12 @@
         <div></div>
         <div class="settings-actions">
             <button class="button-with-text" disabled={!dirty || saving} onclick={onUndo}>
-                <img class="action-icon" alt="undo" src={resetIcon} />
-                <span class="button-label">Undo</span>
+                <img class="action-icon" alt={locale.t('ui.workflow_settings.undo')} src={resetIcon} />
+                <span class="button-label">{locale.t('ui.workflow_settings.undo_2')}</span>
             </button>
             <button class="button-with-text" disabled={!dirty || saving} onclick={onSave}>
-                <img class="action-icon" alt="save" src={saveIcon} />
-                <span class="button-label">{saving ? 'Saving…' : 'Save'}</span>
+                <img class="action-icon" alt={locale.t('ui.workflow_settings.save')} src={saveIcon} />
+                <span class="button-label">{locale.t(saving ? 'dynamic.saving' : 'dynamic.save')}</span>
             </button>
         </div>
     </div>
@@ -48,13 +50,13 @@
             {@const location = settings.workflow_locations[0]}
             <div class="settings-form aligned-settings-form dialog-section">
                 <label class="dialog-label">
-                    Working folder
+                    {locale.t('ui.workflow_settings.working_folder')}
                     <PathInput bind:value={location.working_dir}
                                disabled={settings.mode === 'comfyui'}
                                onError={onError} />
                 </label>
                 <label class="dialog-label">
-                    Archive folder
+                    {locale.t('ui.workflow_settings.archive_folder')}
                     <PathInput bind:value={location.archive_dir} onError={onError} />
                 </label>
             </div>

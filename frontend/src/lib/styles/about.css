@@ -56,7 +56,7 @@
 .about-caption {
     position: relative;
     z-index: 2;
-    max-height: 160px;
+    max-height: 170px;
     overflow-x: hidden;
     overflow-y: auto;
     overflow-wrap: anywhere;
@@ -72,40 +72,4 @@
     display: flex;
     justify-content: center;
     margin-top: var(--gap-mid);
-}
-
-.about-tooltip {
-    position: relative;
-    cursor: help;
-    text-decoration: underline dotted;
-    text-underline-offset: 0.2em;
-}
-
-.about-caption p:has(> .about-tooltip) {
-    margin-bottom: 0;
-}
-
-.about-tooltip-text {
-    box-sizing: border-box;
-    display: none;
-    width: fit-content;
-    max-width: 50%;
-    margin: 0 0 var(--gap-small);
-    padding: var(--gap-small);
-    border: var(--solid-border);
-    border-radius: var(--radius-small);
-    background: var(--bg-color);
-    color: var(--text-color);
-    box-shadow: var(--shadow-right);
-    text-align: left;
-    font-weight: normal;
-    overflow-wrap: anywhere;
-    white-space: normal;
-}
-
-.about-caption p:has(> .about-tooltip:hover) + .about-tooltip-text,
-.about-caption p:has(> .about-tooltip:focus) + .about-tooltip-text,
-.about-tooltip-text:hover,
-.about-tooltip-text:focus-within {
-    display: block;
 }

@@ -7,7 +7,7 @@
 /* Date and time
  * ---------------------------------------------------------------------------*/
 
-export const system_locale = new Intl.DateTimeFormat().resolvedOptions().locale;
+import { locale } from '$lib/locale.svelte';
 
 export const short_date: Intl.DateTimeFormatOptions = {
     dateStyle: 'short'
@@ -19,8 +19,7 @@ export const timestamp: Intl.DateTimeFormatOptions = {
 }
 
 export function shortDate(d: Date): string {
-    const formatter = new Intl.DateTimeFormat(system_locale, short_date);
-    return formatter.format(d);
+    return locale.date(d, short_date);
 }
 
 /* Paths

@@ -4,6 +4,8 @@
  * purpose: Confirmation box handling
  * ---------------------------------------------------------------------------*/
 
+import { locale } from '$lib/locale.svelte';
+
 type ConfirmOptions = {
     title?: string;
     message: string;
@@ -36,7 +38,7 @@ export function sideDialogPosition(anchor: HTMLElement): string {
 
 export function confirmBox(options: ConfirmOptions): Promise<boolean> {
     confirmState.open = true;
-    confirmState.title = options.title ?? 'Confirm';
+    confirmState.title = options.title ?? locale.t('common.confirm_please');
     confirmState.message = options.message;
     confirmState.position = options.anchor ? sideDialogPosition(options.anchor) : '';
 

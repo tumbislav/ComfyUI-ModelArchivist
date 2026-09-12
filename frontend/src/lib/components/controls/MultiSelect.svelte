@@ -5,6 +5,8 @@
  ! -------------------------------------------------->
 
 <script lang="ts">
+    import { locale } from '$lib/locale.svelte';
+
     import closeIcon from '$icons/actions/close8.png';
     import { type ConfigOption } from '$lib/configuration';
 
@@ -57,7 +59,7 @@
 </script>
 
 {#if title}
-    <h2>{title}</h2>
+    <h2 class="slim-margin">{title}</h2>
 {/if}
 
 <div class="multi-select">
@@ -66,7 +68,7 @@
             <div class="pill-container">
                 <span class="pill-content">{option.label}</span>
                 <button type="button" class="round"
-                        aria-label={`Remove ${option.label}`}
+                        aria-label={locale.t('messages.remove_option', {option: option.label})}
                         onclick={() => remove(option.value)} disabled={disabled}>
                     <img class="action-icon" alt="" src={closeIcon} />
                 </button>
@@ -74,7 +76,7 @@
         {/each}
         <div class="pill-container">
             <input class="pill-input" type="text" bind:value={query}
-                   onkeydown={handleKeydown} placeholder="Find option" disabled={disabled} />
+                   onkeydown={handleKeydown} placeholder={locale.t('ui.multi_select.find_option')} disabled={disabled} />
         </div>
     </div>
 

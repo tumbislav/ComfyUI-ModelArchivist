@@ -16,6 +16,7 @@ import { apiFetch,
     getUrl,
     parseResponse
 } from '$lib/api';
+import { locale } from '$lib/locale.svelte';
 
 import { createContext } from 'svelte';
 
@@ -63,7 +64,7 @@ export async function loadTagRules(): Promise<void> {
             const result = await parseResponse<{pattern: string}>(response, identity, 'tagRules');
 
             if (!result.ok) {
-                throw new Error(result.message ?? 'Cannot load tag validation rules');
+                throw new Error(result.message ?? locale.t('errors.load_tag_rules'));
             }
 
             tagPattern = new RegExp(result.data.pattern, 'u');

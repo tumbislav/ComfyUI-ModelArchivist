@@ -5,8 +5,11 @@
  ! -------------------------------------------------->
 
 <script lang=ts>
+    import { locale } from '$lib/locale.svelte';
+
 import ArchivistHeader from '$components/top/ArchivistHeader.svelte'
 import ConfirmBox from '$components/top/ConfirmBox.svelte'
+import UnsavedChangesBox from '$components/top/UnsavedChangesBox.svelte'
 import ModelContents from '$components/models/ModelContents.svelte'
 import WorkflowContents from '$components/workflows/WorkflowContents.svelte'
 import UserObjectContents from '$components/user-objects/UserObjectContents.svelte'
@@ -19,12 +22,7 @@ import { statusMonitor } from '$lib/status.svelte';
 import { apiFetch, getUrl, parseResponse, serverUnresponsive } from '$lib/api';
 import { type Operation } from '$lib/models';
 
-let current_tab = $state<ActiveTab>( null );
-let server_ready = $state( false );
-let content_modal_open = $state(false);
-let remapBlocked = $state(false);
-let tagRevision = $state(0);
-let startupError = $state<string | null>(null);
+let current_tab = $state<ActiveTab>( null ); let server_ready = $state( false ); let content_modal_open = $state(false); let remapBlocked = $state(false); let tagRevision = $state(0); let startupError = $state<string | null>(null);
 
 $effect(() => {
     if (server_ready && current_tab !== null) {
@@ -34,11 +32,7 @@ $effect(() => {
 
 onMount(() => {
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout>;
-    let startupChecked = false;
-    let scanId: string | null = null;
-
-    async function checkStatus(): Promise<void> {
+    let timer: ReturnType<typeof setTimeout>; let startupChecked = false; let scanId: string | null = null; async function checkStatus(): Promise<void> {
         try {
             const status = await getServerStatus();
 
@@ -59,7 +53,7 @@ onMount(() => {
                         } else if ($serverUnresponsive) {
                             startupChecked = false;
                         } else {
-                            startupError = scan.message ?? 'Cannot start startup scan';
+                            startupError = scan.message ?? locale.t('ui.page.cannot_start_startup_scan');
                         }
                     }
                 }
@@ -73,11 +67,11 @@ onMount(() => {
 
                     if (!operation.ok) {
                         if (!$serverUnresponsive) {
-                            startupError = operation.message ?? 'Cannot retrieve startup scan';
+                            startupError = operation.message ?? locale.t('ui.page.cannot_retrieve_startup_scan');
                             scanId = null;
                         }
                     } else if (operation.data.state === 'failed') {
-                        startupError = operation.data.error?.message ?? 'Startup scan failed';
+                        startupError = operation.data.error?.message ?? locale.t('ui.page.startup_scan_failed');
                         scanId = null;
                     } else if (operation.data.state === 'succeeded') {
                         scanId = null;
@@ -92,7 +86,7 @@ onMount(() => {
             }
         } catch (error) {
             if (!cancelled) {
-                startupError = error instanceof Error ? error.message : 'Cannot contact server';
+                startupError = error instanceof Error ? error.message : locale.t('ui.page.cannot_contact_server');
             }
         }
 
@@ -132,6 +126,7 @@ onMount(() => {
 </div>
 
 <ConfirmBox />
+<UnsavedChangesBox />
 
 <style>
 </style>

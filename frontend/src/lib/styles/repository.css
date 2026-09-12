@@ -9,13 +9,16 @@
     overflow-y: auto;
 }
 
+.repository-sections :is(.repository-section):nth-child(n+1):nth-child(-n+3) {
+    border-bottom: var(--solid-border);
+}
+
 .repository-section {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: end;
     gap: var(--gap-small) var(--gap-mid);
     padding: var(--gap-mid) 0;
-    border-bottom: var(--solid-border);
 }
 
 .repository-section h2 {

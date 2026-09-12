@@ -5,6 +5,8 @@
  ! -------------------------------------------------->
 
 <script lang=ts>
+    import { locale } from '$lib/locale.svelte';
+
 import modelIcon from '$icons/nav/model24.png';
 import workflowIcon from '$icons/nav/workflow24.png';
 import userDefinedIcon from '$icons/nav/user-defined24.png';
@@ -40,8 +42,7 @@ let {
     onTagsRemapped: () => void;
 } = $props();
 
-let theme = $state<'light' | 'dark'>('light');
-const logoImages = Object.values(import.meta.glob<string>(
+let theme = $state<'light' | 'dark'>('light'); const logoImages = Object.values(import.meta.glob<string>(
     '/src/lib/assets/images/logo/Library-*.png',
     { eager: true, query: '?url', import: 'default' }
 ));
@@ -91,18 +92,18 @@ let repositoryProgress = $derived.by(() => {
     return null;
 });
 let repositoryLabel = $derived.by(() => {
-    if ($serverUnresponsive) return 'Server...';
-    if (!serverReady) return 'Wait...';
+    if ($serverUnresponsive) return locale.t('ui.archivist_header.server');
+    if (!serverReady) return locale.t('ui.archivist_header.wait');
 
     const operation = statusMonitor.operation;
 
     if (operation?.state === 'pending' || operation?.state === 'running') {
-        if (operation.type === 'scan') return 'Scanning...';
-        if (operation.type.endsWith('_sync')) return 'Syncing...';
-        if (operation.type.endsWith('_move')) return 'Moving...';
+        if (operation.type === 'scan') return locale.t('ui.archivist_header.scanning');
+        if (operation.type.endsWith('_sync')) return locale.t('ui.archivist_header.syncing');
+        if (operation.type.endsWith('_move')) return locale.t('ui.archivist_header.moving');
     }
 
-    return scanSubmitting ? 'Scanning...' : 'Repository';
+    return scanSubmitting ? locale.t('ui.archivist_header.scanning') : locale.t('ui.archivist_header.repository');
 });
 let settingsInitialTab = $state<SettingsTab>('general');
 let activeTypeIcon = $derived(userTypeState.active
@@ -141,9 +142,9 @@ async function scanRepository(): Promise<void> {
     try {
         const result = await startScan();
         if (result.ok) statusMonitor.track(result.data);
-        else statusMonitor.error = result.message ?? 'Cannot start scan';
+        else statusMonitor.error = result.message ?? locale.t('ui.archivist_header.cannot_start_scan');
     } catch (error) {
-        statusMonitor.error = error instanceof Error ? error.message : 'Cannot start scan';
+        statusMonitor.error = error instanceof Error ? error.message : locale.t('ui.archivist_header.cannot_start_scan');
     } finally {
         scanSubmitting = false;
     }
@@ -171,21 +172,21 @@ $effect(() => {
 
 <div class="header">
     <div class="app-title">
-        <button class="title-image" type="button" aria-label="About Model Archivist"
+        <button class="title-image" type="button" aria-label={locale.t('ui.archivist_header.about_model_archivist')}
                 aria-haspopup="dialog" onclick={() => aboutOpen = true}>
             <img src={logoImage} alt="" />
         </button>
         <span class="app-title-text">Model Archivist</span>
     </div>
     
-    <div class="nav-set" role="radiogroup" aria-label="Tab select">
+    <div class="nav-set" role="radiogroup" aria-label={locale.t('ui.archivist_header.tab_select')}>
         <button class="nav-button"
             role="radio"
             disabled={navigationLocked}
             aria-checked={current_tab === 'models'}
             onclick={() => current_tab = 'models'} >
-            <img class="action-icon" alt="model" src={modelIcon} />
-            <span class="large-button-label">Models</span>
+            <img class="action-icon" alt={locale.t('ui.archivist_header.model')} src={modelIcon} />
+            <span class="large-button-label">{locale.t('ui.archivist_header.models')}</span>
         </button>
         
         <button class="nav-button"
@@ -193,8 +194,8 @@ $effect(() => {
             disabled={navigationLocked}
             aria-checked={current_tab === 'workflows'}
             onclick={() => current_tab = 'workflows'}>
-            <img class="action-icon" alt="workflows" src={workflowIcon} />
-            <span class="large-button-label">Workflows</span>
+            <img class="action-icon" alt={locale.t('ui.archivist_header.workflows')} src={workflowIcon} />
+            <span class="large-button-label">{locale.t('ui.archivist_header.workflows_2')}</span>
         </button>
 
         <div class="nav-user-type" aria-checked={current_tab === 'user'}>
@@ -203,10 +204,10 @@ $effect(() => {
                     aria-checked={current_tab === 'user'}
                     onclick={openUserType}>
                 <img class="action-icon" alt="" src={activeTypeIcon} />
-                <span class="large-button-label">{userTypeState.active?.short_name ?? 'User types'}</span>
+                <span class="large-button-label">{userTypeState.active?.short_name ?? locale.t('dynamic.user_types')}</span>
             </button>
             <button class="user-type-trigger" type="button" disabled={navigationLocked}
-                    aria-label="Select user-defined type" aria-haspopup="menu"
+                    aria-label={locale.t('ui.archivist_header.select_user_defined_type')} aria-haspopup="menu"
                     aria-expanded={typeMenuOpen}
                     onclick={() => typeMenuOpen = !typeMenuOpen}>
                 <img class="action-icon-small" alt="" src={downIcon} />
@@ -215,7 +216,7 @@ $effect(() => {
                 <div class="user-type-menu" role="menu">
                     <button type="button" role="menuitem"
                             onclick={() => { typeMenuOpen = false; openSettings('user-types'); }}>
-                        Configure types...
+                        {locale.t('ui.archivist_header.configure_types')}
                     </button>
                     {#each userTypeState.types as type (type.id)}
                         <button type="button" role="menuitemradio"
@@ -235,13 +236,13 @@ $effect(() => {
             disabled={navigationLocked}
             aria-checked={current_tab === 'collections'}
             onclick={() => current_tab = 'collections'} >
-            <img class="action-icon" alt="collections" src={collectionIcon} />
-            <span class="large-button-label">Collections</span>
+            <img class="action-icon" alt={locale.t('ui.archivist_header.collections')} src={collectionIcon} />
+            <span class="large-button-label">{locale.t('ui.archivist_header.collections_2')}</span>
         </button>
     </div>
 
     <div class="option-set">
-        <div class="nav-split" role="group" aria-label="Repository">
+        <div class="nav-split" role="group" aria-label={locale.t('ui.archivist_header.repository')}>
             <button class="nav-button nav-split-main repository-status" type="button"
                     disabled={!serverReady && !$serverUnresponsive}
                     aria-haspopup="dialog" onclick={() => repositoryOpen = true}>
@@ -251,8 +252,10 @@ $effect(() => {
                           style:width={repositoryProgress === null ? '100%' : `${repositoryProgress}%`}
                           role="progressbar"
                           aria-label={repositoryProgress === null
-                              ? 'Repository operation in progress'
-                              : `Repository operation ${Math.round(repositoryProgress)}% complete`}
+                              ? locale.t('dynamic.repository_progress')
+                              : locale.t('dynamic.repository_progress_percent', {
+                                  percent: Math.round(repositoryProgress)
+                              })}
                           aria-valuemin="0"
                           aria-valuemax="100"
                           aria-valuenow={repositoryProgress === null ? undefined : Math.round(repositoryProgress)}>
@@ -265,28 +268,28 @@ $effect(() => {
             </button>
 
             <button class="nav-split-trigger repository-scan" type="button"
-                    aria-label="Run a full repository scan" title="Run a full scan"
+                    aria-label={locale.t('ui.archivist_header.run_a_full_repository_scan')} title={locale.t('ui.archivist_header.run_a_full_scan')}
                     disabled={!serverReady || $serverUnresponsive || scanBusy} onclick={scanRepository}>
                 <img class="action-icon" alt="" src={refreshIcon} />
             </button>
         </div>
 
         <button class="nav-option"
-                aria-label="tag-editor"
-                title={remapBlocked ? 'Save or discard object changes before remapping tags' : 'Remap tags'}
+                aria-label={locale.t('ui.archivist_header.tag_editor')}
+                title={locale.t(remapBlocked ? 'dynamic.save_before_remap' : 'dynamic.remap_tags')}
                 disabled={navigationLocked || remapBlocked || scanBusy || settingsOpen}
                 onclick={() => remapOpen = true}>
-            <img class="action-icon" alt="options" src={tagIcon} />
+            <img class="action-icon" alt={locale.t('ui.archivist_header.options')} src={tagIcon} />
         </button>
         <button class="nav-option"
-                aria-label="options"
+                aria-label={locale.t('ui.archivist_header.options')}
                 onclick={() => openSettings('general')}>
-            <img class="action-icon" alt="options" src={settingsIcon} />
+            <img class="action-icon" alt={locale.t('ui.archivist_header.options')} src={settingsIcon} />
         </button>
         <button class="nav-option"
                 onclick={() => theme = theme === 'light' ? 'dark' : 'light'}
-                aria-label="toggle theme">
-            <img class="action-icon"  alt="dark light mode" src={lightDarkModeIcon} />
+                aria-label={locale.t('ui.archivist_header.toggle_theme')}>
+            <img class="action-icon"  alt={locale.t('ui.archivist_header.dark_light_mode')} src={lightDarkModeIcon} />
         </button>
     </div>
 </div>

@@ -7,15 +7,18 @@
 <script lang=ts>
     let { children } = $props();
     import '$styles/app.css';
+    import { locale } from '$lib/locale.svelte';
+
+    if (typeof document !== 'undefined') {
+        locale.initialize();
+    }
 
 /* Tags are a global context
  * ---------------------------------------------------------------------------*/
 
     import { setTagsContext, getTags } from '$lib/tags';
 
-    let all_tags = $state<string[]>([]);
-    let loading = $state(false);
-    let error = $state<string | null>(null);
+    let all_tags = $state<string[]>([]); let loading = $state(false); let error = $state<string | null>(null);
     
     async function refreshTags() {
         loading = true;

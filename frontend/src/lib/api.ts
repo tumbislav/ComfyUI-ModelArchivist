@@ -9,6 +9,7 @@
  * ---------------------------------------------------------------------------*/
 
 import { writable } from 'svelte/store';
+import { locale } from '$lib/locale.svelte';
 
 const API_PREFIX = '/model-archivist/api';
 export const API_TIMEOUT_MS = 3000;
@@ -53,7 +54,7 @@ export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {},
         }
 
         return new Response(JSON.stringify({ detail: cancelled
-            ? 'Request cancelled' : 'The server is not responding' }), {
+            ? locale.t('errors.request_cancelled') : locale.t('errors.server_unresponsive') }), {
             status: cancelled ? 499 : 503,
             headers: { 'Content-Type': 'application/json' }
         });

@@ -5,6 +5,8 @@
  ! -------------------------------------------------------------------------- -->
 
 <script lang="ts">
+    import { locale } from '$lib/locale.svelte';
+
     import { onMount } from 'svelte';
     import closeIcon from '$icons/actions/close8.png';
     import refreshIcon from '$icons/actions/refresh16.png';
@@ -22,16 +24,14 @@
     };
 
     let { onClose }: { onClose: () => void } = $props();
-    let summary = $state<Summary | null>(null);
-    let error = $state<string | null>(null);
-    let submitting = $state<ScanScope | null>(null);
+    let summary = $state<Summary | null>(null); let error = $state<string | null>(null); let submitting = $state<ScanScope | null>(null);
     let operation = $derived(summary?.operation ?? null);
     let busy = $derived(submitting !== null || operation?.state === 'pending' || operation?.state === 'running');
     const sections = [
-        { key: 'models', title: 'Models', individual: true },
-        { key: 'workflows', title: 'Workflows', individual: false },
-        { key: 'user_objects', title: 'User types', individual: true },
-        { key: 'collections', title: 'Collections', individual: false }
+        { key: 'models', title: locale.t('ui.repository_summary.models'), individual: true },
+        { key: 'workflows', title: locale.t('ui.repository_summary.workflows'), individual: false },
+        { key: 'user_objects', title: locale.t('ui.repository_summary.user_types'), individual: true },
+        { key: 'collections', title: locale.t('ui.repository_summary.collections'), individual: false }
     ] as const;
 
     function scanning(scope: string): boolean {
@@ -44,9 +44,7 @@
 
     onMount(() => {
         let cancelled = false;
-        let timer: ReturnType<typeof setTimeout>;
-
-        async function refresh(): Promise<void> {
+        let timer: ReturnType<typeof setTimeout>; async function refresh(): Promise<void> {
             try {
                 const response = await apiFetch(getUrl('/repository-summary'));
                 const result = await parseResponse<Summary>(response, value => value, 'repositorySummary');
@@ -56,12 +54,12 @@
                         summary = result.data;
                         error = null;
                     } else {
-                        error = result.message ?? 'Cannot load repository summary';
+                        error = result.message ?? locale.t('ui.repository_summary.cannot_load_repository_summary');
                     }
                 }
             } catch (cause) {
                 if (!cancelled) {
-                    error = cause instanceof Error ? cause.message : 'Cannot load repository summary';
+                    error = cause instanceof Error ? cause.message : locale.t('ui.repository_summary.cannot_load_repository_summary');
                 }
             }
 
@@ -90,30 +88,30 @@
                 summary.operation = result.data;
                 statusMonitor.track(result.data);
             } else {
-                error = result.message ?? 'Cannot start scan';
+                error = result.message ?? locale.t('ui.repository_summary.cannot_start_scan');
             }
         } catch (cause) {
-            error = cause instanceof Error ? cause.message : 'Cannot start scan';
+            error = cause instanceof Error ? cause.message : locale.t('ui.repository_summary.cannot_start_scan');
         } finally {
             submitting = null;
         }
     }
 </script>
 
-<dialog class="nav-dialog repository-summary" use:modalDialog aria-label="Repository summary"
+<dialog class="nav-dialog repository-summary" use:modalDialog aria-label={locale.t('ui.repository_summary.repository_summary')}
         oncancel={event => {
             event.preventDefault();
             onClose();
         }}>
     <header class="dialog-header spaced-horizontally">
-        <h2>Repository</h2>
-        <button class="round" type="button" aria-label="Close repository summary" onclick={onClose}>
+        <h2>{locale.t('ui.repository_summary.repository')}</h2>
+        <button class="round" type="button" aria-label={locale.t('ui.repository_summary.close_repository_summary')} onclick={onClose}>
             <img class="action-icon" alt="" src={closeIcon} />
         </button>
     </header>
 
     {#if $serverUnresponsive}
-        <p class="bold-text" role="alert">The server is not responding</p>
+        <p class="bold-text" role="alert">{locale.t('ui.repository_summary.the_server_is_not_responding')}</p>
     {:else}
         {#if error}
             <p class="error-details" role="alert">{error}</p>
@@ -134,7 +132,7 @@
 
                             {#if section.individual}
                                 <div class="annotation repository-annotation">
-                                    Individual types can be scanned from the Settings dialog
+                                    {locale.t('ui.repository_summary.individual_types_can_be_scanned_from_the_settings_dialog')}
                                 </div>
                             {/if}
                         </div>
@@ -142,17 +140,17 @@
                         {#if section.key !== 'collections'}
                             <button class="button-with-text" type="button"
                                     disabled={busy || !summary.can_scan}
-                                    aria-label={`Refresh ${section.title}`}
+                                    aria-label={locale.t('messages.refresh_section', {section: section.title})}
                                     onclick={() => scan(section.key as ScanScope)}>
                                 <img class="action-icon-small" alt="" src={refreshIcon} />
-                                <span>{scanning(section.key) ? 'Scanning...' : 'Refresh'}</span>
+                                <span>{locale.t(scanning(section.key) ? 'dynamic.scanning' : 'dynamic.refresh')}</span>
                             </button>
                         {/if}
 
                     </section>
                 {/each}
             {:else}
-                <p>Loading repository summary...</p>
+                <p>{locale.t('ui.repository_summary.loading_repository_summary')}</p>
             {/if}
         </div>
     {/if}

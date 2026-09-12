@@ -1,0 +1,30 @@
+{
+    "default": "en",
+    "locales": {
+        "en": {
+            "name": "English",
+            "direction": "ltr",
+            "font": "open-sans"
+        },
+        "fr": {
+            "name": "Français",
+            "direction": "ltr",
+            "font": "open-sans"
+        },
+        "es": {
+            "name": "Español",
+            "direction": "ltr",
+            "font": "open-sans"
+        },
+        "sl": {
+            "name": "Slovenščina",
+            "direction": "ltr",
+            "font": "open-sans"
+        }
+    },
+    "fonts": {
+        "open-sans": {
+            "family": "OpenSans, sans-serif"
+        }
+    }
+}

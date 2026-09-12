@@ -6,6 +6,7 @@
 
 
 import { apiFetch, getUrl, parseResponse, type ApiResult } from '$lib/api';
+import { locale } from '$lib/locale.svelte';
 import { type Operation } from '$lib/models';
 
 export type RepositoryCounts = {
@@ -60,7 +61,7 @@ class StatusMonitor {
         if (this.operation?.id === operation.id) {
             return {ok: true, data: this.operation};
         }
-        return {ok: false, message: this.error ?? 'Cannot retrieve operation'};
+        return {ok: false, message: this.error ?? locale.t('errors.retrieve_operation')};
     }
 
     private async refresh(): Promise<void> {
@@ -86,12 +87,12 @@ class StatusMonitor {
                     this.trackedId = null;
                 }
             } else {
-                this.error = status.message ?? 'Cannot retrieve repository status';
+                this.error = status.message ?? locale.t('errors.retrieve_repository_status');
             }
         } catch (error) {
             this.error = error instanceof Error
                 ? error.message
-                : 'Cannot retrieve repository status';
+                : locale.t('errors.retrieve_repository_status');
         } finally {
             this.refreshing = false;
             const active = this.operation !== null &&

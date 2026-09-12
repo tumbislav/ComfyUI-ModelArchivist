@@ -5,6 +5,8 @@
  ! -------------------------------------------------->
 
 <script lang="ts">
+    import { locale } from '$lib/locale.svelte';
+
 /* Nested components
  * ---------------------------------------------------------------------------*/
 import FileSet from '$components/controls/FileSet.svelte'
@@ -44,7 +46,7 @@ let {
     saving: boolean,
     operating: boolean;
     operationError: string | null;
-    onSave: () => Promise<void>;
+    onSave: () => Promise<boolean>;
     onClose: () => Promise<boolean>;
     onSync: () => Promise<void>;
     onMove: (destination: 'working' | 'archive') => Promise<void>;
@@ -53,9 +55,7 @@ let {
     onCollectionsChanged: () => Promise<void>;
 } = $props();
 
-let tags = $derived<string[]>([...model.tags]);
-let archive_set = $derived<ComponentSet | undefined>(model.archive_set);
-let working_set = $derived<ComponentSet | undefined>(model.working_set);
+let tags = $derived<string[]>([...model.tags]); let archive_set = $derived<ComponentSet | undefined>(model.archive_set); let working_set = $derived<ComponentSet | undefined>(model.working_set);
 let destinationPath = $state(model.relative_path);
 let destinationModelId = $state(model.id);
 
@@ -80,7 +80,7 @@ async function handleEnter(event: KeyboardEvent) {
     <div></div>
     <button type="button"
             class="round"
-            aria-label="Close model details"
+            aria-label={locale.t('ui.model_details.close_model_details')}
             onclick={() => onClose()}>
         <img class="action-icon" alt="" src={closeIcon} />
     </button>
@@ -88,11 +88,11 @@ async function handleEnter(event: KeyboardEvent) {
 
 <div class="space-below spaced-horizontally">
     <div>
-        <p class="labeled"><span>Type:</span>{model.type}</p>
+        <p class="labeled"><span>{locale.t('ui.model_details.type')}</span>{model.type}</p>
     </div>
     
     <div>
-        <p class="labeled"><span>Last accessed:</span>{shortDate(model.touched)}</p>
+        <p class="labeled"><span>{locale.t('ui.model_details.last_accessed')}</span>{shortDate(model.touched)}</p>
     </div>
 </div>
 
@@ -103,13 +103,13 @@ async function handleEnter(event: KeyboardEvent) {
     <p class="error-details">{error}</p>
 {/each}
 {#if model.deployment === 'mismatch'}
-    <p class="warning-details">Model is mismatched; synchronize it before continuing.</p>
+    <p class="warning-details">{locale.t('ui.model_details.model_is_mismatched_synchronize_it_before_continuing')}</p>
 {/if}
 
 <div class="space-below dialog-section">
     <div class="space-below">
         <label class="dialog-label">
-            File name
+            {locale.t('ui.model_details.file_name')}
             <input class="text-input full-width"
                    onkeydown={handleEnter}
                    disabled={model.read_only || model.deployment === 'mismatch'}
@@ -118,7 +118,7 @@ async function handleEnter(event: KeyboardEvent) {
         <p class="annotation-right">{model.id}</p>
 
         <label class="dialog-label">
-            Internal name
+            {locale.t('ui.model_details.internal_name')}
             <input class="text-input full-width"
                    onkeydown={handleEnter}
                    disabled={model.read_only || model.deployment === 'mismatch'}
@@ -127,7 +127,7 @@ async function handleEnter(event: KeyboardEvent) {
      </div>
 
     <div class="space-below">
-        <label class="dialog-label" for="model-base-model">Base model</label>
+        <label class="dialog-label" for="model-base-model">{locale.t('ui.model_details.base_model')}</label>
         <div class="base-model-row">
             <span class="base-model-abbreviation">{model.base_model_abbreviation}</span>
             <BaseModelEditor value={model.base_model} inputId="model-base-model"
@@ -140,7 +140,7 @@ async function handleEnter(event: KeyboardEvent) {
         <TagEditor {tags}
             onChanged={(updated: string[]) => { tags = [...updated]; model.tags = [...updated]; }}
             disabled={model.read_only || model.deployment === 'mismatch'}
-            title={'Tags'}
+            title={locale.t('filters.labels.tags')}
             editable={true} />
     </div>
 
@@ -149,18 +149,19 @@ async function handleEnter(event: KeyboardEvent) {
         <button class="button-with-text"
                 disabled={!changed || saving || model.read_only || model.deployment === 'mismatch'}
                 onclick={() => onSave()} >
-            <img class="action-icon" alt="save" src={saveIcon} />
-            <span  class="button-label">Save</span>
+            <img class="action-icon" alt={locale.t('ui.model_details.save')} src={saveIcon} />
+            <span  class="button-label">{locale.t('ui.model_details.save_2')}</span>
         </button>
     </div>
 </div>
 
 <div class="space-below dialog-section">
+    <div class="dialog-section-blank">
     <RelativePathEditor bind:value={destinationPath} options={relativePaths}
         disabled={changed || operating || model.read_only}
         moveDisabled={destinationPath === model.relative_path}
         onMove={() => onRelocate(destinationPath)} />
-
+    </div>
     <FileSet set={working_set} path={model.working_path} name="working set" />
 
     <FileSet set={archive_set} path={model.archive_path} name="archive" />
@@ -170,21 +171,21 @@ async function handleEnter(event: KeyboardEvent) {
                 disabled={operating || model.read_only ||
                           !['archive', 'synced'].includes(model.deployment)}
                 onclick={() => onMove('working')}>
-            <img class="action-icon" alt="move up" src={moveUpIcon} />
-            <span class="button-label">To working set</span>
+            <img class="action-icon" alt={locale.t('ui.model_details.move_up')} src={moveUpIcon} />
+            <span class="button-label">{locale.t('ui.model_details.to_working_set')}</span>
         </button>
         <button class="button-with-text"
                 disabled={operating || model.read_only || model.deployment === 'synced'}
                 onclick={() => onSync()}>
-            <img class="action-icon" alt="move up down" src={moveUpDownIcon} />
-            <span class="button-label">Sync</span>
+            <img class="action-icon" alt={locale.t('ui.model_details.move_up_down')} src={moveUpDownIcon} />
+            <span class="button-label">{locale.t('ui.model_details.sync')}</span>
         </button>
         <button class="button-with-text"
                 disabled={operating || model.read_only ||
                           !['working', 'synced'].includes(model.deployment)}
                 onclick={() => onMove('archive')}>
-            <img class="action-icon" alt="move down" src={moveDownIcon} />
-            <span class="button-label">To archive</span>
+            <img class="action-icon" alt={locale.t('ui.model_details.move_down')} src={moveDownIcon} />
+            <span class="button-label">{locale.t('ui.model_details.to_archive')}</span>
         </button>
     </div>
 </div>

@@ -5,6 +5,8 @@
  ! -------------------------------------------------->
 
 <script lang="ts">
+    import { locale } from '$lib/locale.svelte';
+
 import { userTypeIcon } from '$lib/user-types.svelte';
 
 let { value = $bindable(), options }: { value: string; options: string[] } = $props();
@@ -17,7 +19,7 @@ function select(icon: string): void {
 </script>
 
 <details class="icon-picker" bind:this={picker}>
-    <summary aria-label="Select icon">
+    <summary aria-label={locale.t('ui.icon_picker.select_icon')}>
         <img class="action-icon" src={userTypeIcon(value, 16)} alt={value} />
     </summary>
     <div class="icon-picker-options">

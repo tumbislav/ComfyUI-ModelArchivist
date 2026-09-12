@@ -13,7 +13,7 @@
 }
 
 .remap-tags-table {
-    width: 100%;
+    max-width: 25rem;
 }
 
 .remap-tags-table td:first-child {
@@ -22,10 +22,15 @@
 
 .remap-tags-table :is(th, td):nth-child(n + 2):nth-child(-n + 5) {
     text-align: right;
+    width: 2rem;
+    border-left: var(--solid-border);
 }
 
+.remap-tags-table th:first-child,
+.remap-tags-table td:first-child,
+.remap-tags-table th:last-child,
 .remap-tags-table td:last-child {
-    min-width: 12rem;
+    width: 8rem;
 }
 
 .remap-message {

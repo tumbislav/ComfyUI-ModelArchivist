@@ -40,6 +40,8 @@ body {
     top: var(--gap-mid);
     bottom: var(--gap-mid);
     right: var(--gap-mid);
+    box-sizing: border-box;
+    width: var(--max-width-right);
     padding: var(--gap-mid);
     min-width: var(--min-width-right);
     max-width: var(--max-width-right);
@@ -91,32 +93,6 @@ body {
     flex: 1 1 auto;
     min-width: 0;
     overflow: auto;
-}
-
-.content-modal-backdrop {
-    position: absolute;
-    inset: 0;
-    z-index: var(--z-modal);
-    padding: var(--gap-mid);
-    box-sizing: border-box;
-    background: color-mix(in srgb, var(--bg-color) 65%, transparent);
-    backdrop-filter: blur(2px);
-    display: flex;
-    justify-content: flex-end;
-}
-
-.multi-model-editor {
-    width: var(--max-width-right);
-    min-width: var(--min-width-right);
-    max-width: var(--max-width-right);
-    height: 100%;
-    box-sizing: border-box;
-    padding: var(--gap-mid);
-    overflow-y: auto;
-    background: var(--bg-color);
-    border: var(--solid-border);
-    border-radius: var(--radius-mid);
-    box-shadow: var(--shadow-right);
 }
 
 .multi-model-list {
