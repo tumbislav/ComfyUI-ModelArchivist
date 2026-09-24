@@ -27,11 +27,15 @@ export const confirmState = $state<ConfirmState>({
     position: ''
 });
 
-export function sideDialogPosition(anchor: HTMLElement): string {
-    const details = anchor.closest('[data-model-details]') as HTMLElement | null;
+export function sideDialogPosition(anchor: HTMLElement, align: 'top' | 'bottom' = 'top'): string {
+    const details = anchor.closest('.right-sidebar') as HTMLElement | null;
     const anchorRect = anchor.getBoundingClientRect();
     const detailsRect = (details ?? anchor).getBoundingClientRect();
-    return `--dialog-top: ${anchorRect.top}px; top: var(--dialog-top); ` +
+    const verticalPosition = align === 'bottom'
+        ? `--dialog-bottom: ${window.innerHeight - anchorRect.bottom}px; bottom: var(--dialog-bottom); top: auto; `
+        : `--dialog-top: ${anchorRect.top}px; top: var(--dialog-top); bottom: auto; `;
+
+    return verticalPosition +
         `right: calc(100vw - ${detailsRect.left}px + var(--gap-mid)); ` +
         'left: auto; transform: none;';
 }

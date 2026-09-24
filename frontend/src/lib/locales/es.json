@@ -46,6 +46,12 @@
         }
     },
     "ui": {
+        "collection_picker": {
+            "cannot_load_collections": null,
+            "close": null,
+            "new_collection": null,
+            "create_and_add": null
+        },
         "page": {
             "cannot_start_startup_scan": null,
             "cannot_retrieve_startup_scan": null,

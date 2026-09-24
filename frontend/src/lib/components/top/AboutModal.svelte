@@ -8,8 +8,8 @@
     import { onMount } from 'svelte';
 
     import closeIcon from '$icons/actions/close8.png';
-    import leftIcon from '$icons/actions/left32.png';
-    import rightIcon from '$icons/actions/right32.png';
+    import leftIcon from '$icons/actions/left-over32.png';
+    import rightIcon from '$icons/actions/right-over32.png';
 
     import { apiFetch, getUrl, parseResponse } from '$lib/api';
     import { locale } from '$lib/locale.svelte';

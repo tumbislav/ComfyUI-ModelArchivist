@@ -119,3 +119,52 @@ dialog {
     margin-top: 0;
     margin-bottom: 0;
 }
+
+
+/* Collection membership dialogs
+ * ------------------------------------------------*/
+
+.collection-members,
+.collection-options {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-tiny);
+    margin-bottom: var(--gap-tiny);
+    margin-top: var(--gap-tiny);
+}
+
+.collection-members label {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-small);
+}
+
+.collection-options {
+    max-height: 40vh;
+    overflow-y: auto;
+}
+
+.collection-options button {
+    text-align: left;
+    width: 100%;
+}
+
+.collection-picker {
+    position: fixed;
+    margin: 0;
+    box-sizing: border-box;
+    width: var(--max-width-right);
+    max-width: calc(100vw - 2 * var(--gap-mid));
+    height: 600px;
+    max-height: calc(100vh - var(--dialog-bottom, var(--gap-mid)) - var(--gap-mid));
+    overflow-y: auto;
+}
+
+.collection-create {
+    margin-top: var(--gap-mid);
+}
+
+.collection-create input {
+    min-width: 0;
+    flex: 1;
+}

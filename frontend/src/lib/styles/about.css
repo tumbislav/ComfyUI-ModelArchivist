@@ -32,7 +32,7 @@
     border: 0;
     background: transparent;
     box-shadow: none;
-    opacity: 0.5;
+    opacity: 0.3;
     transition: opacity 150ms ease;
 }
 

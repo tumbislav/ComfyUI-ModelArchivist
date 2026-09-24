@@ -15,7 +15,7 @@
     --text-dimmer: rgb(170, 170, 170);
     --text-error: rgb(114, 0, 3);
     --text-warning: rgb(114, 34, 0);
-    --text-title: rgb(120, 50, 50);
+    --text-title: rgb(38, 16, 90);
 
     /* background */
     --bg-color: rgb(256, 256, 256);
@@ -28,6 +28,7 @@
     --border-color: rgb(224, 224, 224);
     --border-highlight: rgb(208, 208, 250);
     --border-strong: rgb(196, 196, 196);
+    --border-intense: rgb(30, 30, 30);
     --border-strong-highlight: rgb(196, 196, 250);
 
     /* other */
@@ -53,7 +54,7 @@
     --text-dimmer: rgb(140, 140, 140);
     --text-error: rgb(216, 78, 81);
     --text-warning: rgb(218, 120, 97);
-    --text-title: rgb(200, 100, 100);
+    --text-title: rgb(166, 156, 190);
 
     /* background */
     --bg-color: rgb(30, 30, 30);
@@ -66,6 +67,7 @@
     --border-color: rgb(90, 90, 90);
     --border-highlight: rgb(110, 110, 160);
     --border-strong: rgb(130, 130, 130);
+    --border-intense: rgb(220, 220, 220);
     --border-strong-highlight: rgb(150, 150, 180);
 
     /* other */

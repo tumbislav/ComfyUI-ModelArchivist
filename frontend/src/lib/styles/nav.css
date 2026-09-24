@@ -4,8 +4,8 @@
  * purpose: Header bar and navigation
  * ----------------------------------------------- */
  
- /* Containers
-  * ----------------------------------------------- */
+/* Containers
+ * ----------------------------------------------- */
 .header {
     width: 100%;
     height: 100%;
@@ -36,6 +36,9 @@
     padding: 0 var(--gap-large);
 }
 
+/* Split button with drop-down
+ * ----------------------------------------------- */
+
 .nav-user-type,
 .nav-split {
     position: relative;
@@ -62,6 +65,31 @@
     border-radius: 0 var(--radius-mid) var(--radius-mid) 0;
 }
 
+.user-type-menu {
+    position: absolute;
+    z-index: var(--z-popup);
+    top: calc(100% + var(--gap-tiny));
+    left: 0;
+    min-width: 100%;
+    padding: var(--gap-tiny);
+    background: var(--bg-color);
+    border: var(--solid-border);
+    border-radius: var(--radius-mid);
+    box-shadow: var(--shadow-right);
+}
+
+.user-type-menu button {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: var(--gap-small);
+    white-space: nowrap;
+    text-align: left;
+}
+
+/* Repository and server status
+ * ----------------------------------------------- */
+
 .repository-scan {
     width: var(--nav-button-size);
 }
@@ -87,44 +115,23 @@
 
 .progress-infinite {
     background: linear-gradient(
-        -45deg,
+        -90deg,
+        var(--progress-color),
+        var(--bg-color),
         var(--progress-color),
         var(--bg-color),
         var(--progress-color),
         var(--bg-color),
         var(--progress-color)
     );
-    background-size: 400% 400%;
+    background-size: 400% 100%;
     animation: gradient-shift 4s linear infinite;
     will-change: background-position;
 }
 
 @keyframes gradient-shift {
-  0%   { background-position:   0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position:   0% 50%; }
-}
-
-.user-type-menu {
-    position: absolute;
-    z-index: var(--z-popup);
-    top: calc(100% + var(--gap-tiny));
-    left: 0;
-    min-width: 100%;
-    padding: var(--gap-tiny);
-    background: var(--bg-color);
-    border: var(--solid-border);
-    border-radius: var(--radius-mid);
-    box-shadow: var(--shadow-right);
-}
-
-.user-type-menu button {
-    display: flex;
-    width: 100%;
-    align-items: center;
-    gap: var(--gap-small);
-    white-space: nowrap;
-    text-align: left;
+  0%   { background-position:   100% 0%; }
+  100%  { background-position: 0% 0%; }
 }
 
 /* App title and image
@@ -144,26 +151,26 @@
 }
 
 .title-image {
-    width: calc(2.5*var(--nav-button-size));
-    height: var(--nav-button-size);
+    width: calc(2.5*var(--nav-button-size) + 4px);
+    height: calc(var(--nav-button-size) + 4px);
     position: relative;
     padding: 0;
     border: 0;
-    background: transparent;
+    background: var(--bg-color);
     flex-shrink: 0;
+    border: 1px solid var(--border-strong)
 }
 
 .title-image:hover,
 .title-image:active {
-    background: transparent;
     transform: none;
     box-shadow: none;
 }
 
 .title-image img {
     position: absolute;
-    top: 0;
-    left: 0;
+    top: 1px;
+    left: 1px;
     
     width: calc(2.5*var(--nav-button-size));
     height: var(--nav-button-size);
@@ -177,80 +184,4 @@
 .title-image:focus-visible img {
     filter: grayscale(0%);
     transition: filter 300ms ease;
-}
-
-/* Status box
- * ----------------------------------------------- */
-
-.status-box {
-    display: flex;
-    gap: 0;
-    flex-shrink: 0;
-    flex-direction: column;
-    width: 10rem;
-    height: var(--nav-button-size);
-    padding: 0;
-    border: var(--solid-border);
-}
-
-.status-summary {
-    flex: 0 0 0;
-}
-
-.summary-table {
-    border-collapse: collapse;
-    width: 100%;
-    font-size: var(--medium-font-size);
-}
-
-.summary-table td:nth-child(odd) {
-    background-color: var(--bg-accent);
-}
-
-.summary-table td {
-    padding: var(--gap-tiny);
-    text-align: center;
-    font-size: var(--small-font-size);
-}
-
-.progress-bar {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: 1 0 1rem;
-    font-size: var(--small-font-size);
-    font-weight: 700;
-    text-align: center;
-    border-top: var(--solid-border);
-}
-
-.progress-bar progress {
-    width: 100%;
-    height: 100%;
-    accent-color: var(--bg-accent);
-}
-
-.progress-label {
-    position: absolute;
-}
-
-.status-blinker {
-    width: 0.45rem;
-    height: 0.45rem;
-    margin-left: var(--gap-small);
-    border-radius: 50%;
-    background: var(--bg-accent);
-    animation: status-blink 1s steps(2, start) infinite;
-}
-
-@keyframes status-blink {
-    50% { opacity: 0; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .status-blinker,
-    .progress-infinite {
-        animation: none;
-    }
 }

@@ -35,7 +35,7 @@ button:active {
 }
 
 button:disabled {
-    border-color: var(--border-dim);
+    border-color: var(--border-color);
     cursor: not-allowed;
     color: var(--text-dimmer);
     pointer-events: none;
@@ -99,7 +99,6 @@ button:disabled {
 .blank-button {
     font-size: var(--medium-font-size);
 }
-
 
 /* Mode-styled icon
  * ----------------------------------------------- */
