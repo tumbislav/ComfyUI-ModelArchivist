@@ -39,69 +39,72 @@ $effect(() => {
 });
 </script>
 
-<div class="space-below spaced-horizontally">
+<div class="sidebar-header space-below spaced-horizontally">
     <div></div>
     <button class="round" aria-label={locale.t('ui.workflow_details.close_workflow_details')} onclick={() => onClose()}>
         <img class="action-icon" alt="" src={closeIcon} />
     </button>
 </div>
-<div class="space-below">
-    <p class="labeled"><span>{locale.t('ui.workflow_details.last_accessed')}</span>{shortDate(workflow.touched)}</p></div>
-{#if operationError}
-    <p class="error-message">{operationError}</p>
-{/if}
-{#each workflow.errors as error}
-    <p class="error-details">{error}</p>
-{/each}
-<div class="space-below">
-    <h2>{locale.t('ui.workflow_details.file_name')}</h2>
-    <input class="text-input full-width" disabled={workflow.read_only} bind:value={workflow.file_name} />
-    <p class="annotation-right">{workflow.id}</p>
-    <h2>{locale.t('ui.workflow_details.name')}</h2>
-    <input class="text-input full-width" disabled={workflow.read_only} bind:value={workflow.internal_name} />
-    <h2>{locale.t('ui.workflow_details.purpose')}</h2>
-    <textarea class="text-input full-width" disabled={workflow.read_only} bind:value={workflow.purpose}></textarea>
+
+<div class="sidebar-body">
+    <div class="space-below">
+        <p class="labeled"><span>{locale.t('ui.workflow_details.last_accessed')}</span>{shortDate(workflow.touched)}</p></div>
+    {#if operationError}
+        <p class="error-message">{operationError}</p>
+    {/if}
+    {#each workflow.errors as error}
+        <p class="error-details">{locale.error(error)}</p>
+    {/each}
+    <div class="space-below">
+        <h2>{locale.t('ui.workflow_details.file_name')}</h2>
+        <input class="text-input full-width" disabled={workflow.read_only} bind:value={workflow.file_name} />
+        <p class="annotation-right">{workflow.id}</p>
+        <h2>{locale.t('ui.workflow_details.name')}</h2>
+        <input class="text-input full-width" disabled={workflow.read_only} bind:value={workflow.internal_name} />
+        <h2>{locale.t('ui.workflow_details.purpose')}</h2>
+        <textarea class="text-input full-width" disabled={workflow.read_only} bind:value={workflow.purpose}></textarea>
+    </div>
+    <div class="space-below">
+        <TagEditor title={locale.t('ui.workflow_details.tags')}
+                   tags={tags}
+                   editable={true}
+                   disabled={workflow.read_only}
+                   onChanged={updated => { tags = [...updated]; workflow.tags = [...updated]; }} />
+    </div>
+    <div class="space-below spaced-horizontally">
+        <div></div>
+        <button class="button-with-text" disabled={!changed || saving || workflow.read_only} onclick={onSave}>
+            <img class="action-icon" alt={locale.t('ui.workflow_details.save')} src={saveIcon} />
+            <span class="button-label">{locale.t('ui.workflow_details.save_2')}</span>
+        </button>
+    </div>
+    <FileSet set={workingSet} path={workflow.working_path} name="working set" />
+    <div class="space-below">
+        <RelativePathEditor bind:value={destinationPath} options={relativePaths}
+            disabled={changed || operating || workflow.read_only}
+            moveDisabled={destinationPath === workflow.relative_path}
+            onMove={() => onRelocate(destinationPath)} />
+    </div>
+    <div class="space-below spaced-horizontally">
+        <button class="button-with-text"
+                disabled={operating || workflow.read_only || !['archive','synced'].includes(workflow.deployment)}
+                onclick={() => onMove('working')}>
+            <img class="action-icon" alt={locale.t('ui.workflow_details.to_working')} src={moveUpIcon} />
+            <span class="button-label">{locale.t('ui.workflow_details.to_working_set')}</span>
+        </button>
+        <button class="button-with-text"
+                disabled={operating || workflow.read_only || workflow.deployment === 'synced'}
+                onclick={onSync}>
+            <img class="action-icon" alt={locale.t('ui.workflow_details.sync')} src={syncIcon} />
+            <span class="button-label">{locale.t('ui.workflow_details.sync_2')}</span>
+        </button>
+        <button class="button-with-text"
+                disabled={operating || workflow.read_only || !['working','synced'].includes(workflow.deployment)}
+                onclick={() => onMove('archive')}>
+            <img class="action-icon" alt={locale.t('ui.workflow_details.to_archive')} src={moveDownIcon} />
+            <span class="button-label">{locale.t('ui.workflow_details.to_archive_2')}</span>
+        </button>
+    </div>
+    <FileSet set={archiveSet} path={workflow.archive_path} name="archive" />
+    <WorkflowCollectionEditor {workflow} onChanged={onCollectionsChanged} />
 </div>
-<div class="space-below">
-    <TagEditor title={locale.t('ui.workflow_details.tags')}
-               tags={tags}
-               editable={true}
-               disabled={workflow.read_only}
-               onChanged={updated => { tags = [...updated]; workflow.tags = [...updated]; }} />
-</div>
-<div class="space-below spaced-horizontally">
-    <div></div>
-    <button class="button-with-text" disabled={!changed || saving || workflow.read_only} onclick={onSave}>
-        <img class="action-icon" alt={locale.t('ui.workflow_details.save')} src={saveIcon} />
-        <span class="button-label">{locale.t('ui.workflow_details.save_2')}</span>
-    </button>
-</div>
-<FileSet set={workingSet} path={workflow.working_path} name="working set" />
-<div class="space-below">
-    <RelativePathEditor bind:value={destinationPath} options={relativePaths}
-        disabled={changed || operating || workflow.read_only}
-        moveDisabled={destinationPath === workflow.relative_path}
-        onMove={() => onRelocate(destinationPath)} />
-</div>
-<div class="space-below spaced-horizontally">
-    <button class="button-with-text"
-            disabled={operating || workflow.read_only || !['archive','synced'].includes(workflow.deployment)}
-            onclick={() => onMove('working')}>
-        <img class="action-icon" alt={locale.t('ui.workflow_details.to_working')} src={moveUpIcon} />
-        <span class="button-label">{locale.t('ui.workflow_details.to_working_set')}</span>
-    </button>
-    <button class="button-with-text"
-            disabled={operating || workflow.read_only || workflow.deployment === 'synced'}
-            onclick={onSync}>
-        <img class="action-icon" alt={locale.t('ui.workflow_details.sync')} src={syncIcon} />
-        <span class="button-label">{locale.t('ui.workflow_details.sync_2')}</span>
-    </button>
-    <button class="button-with-text"
-            disabled={operating || workflow.read_only || !['working','synced'].includes(workflow.deployment)}
-            onclick={() => onMove('archive')}>
-        <img class="action-icon" alt={locale.t('ui.workflow_details.to_archive')} src={moveDownIcon} />
-        <span class="button-label">{locale.t('ui.workflow_details.to_archive_2')}</span>
-    </button>
-</div>
-<FileSet set={archiveSet} path={workflow.archive_path} name="archive" />
-<WorkflowCollectionEditor {workflow} onChanged={onCollectionsChanged} />

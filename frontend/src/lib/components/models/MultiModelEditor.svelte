@@ -157,7 +157,7 @@ async function relocate() {
     busy = false;
     if (!preview.ok || !preview.data.allowed) {
         error = preview.ok
-            ? preview.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
+            ? preview.data.errors?.map((issue: Parameters<typeof locale.error>[0]) => locale.error(issue)).join('; ')
             : preview.message ?? locale.t('ui.multi_model_editor.cannot_move_models');
         return;
     }
@@ -172,7 +172,7 @@ async function relocate() {
     const result = await relocateModels(modelIds, destinationPath, false);
     busy = false;
     if (!result.ok || !result.data.allowed) {
-        error = result.ok ? result.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
+        error = result.ok ? result.data.errors?.map((issue: Parameters<typeof locale.error>[0]) => locale.error(issue)).join('; ')
             : result.message ?? locale.t('ui.multi_model_editor.cannot_move_models');
         return;
     }
@@ -180,7 +180,7 @@ async function relocate() {
 }
 </script>
 
-<div class="space-below spaced-horizontally">
+<div class="sidebar-header space-below spaced-horizontally">
     <p class="annotation">{modelIds.length} models selected</p>
     <button type="button"
             class="round"
@@ -191,96 +191,98 @@ async function relocate() {
     </button>
 </div>
 
-<h2>{locale.t('ui.multi_model_editor.selected_models')}</h2>
-<div class="multi-model-list space-below">
-    {#each models as model (model.id)}
-        <p>{model.internal_name}</p>
-    {/each}
-</div>
+<div class="sidebar-body">
+    <h2>{locale.t('ui.multi_model_editor.selected_models')}</h2>
+    <div class="multi-model-list space-below">
+        {#each models as model (model.id)}
+            <p>{model.internal_name}</p>
+        {/each}
+    </div>
 
-{#if error}
-    <p class="error-message">{error}</p>
-{/if}
+    {#if error}
+        <p class="error-message">{error}</p>
+    {/if}
 
-{#if hasObjectErrors}
-    <p class="error-details">
-        {locale.t('ui.multi_model_editor.some_selected_models_have_errors_editing_is_disabled')}
-    </p>
-{:else}
-    <div class="dialog-section space-below">
-        <div class="dialog-section-blank">
-            <h2>{locale.t('ui.multi_model_editor.set_base_model')}</h2>
-            <BaseModelEditor
-                value={baseModel}
-                disabled={busy}
-                placeholder={locale.t('ui.multi_model_editor.type_a_base_model_name')}
-                onChanged={(value) => baseModel = value} />
+    {#if hasObjectErrors}
+        <p class="error-details">
+            {locale.t('ui.multi_model_editor.some_selected_models_have_errors_editing_is_disabled')}
+        </p>
+    {:else}
+        <div class="dialog-section space-below">
+            <div class="dialog-section-blank">
+                <h2>{locale.t('ui.multi_model_editor.set_base_model')}</h2>
+                <BaseModelEditor
+                    value={baseModel}
+                    disabled={busy}
+                    placeholder={locale.t('ui.multi_model_editor.type_a_base_model_name')}
+                    onChanged={(value) => baseModel = value} />
+                <div class="spaced-horizontally">
+                    <div></div>
+                    <button class="button-with-text"
+                            disabled={busy || models.length === 0}
+                            onclick={saveBaseModel}>
+                        <img class="action-icon" alt={locale.t('ui.multi_model_editor.save')} src={saveIcon} />
+                        <span class="button-label">{locale.t('ui.multi_model_editor.apply_base_model')}</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-below">
+                <TagEditor
+                    title={locale.t('ui.multi_model_editor.add_tags')}
+                    tags={addTags}
+                    disabled={busy}
+                    editable={true}
+                    onChanged={tags => addTags = tags} />
+            </div>
+            <div class="space-below">
+                <TagEditor
+                    title={locale.t('ui.multi_model_editor.remove_tags')}
+                    tags={removeTags}
+                    disabled={busy}
+                    editable={false}
+                    availableTags={removableTags}
+                    onChanged={tags => removeTags = tags} />
+            </div>
             <div class="spaced-horizontally">
                 <div></div>
                 <button class="button-with-text"
-                        disabled={busy || models.length === 0}
-                        onclick={saveBaseModel}>
+                        disabled={busy || (addTags.length === 0 && removeTags.length === 0)}
+                        onclick={saveTags}>
                     <img class="action-icon" alt={locale.t('ui.multi_model_editor.save')} src={saveIcon} />
-                    <span class="button-label">{locale.t('ui.multi_model_editor.apply_base_model')}</span>
+                    <span class="button-label">{locale.t('ui.multi_model_editor.apply_tags')}</span>
                 </button>
             </div>
         </div>
 
-        <div class="space-below">
-            <TagEditor
-                title={locale.t('ui.multi_model_editor.add_tags')}
-                tags={addTags}
-                disabled={busy}
-                editable={true}
-                onChanged={tags => addTags = tags} />
-        </div>
-        <div class="space-below">
-            <TagEditor
-                title={locale.t('ui.multi_model_editor.remove_tags')}
-                tags={removeTags}
-                disabled={busy}
-                editable={false}
-                availableTags={removableTags}
-                onChanged={tags => removeTags = tags} />
-        </div>
-        <div class="spaced-horizontally">
-            <div></div>
-            <button class="button-with-text"
-                    disabled={busy || (addTags.length === 0 && removeTags.length === 0)}
-                    onclick={saveTags}>
-                <img class="action-icon" alt={locale.t('ui.multi_model_editor.save')} src={saveIcon} />
-                <span class="button-label">{locale.t('ui.multi_model_editor.apply_tags')}</span>
-            </button>
-        </div>
-    </div>
+        <div class="dialog-section">
+            <div class="space-below">
+                <RelativePathEditor
+                    bind:value={destinationPath}
+                    options={relativePaths}
+                    disabled={busy || models.length === 0 ||
+                        new Set(models.map(model => model.raw_type)).size !== 1}
+                    onMove={relocate} />
+            </div>
 
-    <div class="dialog-section">
-        <div class="space-below">
-            <RelativePathEditor
-                bind:value={destinationPath}
-                options={relativePaths}
-                disabled={busy || models.length === 0 ||
-                    new Set(models.map(model => model.raw_type)).size !== 1}
-                onMove={relocate} />
+            <div class="space-below multi-model-deployment-actions">
+                <button class="button-with-text" disabled={busy} onclick={() => runOperation('working')}>
+                    <img class="action-icon" alt={locale.t('ui.multi_model_editor.to_working_set')} src={moveUpIcon} />
+                    <span class="button-label">{locale.t('ui.multi_model_editor.to_working_set_2')}</span>
+                </button>
+                <button class="button-with-text" disabled={busy} onclick={() => runOperation(null)}>
+                    <img class="action-icon" alt={locale.t('ui.multi_model_editor.sync')} src={syncIcon} />
+                    <span class="button-label">{locale.t('ui.multi_model_editor.sync_2')}</span>
+                </button>
+                <button class="button-with-text" disabled={busy} onclick={() => runOperation('archive')}>
+                    <img class="action-icon" alt={locale.t('ui.multi_model_editor.to_archive')} src={moveDownIcon} />
+                    <span class="button-label">{locale.t('ui.multi_model_editor.to_archive_2')}</span>
+                </button>
+            </div>
         </div>
 
-        <div class="space-below multi-model-deployment-actions">
-            <button class="button-with-text" disabled={busy} onclick={() => runOperation('working')}>
-                <img class="action-icon" alt={locale.t('ui.multi_model_editor.to_working_set')} src={moveUpIcon} />
-                <span class="button-label">{locale.t('ui.multi_model_editor.to_working_set_2')}</span>
-            </button>
-            <button class="button-with-text" disabled={busy} onclick={() => runOperation(null)}>
-                <img class="action-icon" alt={locale.t('ui.multi_model_editor.sync')} src={syncIcon} />
-                <span class="button-label">{locale.t('ui.multi_model_editor.sync_2')}</span>
-            </button>
-            <button class="button-with-text" disabled={busy} onclick={() => runOperation('archive')}>
-                <img class="action-icon" alt={locale.t('ui.multi_model_editor.to_archive')} src={moveDownIcon} />
-                <span class="button-label">{locale.t('ui.multi_model_editor.to_archive_2')}</span>
-            </button>
-        </div>
-    </div>
-
-    {#if models.length > 0}
-        <MultiModelCollectionEditor {models} onChanged={refresh} />
+        {#if models.length > 0}
+            <MultiModelCollectionEditor {models} onChanged={refresh} />
+        {/if}
     {/if}
-{/if}
+</div>

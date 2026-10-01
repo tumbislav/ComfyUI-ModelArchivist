@@ -97,7 +97,7 @@
                                 throw new Error(done.ok ? done.data.error?.message ?? locale.t('ui.multi_user_object_editor.operation_failed') : done.message);
                             }
                         } else if (!result.data.allowed) {
-                            throw new Error(result.data.errors?.join('; ') ?? locale.t('ui.multi_user_object_editor.operation_rejected'));
+                            throw new Error(result.data.errors?.map((issue: Parameters<typeof locale.error>[0]) => locale.error(issue)).join('; ') ?? locale.t('ui.multi_user_object_editor.operation_rejected'));
                         }
                     }
                     completed++;
@@ -130,7 +130,7 @@
         busy = false;
         if (!preview.ok || !preview.data.allowed) {
             error = preview.ok
-                ? preview.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
+                ? preview.data.errors?.map((issue: Parameters<typeof locale.error>[0]) => locale.error(issue)).join('; ')
                 : preview.message ?? locale.t('ui.multi_user_object_editor.cannot_move_objects');
             return;
         }
@@ -148,7 +148,7 @@
         busy = false;
         if (!result.ok || !result.data.allowed) {
             error = result.ok
-                ? result.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
+                ? result.data.errors?.map((issue: Parameters<typeof locale.error>[0]) => locale.error(issue)).join('; ')
                 : result.message ?? locale.t('ui.multi_user_object_editor.cannot_move_objects');
             return;
         }
@@ -157,7 +157,7 @@
     }
 </script>
 
-<header class="spaced-horizontally">
+<header class="sidebar-header spaced-horizontally">
     <h2>{locale.t('ui.multi_user_object_editor.edit_selected_objects')}</h2>
     <button class="round"
             aria-label={locale.t('ui.multi_user_object_editor.close_multi_edit')}
@@ -167,86 +167,88 @@
     </button>
 </header>
 
-<p>{ids.length} objects selected</p>
+<div class="sidebar-body">
+    <p>{ids.length} objects selected</p>
 
-<div class="multi-model-list">
-    {#each items as item}
-        <p>{item.display_name}</p>
-    {/each}
-</div>
-
-{#if error}
-    <p class="error-details" role="alert">{error}</p>
-{/if}
-{#if outcome}
-    <p role="status">{outcome}</p>
-{/if}
-{#if items.some(item => item.read_only)}
-    <p class="error-details">
-        {locale.t('ui.multi_user_object_editor.some_selected_objects_are_read_only')}
-    </p>
-{/if}
-
-<TagEditor
-    title={locale.t('ui.multi_user_object_editor.add_tags')}
-    tags={addTags}
-    disabled={blocked}
-    editable={true}
-    onChanged={tags => addTags = tags} />
-<TagEditor
-    title={locale.t('ui.multi_user_object_editor.remove_tags')}
-    tags={removeTags}
-    availableTags={removableTags}
-    disabled={blocked}
-    editable={false}
-    onChanged={tags => removeTags = tags} />
-
-<button class="button-with-text"
-        disabled={blocked || (!addTags.length && !removeTags.length)}
-        onclick={() => perform('tags')}>
-    <img class="action-icon" src={saveIcon} alt="" />
-    {locale.t('ui.multi_user_object_editor.apply_tags')}
-</button>
-
-<div class="settings-actions space-below">
-    <button class="button-with-text" disabled={blocked} onclick={() => perform('working')}>
-        {locale.t('ui.multi_user_object_editor.to_working_set')}
-    </button>
-    <button class="button-with-text" disabled={blocked} onclick={() => perform('sync')}>
-        {locale.t('ui.multi_user_object_editor.sync')}
-    </button>
-    <button class="button-with-text" disabled={blocked} onclick={() => perform('archive')}>
-        {locale.t('ui.multi_user_object_editor.to_archive')}
-    </button>
-</div>
-
-<div class="space-below">
-    <RelativePathEditor
-        bind:value={destinationPath}
-        options={relativePaths}
-        disabled={blocked}
-        onMove={relocate} />
-</div>
-
-<label>
-    {locale.t('ui.multi_user_object_editor.collection')}
-    <select class="text-input" bind:value={collectionId} disabled={blocked}>
-        <option value="">{locale.t('ui.multi_user_object_editor.select_collection')}</option>
-        {#each collections as collection}
-            <option value={collection.id}>{collection.name}</option>
+    <div class="multi-model-list">
+        {#each items as item}
+            <p>{item.display_name}</p>
         {/each}
-    </select>
-</label>
+    </div>
 
-<div class="settings-actions">
+    {#if error}
+        <p class="error-details" role="alert">{error}</p>
+    {/if}
+    {#if outcome}
+        <p role="status">{outcome}</p>
+    {/if}
+    {#if items.some(item => item.read_only)}
+        <p class="error-details">
+            {locale.t('ui.multi_user_object_editor.some_selected_objects_are_read_only')}
+        </p>
+    {/if}
+
+    <TagEditor
+        title={locale.t('ui.multi_user_object_editor.add_tags')}
+        tags={addTags}
+        disabled={blocked}
+        editable={true}
+        onChanged={tags => addTags = tags} />
+    <TagEditor
+        title={locale.t('ui.multi_user_object_editor.remove_tags')}
+        tags={removeTags}
+        availableTags={removableTags}
+        disabled={blocked}
+        editable={false}
+        onChanged={tags => removeTags = tags} />
+
     <button class="button-with-text"
-            disabled={blocked || !collectionId}
-            onclick={() => perform('add')}>
-        {locale.t('ui.multi_user_object_editor.add_to_collection')}
+            disabled={blocked || (!addTags.length && !removeTags.length)}
+            onclick={() => perform('tags')}>
+        <img class="action-icon" src={saveIcon} alt="" />
+        {locale.t('ui.multi_user_object_editor.apply_tags')}
     </button>
-    <button class="button-with-text"
-            disabled={blocked || !collectionId}
-            onclick={() => perform('remove')}>
-        {locale.t('ui.multi_user_object_editor.remove_from_collection')}
-    </button>
+
+    <div class="settings-actions space-below">
+        <button class="button-with-text" disabled={blocked} onclick={() => perform('working')}>
+            {locale.t('ui.multi_user_object_editor.to_working_set')}
+        </button>
+        <button class="button-with-text" disabled={blocked} onclick={() => perform('sync')}>
+            {locale.t('ui.multi_user_object_editor.sync')}
+        </button>
+        <button class="button-with-text" disabled={blocked} onclick={() => perform('archive')}>
+            {locale.t('ui.multi_user_object_editor.to_archive')}
+        </button>
+    </div>
+
+    <div class="space-below">
+        <RelativePathEditor
+            bind:value={destinationPath}
+            options={relativePaths}
+            disabled={blocked}
+            onMove={relocate} />
+    </div>
+
+    <label>
+        {locale.t('ui.multi_user_object_editor.collection')}
+        <select class="text-input" bind:value={collectionId} disabled={blocked}>
+            <option value="">{locale.t('ui.multi_user_object_editor.select_collection')}</option>
+            {#each collections as collection}
+                <option value={collection.id}>{collection.name}</option>
+            {/each}
+        </select>
+    </label>
+
+    <div class="settings-actions">
+        <button class="button-with-text"
+                disabled={blocked || !collectionId}
+                onclick={() => perform('add')}>
+            {locale.t('ui.multi_user_object_editor.add_to_collection')}
+        </button>
+        <button class="button-with-text"
+                disabled={blocked || !collectionId}
+                onclick={() => perform('remove')}>
+            {locale.t('ui.multi_user_object_editor.remove_from_collection')}
+        </button>
+    </div>
 </div>

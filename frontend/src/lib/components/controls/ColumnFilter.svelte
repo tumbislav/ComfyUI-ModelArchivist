@@ -125,7 +125,7 @@
                         <input type="checkbox" checked={selected.includes(value)}
                                onchange={() => selected = selected.includes(value)
                                    ? selected.filter(item => item !== value) : [...selected, value]} />
-                        {value || locale.t('common.blank')}
+                        {value ? (columnKey === 'error_values' ? locale.error(value) : value) : locale.t('common.blank')}
                     </label>
                 {/each}
             </div>

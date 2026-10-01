@@ -97,7 +97,7 @@ async function runOperation(destination: WorkflowDestination | null) {
     const result = destination === null ? await syncWorkflow(id) : await moveWorkflow(id, destination);
     operating = false;
     if (!result.ok || result.data.allowed === false) {
-        operationError = result.ok ? String(result.data.errors ?? locale.t('ui.workflow_contents.workflow_operation_failed')) : result.message ?? locale.t('ui.workflow_contents.workflow_operation_failed'); return;
+        operationError = result.ok ? (result.data.errors?.map((issue: Parameters<typeof locale.error>[0]) => locale.error(issue)).join('; ') ?? locale.t('ui.workflow_contents.workflow_operation_failed')) : result.message ?? locale.t('ui.workflow_contents.workflow_operation_failed'); return;
     }
     await refreshWorkflows(); await refreshActive();
 }
@@ -115,7 +115,7 @@ async function relocate(destination: string) {
     operating = false;
     if (!result.ok || !result.data.allowed) {
         operationError = result.ok
-            ? result.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
+            ? result.data.errors?.map((issue: Parameters<typeof locale.error>[0]) => locale.error(issue)).join('; ')
             : result.message ?? locale.t('ui.workflow_contents.cannot_move_workflow');
         return;
     }

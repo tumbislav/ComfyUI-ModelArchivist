@@ -29,7 +29,7 @@ function client(fetch) {
             if (name === '$lib/locale.svelte') return { locale: { t: key => ({
                 'errors.request_cancelled': 'Request cancelled',
                 'errors.server_unresponsive': 'The server is not responding'
-            })[key] } };
+            })[key], error: issue => typeof issue === 'string' ? issue : issue.message } };
 
             assert.fail(`Unexpected module ${name}`);
         },

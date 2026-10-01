@@ -76,7 +76,7 @@ async function handleEnter(event: KeyboardEvent) {
 
 </script>
 
-<div class="space-below spaced-horizontally">
+<div class="sidebar-header space-below spaced-horizontally">
     <div></div>
     <button type="button"
             class="round"
@@ -86,112 +86,114 @@ async function handleEnter(event: KeyboardEvent) {
     </button>
 </div>
 
-<div class="space-below spaced-horizontally">
-    <div>
-        <p class="labeled"><span>{locale.t('ui.model_details.type')}</span>{model.type}</p>
-    </div>
-    
-    <div>
-        <p class="labeled"><span>{locale.t('ui.model_details.last_accessed')}</span>{shortDate(model.touched)}</p>
-    </div>
-</div>
+<div class="sidebar-body">
+    <div class="space-below spaced-horizontally">
+        <div>
+            <p class="labeled"><span>{locale.t('ui.model_details.type')}</span>{model.type}</p>
+        </div>
 
-{#if operationError}
-    <p class="error-message">{operationError}</p>
-{/if}
-{#each model.errors as error}
-    <p class="error-details">{error}</p>
-{/each}
-{#if model.deployment === 'mismatch'}
-    <p class="warning-details">{locale.t('ui.model_details.model_is_mismatched_synchronize_it_before_continuing')}</p>
-{/if}
-
-<div class="space-below dialog-section">
-    <div class="space-below">
-        <label class="dialog-label">
-            {locale.t('ui.model_details.file_name')}
-            <input class="text-input full-width"
-                   onkeydown={handleEnter}
-                   disabled={model.read_only || model.deployment === 'mismatch'}
-                   bind:value={model.file_name} />
-        </label>
-        <p class="annotation-right">{model.id}</p>
-
-        <label class="dialog-label">
-            {locale.t('ui.model_details.internal_name')}
-            <input class="text-input full-width"
-                   onkeydown={handleEnter}
-                   disabled={model.read_only || model.deployment === 'mismatch'}
-                   bind:value={model.internal_name} />
-        </label>
-     </div>
-
-    <div class="space-below">
-        <label class="dialog-label" for="model-base-model">{locale.t('ui.model_details.base_model')}</label>
-        <div class="base-model-row">
-            <span class="base-model-abbreviation">{model.base_model_abbreviation}</span>
-            <BaseModelEditor value={model.base_model} inputId="model-base-model"
-                disabled={model.read_only || model.deployment === 'mismatch'}
-                onChanged={(value) => model.base_model = value} />
+        <div>
+            <p class="labeled"><span>{locale.t('ui.model_details.last_accessed')}</span>{shortDate(model.touched)}</p>
         </div>
     </div>
 
-    <div class="space-below">
-        <TagEditor {tags}
-            onChanged={(updated: string[]) => { tags = [...updated]; model.tags = [...updated]; }}
-            disabled={model.read_only || model.deployment === 'mismatch'}
-            title={locale.t('filters.labels.tags')}
-            editable={true} />
+    {#if operationError}
+        <p class="error-message">{operationError}</p>
+    {/if}
+    {#each model.errors as error}
+        <p class="error-details">{locale.error(error)}</p>
+    {/each}
+    {#if model.deployment === 'mismatch'}
+        <p class="warning-details">{locale.t('ui.model_details.model_is_mismatched_synchronize_it_before_continuing')}</p>
+    {/if}
+
+    <div class="space-below dialog-section">
+        <div class="space-below">
+            <label class="dialog-label">
+                {locale.t('ui.model_details.file_name')}
+                <input class="text-input full-width"
+                       onkeydown={handleEnter}
+                       disabled={model.read_only || model.deployment === 'mismatch'}
+                       bind:value={model.file_name} />
+            </label>
+            <p class="annotation-right">{model.id}</p>
+
+            <label class="dialog-label">
+                {locale.t('ui.model_details.internal_name')}
+                <input class="text-input full-width"
+                       onkeydown={handleEnter}
+                       disabled={model.read_only || model.deployment === 'mismatch'}
+                       bind:value={model.internal_name} />
+            </label>
+         </div>
+
+        <div class="space-below">
+            <label class="dialog-label" for="model-base-model">{locale.t('ui.model_details.base_model')}</label>
+            <div class="base-model-row">
+                <span class="base-model-abbreviation">{model.base_model_abbreviation}</span>
+                <BaseModelEditor value={model.base_model} inputId="model-base-model"
+                    disabled={model.read_only || model.deployment === 'mismatch'}
+                    onChanged={(value) => model.base_model = value} />
+            </div>
+        </div>
+
+        <div class="space-below">
+            <TagEditor {tags}
+                onChanged={(updated: string[]) => { tags = [...updated]; model.tags = [...updated]; }}
+                disabled={model.read_only || model.deployment === 'mismatch'}
+                title={locale.t('filters.labels.tags')}
+                editable={true} />
+        </div>
+
+        <div class="spaced-horizontally">
+            <div></div>
+            <button class="button-with-text"
+                    disabled={!changed || saving || model.read_only || model.deployment === 'mismatch'}
+                    onclick={() => onSave()} >
+                <img class="action-icon" alt={locale.t('ui.model_details.save')} src={saveIcon} />
+                <span  class="button-label">{locale.t('ui.model_details.save_2')}</span>
+            </button>
+        </div>
     </div>
 
-    <div class="spaced-horizontally">
-        <div></div>
-        <button class="button-with-text"
-                disabled={!changed || saving || model.read_only || model.deployment === 'mismatch'}
-                onclick={() => onSave()} >
-            <img class="action-icon" alt={locale.t('ui.model_details.save')} src={saveIcon} />
-            <span  class="button-label">{locale.t('ui.model_details.save_2')}</span>
-        </button>
+    <div class="space-below dialog-section">
+        <div class="dialog-section-blank">
+        <RelativePathEditor bind:value={destinationPath} options={relativePaths}
+            disabled={changed || operating || model.read_only}
+            moveDisabled={destinationPath === model.relative_path}
+            onMove={() => onRelocate(destinationPath)} />
+        </div>
+        <FileSet set={working_set} path={model.working_path} name="working set" />
+
+        <FileSet set={archive_set} path={model.archive_path} name="archive" />
+
+        <div class="spaced-horizontally">
+            <button class="button-with-text"
+                    disabled={operating || model.read_only ||
+                              !['archive', 'synced'].includes(model.deployment)}
+                    onclick={() => onMove('working')}>
+                <img class="action-icon" alt={locale.t('ui.model_details.move_up')} src={moveUpIcon} />
+                <span class="button-label">{locale.t('ui.model_details.to_working_set')}</span>
+            </button>
+            <button class="button-with-text"
+                    disabled={operating || model.read_only || model.deployment === 'synced'}
+                    onclick={() => onSync()}>
+                <img class="action-icon" alt={locale.t('ui.model_details.move_up_down')} src={moveUpDownIcon} />
+                <span class="button-label">{locale.t('ui.model_details.sync')}</span>
+            </button>
+            <button class="button-with-text"
+                    disabled={operating || model.read_only ||
+                              !['working', 'synced'].includes(model.deployment)}
+                    onclick={() => onMove('archive')}>
+                <img class="action-icon" alt={locale.t('ui.model_details.move_down')} src={moveDownIcon} />
+                <span class="button-label">{locale.t('ui.model_details.to_archive')}</span>
+            </button>
+        </div>
     </div>
-</div>
 
-<div class="space-below dialog-section">
-    <div class="dialog-section-blank">
-    <RelativePathEditor bind:value={destinationPath} options={relativePaths}
-        disabled={changed || operating || model.read_only}
-        moveDisabled={destinationPath === model.relative_path}
-        onMove={() => onRelocate(destinationPath)} />
+    <div class="space-below dialog-section">
+        <ModelCollectionEditor {model} onChanged={onCollectionsChanged} />
     </div>
-    <FileSet set={working_set} path={model.working_path} name="working set" />
-
-    <FileSet set={archive_set} path={model.archive_path} name="archive" />
-
-    <div class="spaced-horizontally">
-        <button class="button-with-text"
-                disabled={operating || model.read_only ||
-                          !['archive', 'synced'].includes(model.deployment)}
-                onclick={() => onMove('working')}>
-            <img class="action-icon" alt={locale.t('ui.model_details.move_up')} src={moveUpIcon} />
-            <span class="button-label">{locale.t('ui.model_details.to_working_set')}</span>
-        </button>
-        <button class="button-with-text"
-                disabled={operating || model.read_only || model.deployment === 'synced'}
-                onclick={() => onSync()}>
-            <img class="action-icon" alt={locale.t('ui.model_details.move_up_down')} src={moveUpDownIcon} />
-            <span class="button-label">{locale.t('ui.model_details.sync')}</span>
-        </button>
-        <button class="button-with-text"
-                disabled={operating || model.read_only ||
-                          !['working', 'synced'].includes(model.deployment)}
-                onclick={() => onMove('archive')}>
-            <img class="action-icon" alt={locale.t('ui.model_details.move_down')} src={moveDownIcon} />
-            <span class="button-label">{locale.t('ui.model_details.to_archive')}</span>
-        </button>
-    </div>
-</div>
-
-<div class="space-below dialog-section">
-    <ModelCollectionEditor {model} onChanged={onCollectionsChanged} />
 </div>
 
 <style>

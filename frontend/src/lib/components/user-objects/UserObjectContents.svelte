@@ -111,7 +111,7 @@ async function runOperation(destination: UserObjectDestination | null) {
                     : completed.message ?? locale.t('ui.user_object_contents.cannot_retrieve_object_operation'); return;
             }
         } else if (!result.data.allowed) {
-            operationError = result.data.errors?.join('; ') ?? locale.t('ui.user_object_contents.operation_is_not_allowed'); return;
+            operationError = result.data.errors?.map((issue: Parameters<typeof locale.error>[0]) => locale.error(issue)).join('; ') ?? locale.t('ui.user_object_contents.operation_is_not_allowed'); return;
         }
         await refreshActive();
     } finally { operating = false; }
@@ -130,7 +130,7 @@ async function relocate(destination: string) {
     operating = false;
     if (!result.ok || !result.data.allowed) {
         operationError = result.ok
-            ? result.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
+            ? result.data.errors?.map((issue: Parameters<typeof locale.error>[0]) => locale.error(issue)).join('; ')
             : result.message ?? locale.t('ui.user_object_contents.cannot_move_object');
         return;
     }

@@ -289,7 +289,7 @@ async function relocateModel(destination: string) {
 
     if (!result.ok || !result.data.allowed) {
         operation_error = result.ok
-            ? result.data.errors?.map((issue: {message: string}) => issue.message).join('; ')
+            ? result.data.errors?.map((issue: Parameters<typeof locale.error>[0]) => locale.error(issue)).join('; ')
             : result.message ?? locale.t('ui.model_contents.cannot_move_model');
         return;
     }

@@ -139,7 +139,7 @@ async function openAdd(segment: MemberSegment) {
 }
 function closePopup() {popup = null; search = '';}
 function operationMessages(result: CollectionOperationResult, field: 'errors' | 'warnings'): string[] {
-    return [...(result[field] ?? []).map(issue => issue.message),
+    return [...(result[field] ?? []).map((issue: Parameters<typeof locale.error>[0]) => locale.error(issue)),
         ...(result.members ?? []).flatMap(member => operationMessages(member, field))];
 }
 async function operate(destination: 'working' | 'archive' | null) {

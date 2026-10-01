@@ -139,7 +139,7 @@ export function filterSummary(tab: FilterTab, state: FilterState): string {
     const parts = filterColumns[tab].filter(column => column.key in state.columns).map(column => {
         const rule = state.columns[column.key];
         const value = Array.isArray(rule)
-            ? (rule.length ? rule.map(value => value || locale.t('common.blank')).join(', ')
+            ? (rule.length ? rule.map(value => value ? (column.key === 'error_values' ? locale.error(value) : value) : locale.t('common.blank')).join(', ')
                 : locale.t('common.none'))
             : typeof rule === 'boolean' ? locale.t(rule ? 'common.yes' : 'common.no') : rule;
         return `${column.label}: ${value}`;

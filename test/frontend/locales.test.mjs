@@ -8,6 +8,8 @@ import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
+import { createRequire } from 'node:module';
+import { runInNewContext } from 'node:vm';
 
 const root = process.cwd();
 const localeDirectory = path.join(root, 'frontend', 'src', 'lib', 'locales');
@@ -61,4 +63,48 @@ test('English contains one About caption entry for every Library image', async (
 
     assert.deepEqual(Object.keys(english.about.captions).sort(), images);
     assert.equal((await readdir(logoDirectory)).some(file => /^Library-.*\.html$/.test(file)), false);
+});
+
+
+test('every stored object error and operation rejection has a display message', async () => {
+    const english = await readJson('en.json');
+    const tables = await readFile(path.join(root, 'backend/repository/tables.py'), 'utf8');
+    const enums = [...tables.matchAll(/class (?:Model|Workflow|UserObject)Error\(StrEnum\):([\s\S]*?)(?=\n\n)/g)];
+    const repository = await readFile(path.join(root, 'backend/repository/repository.py'), 'utf8');
+    const codes = [
+        ...enums.flatMap(match => [...match[1].matchAll(/= '([^']+)'/g)].map(value => value[1])),
+        ...[...repository.matchAll(/(?:reject|OperationIssue)\(\s*'([^']+)'/g)].map(match => match[1])
+    ];
+
+    for (const code of codes) {
+        assert.equal(typeof english.errors[code], 'string', code);
+        assert.notEqual(english.errors[code], code);
+    }
+});
+
+test('error display resolves codes, falls back to English, and retains unknown details', async () => {
+    const require = createRequire(new URL('../../frontend/package.json', import.meta.url));
+    const ts = require('typescript');
+    const source = (await readFile(path.join(root, 'frontend/src/lib/locale.svelte.ts'), 'utf8'))
+        .replace('import.meta.env.DEV', 'false');
+    const catalogs = Object.fromEntries(await Promise.all(
+        ['config', 'en', 'es', 'fr', 'sl'].map(async name => [name, await readJson(`${name}.json`)])));
+    const context = {
+        exports: {}, $state: value => value,
+        require: name => ({ default: catalogs[name.split('/').at(-1).replace('.json', '')] })
+    };
+    runInNewContext(ts.transpileModule(source, {
+        compilerOptions: { module: ts.ModuleKind.CommonJS }
+    }).outputText, context);
+    const { locale } = context.exports;
+
+    for (const language of ['en', 'es', 'fr', 'sl']) {
+        locale.language = language;
+        assert.equal(locale.error('location_mismatch'), catalogs.en.errors.location_mismatch);
+        assert.equal(locale.error('unrecognized_code'), 'unrecognized_code');
+        assert.equal(locale.error({ code: 'future_error', message: 'Original detail' }), 'Original detail');
+        assert.equal(locale.error({ code: 'location_mismatch' }), catalogs.en.errors.location_mismatch);
+        assert.match(locale.error({ code: 'filesystem_error', message: '/private/file: denied' }),
+            /\/private\/file: denied/);
+    }
 });

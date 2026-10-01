@@ -40,66 +40,72 @@ function chooseType(event: Event) {
 }
 </script>
 
-<div class="space-below spaced-horizontally"><div></div>
+<div class="sidebar-header space-below spaced-horizontally">
+    <div></div>
     <button class="round" disabled={busy} aria-label={locale.t('ui.collection_details.close_collection_details')} onclick={onClose}>
-        <img class="action-icon" alt="" src={closeIcon} /></button></div>
-{#if error}<p class="error-message">{error}</p>{/if}
-{#if item.error_count > 0}<p class="error-details">{item.error_count} {item.error_count === 1 ? 'member has' : 'members have'} errors.</p>{/if}
-{#if warning}<p class="warning-details">{warning}</p>{/if}
-    <div class="space-below dialog-section">
-        <label class="dialog-label">{locale.t('ui.collection_details.name')}<input class="text-input full-width" disabled={busy} bind:value={item.name} /></label>
-        <p class="annotation-right">{item.id}</p>
-        <label class="dialog-label">{locale.t('ui.collection_details.purpose')}<textarea class="text-input full-width" disabled={busy} bind:value={item.purpose}></textarea></label>
-        <TagEditor tags={[...item.tags]} title={locale.t('ui.collection_details.tags')} editable={true} disabled={busy}
-            onChanged={(tags: string[]) => item.tags = [...tags]} />
-        <div class="spaced-horizontally"><div></div>
-            <button class="button-with-text" disabled={busy || !changed || !item.name.trim()} onclick={onSave}>
-                <img class="action-icon" alt="" src={saveIcon} /><span class="button-label">{locale.t('ui.collection_details.save')}</span></button></div>
-    </div>
-    <div class="space-below dialog-section">
-        <h2 class="tight-vertical">{locale.t('ui.collection_details.membership')}</h2>
-        <div class="collection-member-scroll">
-            <table class="main-table collection-member-table">
-                <thead><tr class="table-head table-section"><th>{locale.t('ui.collection_details.name')}</th><th title={locale.t('ui.collection_details.archive')}>{locale.t('ui.collection_details.a')}</th>
-                    <th title={locale.t('ui.collection_details.working_set')}>{locale.t('ui.collection_details.w')}</th><th aria-label={locale.t('ui.collection_details.remove_member')}></th></tr></thead>
-                <tbody>
-                    {#each segments.filter(segment => segment.members.length > 0) as segment (segment.id)}
-                        <tr class="table-section"><th colspan="4">{segment.name}</th></tr>
-                        {#each segment.members as member (member.id)}
-                            <tr><td class="ellipsized-cell" title={member.name}>{member.name}</td>
-                                <td>{member.has_archive ? 'A' : ''}</td><td>{member.has_working ? 'W' : ''}</td>
-                                <td><button class="inline-button" disabled={busy}
-                                            aria-label={locale.t('messages.remove_member_label', {name: member.name})}
-                                    onclick={() => onRemove(segment, member)}><img class="action-icon" alt="" src={trashIcon} /></button></td></tr>
+        <img class="action-icon" alt="" src={closeIcon} />
+    </button>
+</div>
+
+<div class="sidebar-body">
+    {#if error}<p class="error-message">{error}</p>{/if}
+    {#if item.error_count > 0}<p class="error-details">{item.error_count} {item.error_count === 1 ? 'member has' : 'members have'} errors.</p>{/if}
+    {#if warning}<p class="warning-details">{warning}</p>{/if}
+        <div class="space-below dialog-section">
+            <label class="dialog-label">{locale.t('ui.collection_details.name')}<input class="text-input full-width" disabled={busy} bind:value={item.name} /></label>
+            <p class="annotation-right">{item.id}</p>
+            <label class="dialog-label">{locale.t('ui.collection_details.purpose')}<textarea class="text-input full-width" disabled={busy} bind:value={item.purpose}></textarea></label>
+            <TagEditor tags={[...item.tags]} title={locale.t('ui.collection_details.tags')} editable={true} disabled={busy}
+                onChanged={(tags: string[]) => item.tags = [...tags]} />
+            <div class="spaced-horizontally"><div></div>
+                <button class="button-with-text" disabled={busy || !changed || !item.name.trim()} onclick={onSave}>
+                    <img class="action-icon" alt="" src={saveIcon} /><span class="button-label">{locale.t('ui.collection_details.save')}</span></button></div>
+        </div>
+        <div class="space-below dialog-section">
+            <h2 class="tight-vertical">{locale.t('ui.collection_details.membership')}</h2>
+            <div class="collection-member-scroll">
+                <table class="main-table collection-member-table">
+                    <thead><tr class="table-head table-section"><th>{locale.t('ui.collection_details.name')}</th><th title={locale.t('ui.collection_details.archive')}>{locale.t('ui.collection_details.a')}</th>
+                        <th title={locale.t('ui.collection_details.working_set')}>{locale.t('ui.collection_details.w')}</th><th aria-label={locale.t('ui.collection_details.remove_member')}></th></tr></thead>
+                    <tbody>
+                        {#each segments.filter(segment => segment.members.length > 0) as segment (segment.id)}
+                            <tr class="table-section"><th colspan="4">{segment.name}</th></tr>
+                            {#each segment.members as member (member.id)}
+                                <tr><td class="ellipsized-cell" title={member.name}>{member.name}</td>
+                                    <td>{member.has_archive ? 'A' : ''}</td><td>{member.has_working ? 'W' : ''}</td>
+                                    <td><button class="inline-button" disabled={busy}
+                                                aria-label={locale.t('messages.remove_member_label', {name: member.name})}
+                                        onclick={() => onRemove(segment, member)}><img class="action-icon" alt="" src={trashIcon} /></button></td></tr>
+                            {/each}
                         {/each}
+                    </tbody>
+                </table>
+            </div>
+            <div class="collection-add-row space-below">
+                <label class="dialog-label" for="collection-member-segment">{locale.t('ui.collection_details.add_members')}</label>
+                <select id="collection-member-segment" class="text-input" disabled={busy}
+                    bind:value={segmentId} onchange={chooseType}>
+                    <option value="">{locale.t('ui.collection_details.choose_a_type')}</option>
+                    {#each memberGroups as group}
+                        <optgroup label={group.name}>
+                            {#each segments.filter(segment => segment.field === group.field) as segment (segment.id)}
+                                <option value={segment.id}>{segment.name}</option>
+                            {/each}
+                        </optgroup>
                     {/each}
-                </tbody>
-            </table>
+                </select>
+            </div>
+            <div class="spaced-horizontally">
+                <button class="button-with-text" disabled={busy || changed || item.read_only || !item.has_archive}
+                    onclick={() => onOperate('working')}><img class="action-icon" alt="" src={moveUpIcon} />
+                    <span class="button-label">{locale.t('ui.collection_details.to_working_set')}</span></button>
+                <button class="button-with-text" disabled={busy || changed || item.read_only || item.deployment === 'synced'}
+                    onclick={() => onOperate(null)}><img class="action-icon" alt="" src={syncIcon} />
+                    <span class="button-label">{locale.t('ui.collection_details.sync')}</span></button>
+                <button class="button-with-text" disabled={busy || changed || item.read_only || !item.has_working}
+                    onclick={() => onOperate('archive')}><img class="action-icon" alt="" src={moveDownIcon} />
+                    <span class="button-label">{locale.t('ui.collection_details.to_archive')}</span></button>
+            </div>
+            {#if changed}<p class="annotation">{locale.t('ui.collection_details.save_metadata_changes_before_running_location_actions')}</p>{/if}
         </div>
-        <div class="collection-add-row space-below">
-            <label class="dialog-label" for="collection-member-segment">{locale.t('ui.collection_details.add_members')}</label>
-            <select id="collection-member-segment" class="text-input" disabled={busy}
-                bind:value={segmentId} onchange={chooseType}>
-                <option value="">{locale.t('ui.collection_details.choose_a_type')}</option>
-                {#each memberGroups as group}
-                    <optgroup label={group.name}>
-                        {#each segments.filter(segment => segment.field === group.field) as segment (segment.id)}
-                            <option value={segment.id}>{segment.name}</option>
-                        {/each}
-                    </optgroup>
-                {/each}
-            </select>
-        </div>
-        <div class="spaced-horizontally">
-            <button class="button-with-text" disabled={busy || changed || item.read_only || !item.has_archive}
-                onclick={() => onOperate('working')}><img class="action-icon" alt="" src={moveUpIcon} />
-                <span class="button-label">{locale.t('ui.collection_details.to_working_set')}</span></button>
-            <button class="button-with-text" disabled={busy || changed || item.read_only || item.deployment === 'synced'}
-                onclick={() => onOperate(null)}><img class="action-icon" alt="" src={syncIcon} />
-                <span class="button-label">{locale.t('ui.collection_details.sync')}</span></button>
-            <button class="button-with-text" disabled={busy || changed || item.read_only || !item.has_working}
-                onclick={() => onOperate('archive')}><img class="action-icon" alt="" src={moveDownIcon} />
-                <span class="button-label">{locale.t('ui.collection_details.to_archive')}</span></button>
-        </div>
-        {#if changed}<p class="annotation">{locale.t('ui.collection_details.save_metadata_changes_before_running_location_actions')}</p>{/if}
-    </div>
+</div>

@@ -112,6 +112,20 @@ class LocaleState {
         return interpolate(value, parameters);
     }
 
+    error(issue: string | { code?: string; message?: string;
+                            params?: Record<string, string | number> }): string {
+        const code = typeof issue === 'string' ? issue : issue.code;
+        const fallback = typeof issue === 'string' ? issue : issue.message ?? code ?? '';
+        const key = `errors.${code}`;
+
+        if (!code || typeof catalogValue(english, key) !== 'string') return fallback;
+
+        const message = this.t(key, typeof issue === 'string' ? {} : issue.params ?? {});
+        // Keep paths and low-level diagnostics available alongside the display message.
+        return typeof issue !== 'string' && issue.message && issue.message !== code
+            && issue.message !== message ? `${message} (${issue.message})` : message;
+    }
+
     plural(key: string, count: number,
            parameters: Record<string, string | number> = {}): string {
         const category = new Intl.PluralRules(this.language).select(count);

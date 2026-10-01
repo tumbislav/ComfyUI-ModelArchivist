@@ -110,9 +110,9 @@
             onRemapped();
             await tagsContext.refresh();
 
-            const problems = [...result.errors.map(issue => issue.message),
+            const problems = [...result.errors.map((issue: Parameters<typeof locale.error>[0]) => locale.error(issue)),
                 ...result.skipped.filter(issue => !['unchanged', 'blank_target'].includes(issue.code))
-                    .map(issue => issue.message)];
+                    .map((issue: Parameters<typeof locale.error>[0]) => locale.error(issue))];
 
             error = [error, ...problems].filter(Boolean).join('\n') || null;
             outcome = `${result.applied.length} tag mappings applied.`;

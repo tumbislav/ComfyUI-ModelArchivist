@@ -102,8 +102,8 @@ export async function parseResponse<T>(response: Response, packager: (x: any) =>
             const contentType = response.headers.get('content-type');
             if (contentType?.includes('application/json')) {
                 const body = await response.json();
-                if (typeof body?.detail === 'string') message = body.detail;
-                else if (typeof body?.detail?.message === 'string') message = body.detail.message;
+                if (typeof body?.detail === 'string') message = locale.error(body.detail);
+                else if (typeof body?.detail?.message === 'string') message = locale.error(body.detail);
                 else if (Array.isArray(body?.detail)) {
                     message = body.detail.map((item: any) => item.msg ?? JSON.stringify(item)).join('; ');
                 }

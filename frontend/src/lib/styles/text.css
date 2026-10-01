@@ -9,7 +9,7 @@
     --large-font-size: 12pt;
     --medium-font-size: 10pt;
     --small-font-size: 9pt;
-    --smaller-font-size: 9pt;
+    --smaller-font-size: 8pt;
     --tiny-font-size: 7pt;
 }
 
@@ -139,6 +139,13 @@ p {
     font-style: italic
 }
 
+/* Superscripts
+ * ----------------------------------------------- */
+
+sup {
+    font-size: var(--tiny-font-size);
+}
+
 /* Plugin styles
  * ----------------------------------------------- */
 
@@ -167,4 +174,9 @@ p {
 
 .bold-text {
     font-weight: 600;
+}
+
+.character-name {
+    font-weight: 500;
+    font-style: italic;
 }

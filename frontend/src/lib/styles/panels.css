@@ -41,16 +41,32 @@ body {
     bottom: var(--gap-mid);
     right: var(--gap-mid);
     box-sizing: border-box;
-    width: var(--max-width-right);
+    /* Add usable width plus an allowance for the permanent scrollbar gutter. */
+    width: calc(var(--max-width-right) + 6px + var(--gap-mid));
     padding: var(--gap-mid);
     min-width: var(--min-width-right);
-    max-width: var(--max-width-right);
+    max-width: calc(100% - 2 * var(--gap-mid));
     z-index: var(--z-details);
     background: var(--bg-color);
     border-radius: var(--radius-mid);
     border: var(--solid-border);
     box-shadow: var(--shadow-right);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* The close row stays visible while only the editor body scrolls. */
+.sidebar-header {
+    flex: 0 0 auto;
+}
+
+.sidebar-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
     overflow-y: auto;
+    scrollbar-gutter: stable;
 }
 
 .right-sidebar:focus-visible {
