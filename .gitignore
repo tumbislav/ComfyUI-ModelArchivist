@@ -3,11 +3,19 @@
 
 /test/temp/
 /test/data/
-/model_archivist.log
+/model-archivist.log
 /model-archivist.db
 /model-archivist.db-wal
 /model-archivist.db-shm
 /model-archivist.db-journal
+
+# Previous runtime filenames (keep existing local data out of Git)
+/model-archivist.db
+/model_archivist.db-wal
+/model_archivist.db-shm
+/model_archivist.db-journal
+/archivist.log
+/model_archivist.log
 
 # Front end
 /frontend/node_modules

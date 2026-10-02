@@ -19,7 +19,7 @@ def make_configuration(tmp_path: Path, mode: str = 'standalone') -> Configuratio
         web=WebConfig(host='127.0.0.1', port=5173,
                       static_html=str(tmp_path / 'html')),
         logging=LoggingConfig(level='INFO', sql_level='WARNING',
-                              file=str(tmp_path / 'archivist.log')))
+                              file=str(tmp_path / 'model-archivist.log')))
     config.initialize(tmp_path, tmp_path / 'config.toml', mode)
     return config
 
@@ -76,7 +76,7 @@ static_html = "frontend/build"
 [logging]
 level = "INFO"
 sql_level = "WARNING"
-file = "archivist.log"
+file = "model-archivist.log"
 ''', encoding='utf-8')
     with pytest.raises(ConfigException) as exc_info:
         load_config(config_file)
@@ -141,8 +141,8 @@ def test_runtime_data_directory_relocates_database_and_log(tmp_path: Path):
     config.use_runtime_data_directory(runtime_directory)
 
     assert runtime_directory.is_dir()
-    assert config.db_file == runtime_directory / 'model_archivist.db'
-    assert config.log_file == str(runtime_directory / 'archivist.log')
+    assert config.db_file == runtime_directory / 'model-archivist.db'
+    assert config.log_file == str(runtime_directory / 'model-archivist.log')
 
 
 def test_runtime_data_directory_reports_inaccessible_path(

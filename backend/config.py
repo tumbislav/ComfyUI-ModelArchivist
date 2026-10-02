@@ -109,8 +109,8 @@ class Configuration:
             raise ConfigException(
                 ConfigError.RUNTIME_DIRECTORY_UNREADABLE,
                 f'{directory}: {error}') from error
-        self.database.database_file = str(directory / 'model_archivist.db')
-        self.logging.file = str(directory / 'archivist.log')
+        self.database.database_file = str(directory / 'model-archivist.db')
+        self.logging.file = str(directory / 'model-archivist.log')
 
     def path_from_string(self, value: str) -> Path:
         if value.startswith('{$app}'):

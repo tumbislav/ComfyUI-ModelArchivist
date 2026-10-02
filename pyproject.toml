@@ -1,14 +1,22 @@
+# ---------------------------------------------------------------------------
+# system: ModelArchivist
+# file: pyproject.toml
+# purpose: Python package metadata and Comfy Registry publication configuration
+# ---------------------------------------------------------------------------
+
 [build-system]
 requires = ["setuptools >= 80.9.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "comfyui-model-archivist"
-version = "0.8"
+version = "0.8.0"
 requires-python = ">= 3.12"
-description = "Manage an overabundance of models in a ComfyUI environment"
+description = "Organize, archive, and synchronize models, workflows, and user-defined files in ComfyUI or as a standalone application."
+readme = "README.md"
 authors = [{name="Marko Čibej"}]
 license = "GPL-3.0-or-later"
+license-files = ["LICENSE.md"]
 dependencies = [
     "aiohttp >= 3.11.0",
     "alembic >= 1.17.2",
@@ -23,3 +31,13 @@ dependencies = [
 dev = [
     "pytest >= 9.0.2"
 ]
+
+[project.urls]
+Repository = "https://github.com/tumbislav/ComfyUI-ModelArchivist"
+Documentation = "https://github.com/tumbislav/ComfyUI-ModelArchivist#readme"
+Issues = "https://github.com/tumbislav/ComfyUI-ModelArchivist/issues"
+
+[tool.comfy]
+PublisherId = "tumbislav-nilski"
+DisplayName = "Model Archivist"
+includes = ["frontend/build"]

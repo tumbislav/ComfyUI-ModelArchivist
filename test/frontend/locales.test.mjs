@@ -42,12 +42,30 @@ test('configured locales mirror the complete English catalog', async () => {
         assert.ok(metadata.font in config.fonts);
 
         const catalog = leaves(await readJson(`${language}.json`));
-        assert.deepEqual([...catalog.keys()], [...english.keys()], `${language} catalog keys`);
+        assert.deepEqual([...catalog.keys()].filter(key => english.has(key)),
+            [...english.keys()], `${language} catalog keys`);
+
+        const pluralCategories = new Intl.PluralRules(language).resolvedOptions().pluralCategories;
 
         for (const [key, value] of catalog) {
+            const category = key.split('.').at(-1);
+            const pluralBase = key.slice(0, key.lastIndexOf('.'));
+            const pluralFallback = `${pluralBase}.other`;
+            const isPlural = english.has(`${pluralBase}.one`) && english.has(pluralFallback);
+
+            assert.ok(english.has(key) || (isPlural && pluralCategories.includes(category)),
+                `${language}:${key} must be an English key or a locale plural category`);
+
+            if (isPlural) {
+                for (const required of pluralCategories) {
+                    assert.ok(catalog.has(`${pluralBase}.${required}`),
+                        `${language}:${pluralBase} requires ${required}`);
+                }
+            }
+
             if (value !== null) {
                 assert.equal(typeof value, 'string', `${language}:${key} must be text or null`);
-                assert.deepEqual(parameters(value), parameters(english.get(key)),
+                assert.deepEqual(parameters(value), parameters(english.get(key) ?? english.get(pluralFallback)),
                     `${language}:${key} parameters`);
             }
         }
@@ -100,11 +118,45 @@ test('error display resolves codes, falls back to English, and retains unknown d
 
     for (const language of ['en', 'es', 'fr', 'sl']) {
         locale.language = language;
-        assert.equal(locale.error('location_mismatch'), catalogs.en.errors.location_mismatch);
+        assert.equal(locale.error('location_mismatch'), catalogs[language].errors.location_mismatch);
         assert.equal(locale.error('unrecognized_code'), 'unrecognized_code');
         assert.equal(locale.error({ code: 'future_error', message: 'Original detail' }), 'Original detail');
-        assert.equal(locale.error({ code: 'location_mismatch' }), catalogs.en.errors.location_mismatch);
+        assert.equal(locale.error({ code: 'location_mismatch' }), catalogs[language].errors.location_mismatch);
         assert.match(locale.error({ code: 'filesystem_error', message: '/private/file: denied' }),
             /\/private\/file: denied/);
+    }
+
+    locale.language = 'sl';
+    for (const [count, expected] of [
+        [1, 'Posodobljen je 1 objekt.'],
+        [2, 'Posodobljena sta 2 objekta.'],
+        [3, 'Posodobljeni so 3 objekti.'],
+        [5, 'Posodobljenih je 5 objektov.']
+    ]) {
+        assert.equal(locale.plural('messages.updated_objects', count), expected);
+    }
+
+    catalogs.sl.errors.location_mismatch = null;
+    assert.equal(locale.error('location_mismatch'), catalogs.en.errors.location_mismatch);
+});
+
+test('completed translations contain text and preserve caption markup', async () => {
+    const english = await readJson('en.json');
+
+    for (const language of ['es', 'fr', 'sl']) {
+        const catalog = await readJson(`${language}.json`);
+        for (const [key, value] of leaves(catalog)) {
+            assert.equal(typeof value, 'string', `${language}:${key} needs a translation`);
+            assert.ok(value.trim().length > 0, `${language}:${key} must not be blank`);
+            assert.ok(!value.includes('\uFFFD'), `${language}:${key} contains invalid Unicode`);
+        }
+
+        for (const [key, caption] of Object.entries(catalog.about.captions)) {
+            // Ordinal suffixes may use superscript in French but plain text in Slovenian.
+            // Preserve the remaining structure, especially links and semantic attributes.
+            const markup = text => text.replace(/<\/?sup>/g, '').match(/<[^>]+>/g);
+            assert.deepEqual(markup(caption), markup(english.about.captions[key]),
+                `${language}:${key} must preserve HTML elements and attributes`);
+        }
     }
 });

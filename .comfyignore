@@ -1,0 +1,8 @@
+# ---------------------------------------------------------------------------
+# system: ModelArchivist
+# file: .comfyignore
+# purpose: Additional exclusions for Comfy Registry publication archives
+# ---------------------------------------------------------------------------
+
+# No additional exclusions yet. Add gitignore-style patterns here when files
+# tracked in Git should be omitted from the published Registry package.

@@ -118,10 +118,52 @@ Third-party sidecars are untouched. Affected objects and files are checked befor
 writing; read-only objects block the batch. Execution failures roll back the database
 and attempt to restore files already written, reporting any restoration failures.
 
+# Frontend production build
+
+Run `npm ci` and then `npm run build` from `frontend/`. The build command runs
+Vite and, only on success, writes `frontend/build/build-manifest.json` with SHA-256
+fingerprints of source files, static assets, build scripts, configuration, the
+dependency lockfile, and generated output files. Input text uses normalized line
+endings so Windows and Linux checkouts can be compared. Generated output is hashed
+as exact bytes. The manifest excludes its own file and records the Node.js version.
+It also fingerprints local `.env*` and `.npmrc` files when present, but does not
+record their contents or capture environment variables supplied by the shell.
+
+The command fails if inputs change during the build. It does not stage files,
+commit changes, or publish anything. When committing a build, include the entire
+`frontend/build/` directory, including the manifest. Publication-time freshness
+verification uses this manifest. Run `npm run check:build` from `frontend/` to
+check local output, or `npm run check:build -- --committed` to also require that
+the inputs, output, and manifest are tracked and committed. A failure lists the
+files to rebuild or commit. Generated output is kept byte-for-byte by
+`.gitattributes`; source text fingerprints tolerate Windows line endings.
+
+## GitHub validation and publication
+
+`.github/workflows/ci.yaml` runs on pull requests and pushes to `main`. It checks
+the committed frontend build before installing dependencies or rebuilding, runs
+frontend tests and Svelte checks, and builds and verifies fresh output. Separate
+Python 3.12 jobs run backend tests and metadata checks on Windows and Linux.
+
+`.github/workflows/publish.yaml` is manual only. After it is on `main`, select
+**Actions → Publish to Comfy Registry → Run workflow**, leave the workflow branch
+set to `main`, and supply an existing tag such as `v0.8.0`. The tag must match
+`pyproject.toml` and point to a commit reachable from `main`. The workflow resolves
+that tag to an exact commit, runs CI on it, and builds fresh frontend output for
+the Registry package. Publishing requires the GitHub Actions secret
+`REGISTRY_ACCESS_TOKEN`. The workflow does not create tags or GitHub Releases.
+
+Before tagging, rebuild and commit all source and build changes, including
+`frontend/build/build-manifest.json`. Publication never runs merely because a
+workflow or metadata file was pushed. Repository secrets and branch protection
+must be configured separately in GitHub.
+
 # Pre-release testing
 
 Before publishing Model Archivist:
 
+- Clean up user documentation so it matches the current application and covers
+  installation, configuration, and everyday use.
 - Set up a Linux virtual machine and perform thorough end-to-end user testing,
   including standalone operation, filesystem permissions, network shares, directory
   selection, scanning, synchronization, and moves.

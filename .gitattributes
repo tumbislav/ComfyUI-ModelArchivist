@@ -1,0 +1,7 @@
+# ---------------------------------------------------------------------------
+# system: ModelArchivist
+# file: .gitattributes
+# purpose: Preserve production build bytes for cross-platform integrity checks
+# ---------------------------------------------------------------------------
+
+frontend/build/** -text
