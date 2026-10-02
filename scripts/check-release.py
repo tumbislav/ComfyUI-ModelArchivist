@@ -34,6 +34,37 @@ def validate(root: Path, tag: str | None = None) -> None:
     for name in [project['readme'], *project.get('license-files', [])]:
         if not (root / name).is_file():
             raise ValueError(f'Metadata references a missing file: {name}')
+
+    migration_root = root / 'alembic' / 'versions'
+    migration_files = sorted(migration_root.glob('*.py'))
+    if not migration_files:
+        raise ValueError('No Alembic migration revisions are present.')
+
+    try:
+        git_root = Path(subprocess.check_output(
+            ['git', 'rev-parse', '--show-toplevel'],
+            cwd=root,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()).resolve()
+    except (OSError, subprocess.CalledProcessError):
+        git_root = None
+
+    if git_root == root.resolve():
+        tracked_files = set(subprocess.check_output(
+            ['git', 'ls-files', '--', 'alembic/versions/*.py'],
+            cwd=root,
+            text=True,
+        ).splitlines())
+        untracked_migrations = [
+            migration.relative_to(root).as_posix()
+            for migration in migration_files
+            if migration.relative_to(root).as_posix() not in tracked_files
+        ]
+        if untracked_migrations:
+            names = ', '.join(untracked_migrations)
+            raise ValueError(f'Alembic migration revisions are not tracked by Git: {names}')
+
     if tag is not None:
         if tag != f'v{version}':
             raise ValueError(f'Release tag must be v{version}, matching pyproject.toml.')

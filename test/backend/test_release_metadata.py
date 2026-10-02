@@ -6,6 +6,7 @@
 
 import runpy
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,10 @@ validate = runpy.run_path(str(ROOT / 'scripts' / 'check-release.py'))['validate'
 def release_root(tmp_path):
     for name in ['pyproject.toml', 'requirements.txt', 'README.md', 'LICENSE.md']:
         shutil.copyfile(ROOT / name, tmp_path / name)
+    migration_root = tmp_path / 'alembic' / 'versions'
+    migration_root.mkdir(parents=True)
+    for migration in (ROOT / 'alembic' / 'versions').glob('*.py'):
+        shutil.copyfile(migration, migration_root / migration.name)
     return tmp_path
 
 
@@ -40,4 +45,22 @@ def test_release_rejects_wrong_tag_before_git_operations(release_root):
 def test_release_rejects_missing_license(release_root):
     (release_root / 'LICENSE.md').unlink()
     with pytest.raises(ValueError, match='missing file'):
+        validate(release_root)
+
+
+def test_release_rejects_missing_migrations(release_root):
+    shutil.rmtree(release_root / 'alembic' / 'versions')
+    with pytest.raises(ValueError, match='No Alembic migration revisions'):
+        validate(release_root)
+
+
+def test_release_rejects_untracked_migration(release_root):
+    subprocess.run(
+        ['git', 'init'],
+        cwd=release_root,
+        check=True,
+        capture_output=True,
+    )
+
+    with pytest.raises(ValueError, match='not tracked by Git'):
         validate(release_root)
