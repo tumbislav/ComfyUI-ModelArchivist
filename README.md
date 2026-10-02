@@ -140,15 +140,15 @@ files to rebuild or commit. Generated output is kept byte-for-byte by
 
 ## GitHub validation and publication
 
-`.github/workflows/ci.yaml` runs on pull requests and pushes to `main`. It checks
+`.github/workflows/ci.yaml` runs on pull requests and pushes to `master`. It checks
 the committed frontend build before installing dependencies or rebuilding, runs
 frontend tests and Svelte checks, and builds and verifies fresh output. Separate
 Python 3.12 jobs run backend tests and metadata checks on Windows and Linux.
 
-`.github/workflows/publish.yaml` is manual only. After it is on `main`, select
+`.github/workflows/publish.yaml` is manual only. After it is on `master`, select
 **Actions → Publish to Comfy Registry → Run workflow**, leave the workflow branch
-set to `main`, and supply an existing tag such as `v0.8.0`. The tag must match
-`pyproject.toml` and point to a commit reachable from `main`. The workflow resolves
+set to `master`, and supply an existing tag such as `v0.8.0`. The tag must match
+`pyproject.toml` and point to a commit reachable from `master`. The workflow resolves
 that tag to an exact commit, runs CI on it, and builds fresh frontend output for
 the Registry package. Publishing requires the GitHub Actions secret
 `REGISTRY_ACCESS_TOKEN`. The workflow does not create tags or GitHub Releases.

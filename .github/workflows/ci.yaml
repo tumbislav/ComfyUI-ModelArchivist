@@ -1,0 +1,80 @@
+# ---------------------------------------------------------------------------
+# system: ModelArchivist
+# file: .github/workflows/ci.yaml
+# purpose: Validate committed builds, metadata, tests, and fresh frontend builds
+# ---------------------------------------------------------------------------
+
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_call:
+    inputs:
+      ref:
+        description: Exact Git ref to test for a release
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Check committed build before rebuilding
+        working-directory: frontend
+        run: npm run check:build -- --committed
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Check Svelte and TypeScript
+        working-directory: frontend
+        run: npm run check
+      - name: Frontend regression tests
+        run: node --test test/frontend/*.test.mjs
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+      - name: Verify fresh output
+        working-directory: frontend
+        run: npm run check:build
+
+  backend:
+    name: Backend (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Validate package metadata
+        run: python scripts/check-release.py
+      - name: Install runtime dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Install test dependencies from project metadata
+        run: python -c "import subprocess, sys, tomllib; from pathlib import Path; deps = tomllib.loads(Path('pyproject.toml').read_text(encoding='utf-8'))['project']['optional-dependencies']['dev']; subprocess.check_call([sys.executable, '-m', 'pip', 'install', *deps])"
+      - name: Backend regression tests
+        run: python -m pytest test/backend -q
