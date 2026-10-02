@@ -5,14 +5,14 @@
         "sections": {
             "general": "Splošno",
             "models": "Modeli",
-            "workflows": "Delovni tokovi",
+            "workflows": "Delotoki",
             "user_types": "Uporabniški tipi"
         }
     },
     "about": {
         "captions": {
-            "Library-Akkadian-Merchant": "<p>Ko je Ashur-Muttabil umrl, je bilo hudo. Brez hrane, brez denarja, z moževo družino proti sebi je <a href=\"https://www.metmuseum.org/art/collection/search/326712\" target=\"_blank\"><span class=\"character-name\">Kunnaniya</span></a> dvomila, da bo preživela. »Umrla bom,« je pisala sestri. Nato pa se je ponudila priložnost. Majhna, en sam kos blaga je bilo treba preprodati. Potem pa še ena in še ena. Izkoristila je vse.</p> <p>Danes karavan iz Kanesha v Assur ne vodi njen mož, ampak sinovi. Ena od hčera nadzoruje tkalce in obrtnike. Druga je visoka svečenica Anne, Kunnaniya sama pa bdi nad dokumenti: pogodbami, kupčijami, računi, pismi ... in tistim zadnjim, dragocenim sporočilom Ashur-Muttabila: »Raduj se.«</p>",
-            "Library-Aksum-Man": "<p>Fant je pravkar pritekel, navdušen, da prvi prinaša novico: karavana iz Adulisa je na poti. <span class=\"character-name\">Za-Walda</span> upa, da prenaša veliko indijskega jekla — tega ni nikoli ga ni dovolj.</p><p>In bombaž. Dober indijski bombaž prekaša najfinejši egipčanski lan. Razgrabili ga bodo, še preden pride do Aleksandrije. Če bo le Mäkwännät uspelo priskrbeti slonovino, ki jo je obljubila za menjavo, bosta od te kupčije oba zaslužila.</p>",
+            "Library-Akkadian-Merchant": "<p>Ko je Ashur-Muttabil umrl, je bilo hudo. Brez hrane, brez denarja, z moževo družino proti sebi je <a href=\"https://www.metmuseum.org/art/collection/search/326712\" target=\"_blank\"><span class=\"character-name\">Kunnaniya</span></a> dvomila, da bo preživela. »Umrla bom,« je pisala sestri. Nato pa se je ponudila priložnost. Majhna, en sam kos blaga je bilo treba preprodati. Potem pa še ena in še ena. Izkoristila je vse.</p> <p>Danes karavan iz Kanesha v Assur ne vodi njen mož, ampak sinovi. Ena od hčera nadzoruje tkalce in obrtnike, druga je visoka svečenica Anne, Kunnaniya sama pa bdi nad dokumenti: pogodbami, kupčijami, računi, pismi ... in tistim zadnjim, dragocenim sporočilom Ashur-Muttabila: »Raduj se.«</p>",
+            "Library-Aksum-Man": "<p>Fant je pravkar pritekel, navdušen, da prvi prinaša novico: karavana iz Adulisa je na poti. <span class=\"character-name\">Za-Walda</span> upa, da prenaša veliko indijskega jekla — tega ni nikoli dovolj.</p><p>Ja, in bombaž. Dober indijski bombaž prekaša najfinejši egipčanski lan. Razgrabili ga bodo, še preden pride do Aleksandrije. Če bo le Mäkwännät uspelo priskrbeti slonovino, ki jo je obljubila za menjavo, bosta od te kupčije zaslužila oba.</p>",
             "Library-Aksum-Woman": "<p><span class=\"character-name\">Mäkwännät</span> skrbi. Videla je fanta teči proti Za-Waldovi trgovini, in zlahka ugane, za kaj gre: karavana iz Indije prihaja. V Myos Hormosu ima kupce že pripravljene. Nekateri so prisegli, da lahko prodajo vsak košček vse do Rima. Ampak najprej potrebuje slonovino za menjavo, pošiljka pa zamuja.<p></p>No ja, v najslabšem primeru bo nekaj znancev spomnila na usluge, ki ji jih dolgujejo, in zbrala potrebno slonovino. Konec koncev je Aksumčanka in trgovka — takšne zadeve rešuje vsak dan.</p>",
             "Library-Alexandria": "<p>Vrat bi mu zavila, prepisovalcu. Jasno je, da ni razumel Apolonijevih Stožnic, a to je razumljivo. Apolonij še zdaleč ni lahek in <span class=\"character-name\">Berenike</span> razen sebe ne pozna nikogar, ki bi res lahko sledil tej matematiki.</p><p>Ne, težava je v tem, da se je prepisovalec očitno začel dolgočasiti in je izpuščal besede ter cele stavke. Poglej dvanajsto trditev: tista točka mora ležati <span class=\"bold-text\">zunaj</span> parabole, sicer vse skupaj nima smisla.</p><p>Še dobro, da je tu in lahko vse popravi.</p>",
             "Library-Angkor-Wat": "<p>»Ne navezuj se.« Opomin Prebujenega si je moral že večkrat ponoviti. Ampak celo menihu njegovega ugleda si lahko privošči malo navdušenja.</p><p>Z Lanke v zadnjem času prihajajo rokopisi, novi rokopisi o starih vprašanjih. Toda napisani so v paliju in le peščica tukajšnjih menihov jih zna pravilno brati. <span class=\"character-name\">Sovann</span> že več kot leto dni posluša o Moggallānovi Slovnici palija, a ni nikoli računal, da bo videl kak izvod. Zdaj pa leži pred njim. Res je tudi sama slovnica napisana v paliju, in to v zaobljeni pisavi z Lanke, ne v domači kmerski. Ne bo lahko, a kaj pa je? »Ne navezuj se.« Prsti ga srbijo, da bi se lotil dela.</p>",
@@ -30,16 +30,16 @@
             "Library-Medieval-Europe-Illumination": "<p><span class=\"character-name\">Brat Anselm</span> je prepričan, da za vsem skupaj stoji mladi brat Godric, ampak ve da nima smisla spraševati, če je kdo kaj videl. Sinoči pred večernicami je ravno pripravil nov list pergamenta — ga napel, zgladil s plovcem in očrtal. Ko je danes po jutranjicah stopil v skriptorij, pa je pol prve strani prekrivala slika tega istega skriptorija in njega, Anselma, pri delu za pultom. Zagotovo je imel Godric pomočnike, ampak za eno samo noč je to vseeno izjemno delo. Pa še podoben si je, si mora priznati Anselm.</p><p>Ampak le kako naj zdaj vse skupaj pojasni opatu?</p>",
             "Library-Paleolithic": "<p><span class=\"character-name\">Mengei O</span> je že od malega rada urejala stvari. Kot punčka je delala kupčke podobnih kamenčkov in podobnih vejic. Odraslim je recitirala imena vseh gob, ki jih je poznala, in spraševala, če obstaja še kakšno.</p><p>Zdaj je stara. Videla je že več kot trideset zim, več kot kdor koli razen starega Gnoduja. In zdaj k njej prihajajo vedoželjni otroci, da bi pokazali svoje znanje, naštevali imena stvari, ki jih poznajo, in postavljali neskončna vprašanja. Z veseljem jim odgovarja.</p>",
             "Library-Pompidou": "<p>Prihodnji teden se bo Bibliothèque publique d’information prvič po letu 1977 izselila iz stavbe. Centre Pompidou potrebuje prenovo, knjižnica pa se seli v dvanajsto okrožje. Kar pomeni — <span class=\"character-name\">Claire Moreau</span> za hip zadrži sapo, potem pa počasi izdahne — kar pomeni, da bo knjižnico preplavilo na ducate selivcev, ki bodo knjige zapakirali, jih prepeljali čez mesto v stavbo Lumière in znova zložili na police. Če jim ne bo nihče dihal za vrat, bodo naredili zmedo, ki je ne bo nihče nikoli več razvozlal.</p><p>No ja, zato pa je ona tu.</p>",
-            "Library-Samarkand": "<p>Ta novi učenec, Zhang Mingyuan, je&hellip; nenavaden. <span class=\"character-name\">Shams ad-Din Samarqandi</span> ni vajen, da bi ga zmedel navaden učenec, a moral je priznati, da ga je.</p><p>Mladenič je prišel dva dni nazaj, iz Khanbaliqa tam daleč na vzhodu. Ni imel priporočilnega pisma, a je vseeno prosil za sprejem v šolo. Shams se je odločil, da ga preizkusi: izračuna naj čas naslednjega luninega mrka. Mladenič je odgovor našel hitreje, kot se je Shamsu zdelo verjetno, zato je vrtal globlje: katere Evklidove trditve je uporabil pri računanju? Pričakoval je kak nov trik pri uporabi geometrijskih načel ali uporabno poenostavitev. Ni pa pričakoval praznega pogleda: izkazalo se je, da Zhang Mingyuan še nikoli ni slišal za Evklida. Res nenavadno.</p>",
+            "Library-Samarkand": "<p>Ta novi učenec, Zhang Mingyuan, je&hellip; nenavaden. <span class=\"character-name\">Shams ad-Din Samarqandi</span> ni vajen, da bi ga zmedel navaden učenec, a moral je priznati, da ga je.</p><p>Mladenič je prišel dva dni nazaj, iz Khanbaliqa tam daleč na vzhodu. Ni imel priporočilnega pisma, a je vseeno prosil za sprejem v šolo. Shams se je odločil, da ga preizkusi: izračuna naj čas naslednjega luninega mrka. Mladenič je odgovor našel hitreje, kot je Shamsu pričakoval, zato je vrtal globlje: katere Evklidove trditve je uporabil pri računanju? Pričakoval je kak nov trik pri uporabi geometrijskih načel ali uporabno poenostavitev. Ni pa pričakoval praznega pogleda: izkazalo se je, da Zhang Mingyuan še nikoli ni slišal za Evklida. Res nenavadno.</p>",
             "Library-Shinto-Japan": "<p><span class=\"character-name\">Matsuda Reiko-sama</span> je naročila, naj prinesejo stare zapise. Mizunomori no Kami bo treba preseliti: jesenska nevihta je svetišče prehudo poškodovala in popravila bodo trajala. V njenem življenju v tem svetišču še niso opravili obreda kariden sengū. Lahko bi sicer zadolžila katerega od mlajših svečenikov, naj preveri pravilen potek obreda, a mladi so včasih površni. Kot gūji je odgovorna, da je vse narejeno prav. Nekaj ur skrbnega branja jo čaka.</p>",
-            "Library-Somme": "<p>Granate že več dni padajo brez premora. Zgodovinarji bodo nekoč temu gotovo rekli bitka na Somi in o njej govorili vzvišeno. Fantje imajo druga imena: klavnica. Mesnica. Pekel.</p><p><span class=\"character-name\">Andy MacLeod</span> bi rad vedel, kateri genij se je odločil bataljonske evidence spraviti v to zemljanko tik ob glavnem jarku. Pravzaprav ne — natanko ve, čigava zamisel je bila. Toda nekdo mora poskrbeti, da fantje dobijo obroke, tisti, ki še lahko požirajo. Škornje, tisti, ki še lahko hodijo. Naboje, tisti, ki še lahko streljajo.</p><p>On dela naprej. Granate padajo naprej.</p>",
+            "Library-Somme": "<p>Granate dneve padajo brez premora. Nekoč bodo zgodovinarji to izza katedra imenovali bitka na Somi. Fantje imajo druga imena: klavnica. Pokol. Pekel.</p><p><span class=\"character-name\">Andy MacLeod</span> bi rad vedel, kateri genij se je odločil bataljonovo dokumentacijo spraviti v to zemljanko tik ob glavnem jarku. Pravzaprav ne — natanko ve, čigava zamisel je bila. Toda nekdo mora poskrbeti, da fantje dobijo obroke, tisti, ki še lahko požirajo. Škornje, tisti, ki še lahko hodijo. Naboje, tisti, ki še lahko streljajo.</p><p>Granate padajo. Andy piše.</p>",
             "Library-Squirrel": "<p>Dobro, jagode so tu. Oreški tudi. Še več jagod, prav. Kdo je pustil tiste oreške na prostem? Sem jih jaz?</p><p>Kaj pa te jagode? Naj jih shranim? Ali jagode preživijo zimo?<p></p>Kaj sploh je zima?</p>",
-            "Library-Steampunk": "<p>Novi avtomat je čudovit. Stari so bili veliki, ropotajoči in parni, zato je bila vsaka stran v knjižnici vlažna in dovzetna za plesen. Yousuf d'Oc knjižnici že nekaj časa skuša prodati enega svojih avtomatov, vendar nobena razumna ženska ne bi pustila stroja na flogiston blizu knjige. Poleg tega, zakaj bi sploh potrebovala tolikšno moč?</p><p>Toda ta je eden od novih električnih: hiter, majhen in pri zlaganju knjig na police skoraj neslišen.</p><p>Pa še nekaj — <span class=\"character-name\">Beatrice DeVale</span> si privošči zloben nasmešek — njegova pajkasta oblika na smrt prestraši gospoda Londona in ga drži daleč od knjižnih polic.</p>",
-            "Library-Sumer": "<p>V mladosti je bil <span class=\"character-name\">Ur-Nana</span> izbran za lugala. Opravil je obrede, zbral može, dal pripraviti bojne vozove in popeljal vojsko na bojišče, kjer je storil junaštva, ki naj bi jih pesniki opevali še rodove. Trikrat so ga poklicali, trikrat je šel in se vrnil kot zmagovalec. Trikrat se je vrnil v mesto na robu lakote, kjer so slabo vodili evidence žita, kjer so darovi templjem zamujali in kjer so bili delavci tik pred uporom, ker niso prejeli svojih obrokov.</p><p>Četrtič je čast prepustil mlajšemu možu in namesto tega prevzel skrb za mesto. Zdaj dela z zapisi in v templjih, ne na bojišču, mesto pa uspeva.</p>",
-            "Library-Timbuktu": "<p>Ahmad ga že tedne nadleguje, naj mu posodi svoj izvod Jamʿ al-jawāmiʿ. <span class=\"character-name\">Ibrahim ag Moussa</span> ve, da bo popustil in knjigo posodil fantu. Navsezadnje znanje ni njegova last, da bi ga kopičil zase, Ahmada pa podrobnosti qiyāsa res zanimajo.</p><p>Toda Ibrahim tudi ve, kaj študentje počnejo z robovi strani. Prav ta izvod še vedno nosi brazgotine, ki mu jih je zadal sam kot mlad, zagnan študent prava. Zavzdihne. Naj bo že enkrat mimo.</p><p>»Ahmad! Pridi sem.«</p>",
-            "Library-Trade-Spaceship": "<p><span class=\"character-name\">Liset</span> se je rodila na liniji Arcturus. Stara je bila šest let, ko je prvič obkrožila planet, enajst, ko je prvič stopila na enega, in takoj je sklenila, da so planeti umazani, smrdljivi, nepredvidljivi in precenjeni. Za povrh imajo še <span class=\"bold-text\">vreme</span>. Kdo si je izmislil sistem kroženja zraka z orkani?</p><p>Že vzdrževati delovanje ladje je dovolj težko. Seveda večino dela opravi pilotka Pippa (umetna inteligenca ta vzdevek sovraži, zato ga Liset uporablja čim pogosteje), a tu in tam je še vedno potrebna človeška roka.</p>",
-            "Library-Varro": "<p><span class=\"character-name\">Marcus Terentius Varro</span> je bil nekoč ljudski tribun, vojskovodja Pompeja Velikega in knjižničar Julija Cezarja. Lahko bi postal celo konzul, če ne bi imel nesrečne navade, da pove, kar misli. Zdaj je Pompej mrtev po Cezarjevi roki, Cezar po roki Marka Bruta, Brut po roki Marka Antonija, in kdo ve, ali bo Antonij preživel ambicije mladega Oktavijana. On, Varro, pa je star.</p><p>Star, vendar ne mrtev. Zadnje čase mu pravijo, da je večji mislec od Cicerona. Laskajo mu, toda če to ni vrhunec cursus honorum, kaj pa je? Še zadnjič popravi konico že ostrega pisala in začne: »De re rustica ...«</p>",
-            "Library-Yongle": "<p>Liu Shun pogreša Nanjing. Ni dvoma, to novo Prepovedano mesto, ki ga je dal zgraditi Sin neba, je čudovito. Toda Nanjing je bil živ in živahen. Kaotičen — prijetno nasprotje urejenim arhivom, za katere skrbi. To novo mesto je le niz veličastnih palač, ki so si vse enake, dokler se pred očmi ne začnejo zlivati. Niti spodobnega kraja ni, kamor bi zvečer šel na predstavo in spil kupico vina.</p><p>Želi si, da bi lahko ostal v Nanjingu. Toda kar cesar ukaže, Liu Shun stori. Tako je bilo od nekdaj.</p>"
+            "Library-Steampunk": "<p>Novi robot je čudovit. Stari so bili veliki, glasni in na paro, zato so bile vse knjige v knjižnici vlažne in dovzetna za plesen. Yousuf d'Oc knjižnici že nekaj časa skuša prodati svoje robote, ampak nihče pri zdravi pameti ne bi spustil stroja na flogiston v bližino knjig. In sploh, zakaj bi potrebovala tolikšno moč?</p><p>Ampak ta robot je eden od novih električnih: hiter, majhen in pri zlaganju knjig na police skoraj neslišen.</p><p>Pa še nekaj — <span class=\"character-name\">Beatrice DeVale</span> si privošči zloben nasmešek — njegova pajkasta oblika na smrt prestraši gospoda Londona in ga drži daleč od knjižnih polic.</p>",
+            "Library-Sumer": "<p>V mladosti je bil <span class=\"character-name\">Ur-Nana</span> izbran za lugala. Opravil je obrede, zbral može, dal pripraviti bojne vozove in popeljal vojsko na bojišče. Njegova junaštva bodo pesniki opevali še rodove. Trikrat so ga pozvali, trikrat je šel in se vrnil kot zmagovalec. Trikrat se je vrnil v mesto na robu lakote, kjer so slabo vodili evidence žita, kjer so darovi templjem zamujali in kjer so bili delavci tik pred uporom, ker niso prejeli svojih obrokov.</p><p>Četrtič je čast prepustil mlajšemu in namesto tega prevzel skrb za mesto. Zdaj dela z zapisi in v templjih, ne na bojišču, mesto pa cveti.</p>",
+            "Library-Timbuktu": "<p>Ahmad ga že tedne nadleguje, naj mu posodi svoj izvod Jamʿ al-jawāmiʿ. <span class=\"character-name\">Ibrahim ag Moussa</span> dobro ve, da bo popustil in fantu posodil knjigo. Navsezadnje znanje ni njegova last, da bi ga držav zase, Ahmada pa podrobnosti qiyāsa res zanimajo.</p><p>Toda Ibrahim tudi ve, kaj študentje počnejo z robovi strani. Prav ta izvod še vedno nosi brazgotine, ki mu jih je zadal sam kot mlad, zagnan študent prava. Zavzdihne. Enkrat je treba.</p><p>»Ahmad! Pridi sem.«</p>",
+            "Library-Trade-Spaceship": "<p><span class=\"character-name\">Liset</span> se je rodila na liniji za Arcturus. Šele pri šestih je prvič obkrožila planet. Pri enajstih je prvič stopila na trdna tla in ugotovila, da so planeti umazani, smrdljivi, nepredvidljivi in za nobeno rabo. Za povrh imajo še <span class=\"bold-text\">vreme</span>. Kdo si je izmislil sistem prezračevanja z orkani?</p><p>Že vzdrževati vesoljsko ladjo je dovolj težko. Seveda večino dela opravi Pippa Pilotka (ladijski računalnik sovraži ta vzdevek, zato Liset ne zamudi nobene priložnosti, da ga uporabi), a tu in tam je še vedno potrebna človeška roka.</p>",
+            "Library-Varro": "<p><span class=\"character-name\">Marcus Terentius Varro</span> je bil nekoč ljudski tribun, general Pompeja Velikega in knjižničar Julija Cezarja. Lahko bi postal celo konzul, če ne bi imel nesrečne navade, da pove, kar misli. Zdaj je Pompej ubil Cezarjevi, Cezarja roki Marka Brutus, Bruta Marka Antonij, in kdo ve koliko časa bo še mladi ambicijozni Oktavijan dal dihati Antoniju. On, Varro, pa je star.</p><p>Star, ampak ne mrtev. Zadnje čase mu pravijo, da je večji mislec od Cicerona. Laskajo mu, toda če to ni vrhunec cursus honorum, kaj pa je? Še zadnjič popravi konico že tako ostrega stila in začne: »De re rustica ...«</p>",
+            "Library-Yongle": "<p>Liu Shun pogreša Nanjing. Ni dvoma, to novo Prepovedano mesto, ki ga je dal zgraditi Sin neba, je čudovito. A Nanjing je bil živ, razgiban, kaotičen — pravo nasprotje urejenim arhivom, za katere je zadolžen. To novo mesto je le niz veličastnih palač, ki so si vse enake, dokler se pred očmi ne začnejo zlivati. Niti spodobnega kraja ni, kamor bi zvečer šel na predstavo in spil čašo vina.</p><p>Lepo bi bilo, če bi lahko ostal v Nanjingu. A kar cesar ukaže, Liu Shun stori. Tako je bilo od nekdaj.</p>"
         }
     },
     "ui": {
@@ -56,8 +56,8 @@
             "cannot_contact_server": "S strežnikom ni mogoče vzpostaviti povezave"
         },
         "workflow_table": {
-            "does_the_workflow_have_tags": "Ali ima delovni tok značke?",
-            "is_the_workflow_in_collection_s": "Ali je delovni tok v kateri od zbirk?",
+            "does_the_workflow_have_tags": "Ali ima delotok značke?",
+            "is_the_workflow_in_collection_s": "Ali je delotok v kateri od zbirk?",
             "name": "Ime",
             "purpose": "Namen",
             "relative_path": "Relativna pot",
@@ -81,14 +81,14 @@
             "to_archive_2": "V arhiv"
         },
         "workflow_contents": {
-            "cannot_load_workflows": "Delovnih tokov ni mogoče naložiti",
+            "cannot_load_workflows": "Delotokov ni mogoče naložiti",
             "unsaved_changes": "Neshranjene spremembe",
             "discard_workflow_changes": "Zavrzi spremembe delovnega toka?",
             "save_workflow_changes_before_continuing": "Shrani spremembe delovnega toka pred nadaljevanjem?",
             "cannot_load_workflow": "Delovnega toka ni mogoče naložiti",
             "cannot_save_workflow": "Delovnega toka ni mogoče shraniti",
             "workflow_operation_failed": "Operacija na delovnem toku ni uspela",
-            "move_workflow": "Premakni delovni tok",
+            "move_workflow": "Premakni delotok",
             "cannot_move_workflow": "Delovnega toka ni mogoče premakniti",
             "cannot_refresh_workflow": "Delovnega toka ni mogoče osvežiti"
         },
@@ -118,25 +118,25 @@
         },
         "multi_workflow_editor": {
             "edit_selected_workflows": "Uredi izbrane delovne tokove",
-            "close_workflow_editor": "Zapri urejevalnik delovnih tokov",
+            "close_workflow_editor": "Zapri urejevalnik delotokov",
             "add_tags": "Dodaj značke",
             "remove_tags": "Odstrani značke",
             "save": "shrani",
             "working": "delovno",
             "sync": "uskladi",
             "archive": "arhiv",
-            "some_selected_workflows_have_errors_editing_is_disabled": "Nekateri izbrani delovni tokovi imajo napake. Urejanje je onemogočeno.",
+            "some_selected_workflows_have_errors_editing_is_disabled": "Nekateri izbrani delovtoki imajo napake. Urejanje je onemogočeno.",
             "apply_tags": "Uveljavi značke",
             "to_working_set": "V delovno zbirko",
             "sync_2": "Uskladi",
             "to_archive": "V arhiv",
-            "cannot_load_workflows": "Delovnih tokov ni mogoče naložiti",
+            "cannot_load_workflows": "Delotokov ni mogoče naložiti",
             "cannot_update_tags": "Značk ni mogoče posodobiti",
             "workflow_operation_failed": "Operacija na delovnem toku ni uspela",
-            "cannot_move_workflows": "Delovnih tokov ni mogoče premakniti",
-            "move_workflows": "Premakni delovne tokove",
+            "cannot_move_workflows": "Delotokov ni mogoče premakniti",
+            "move_workflows": "Premakni delotoke",
             "different_subdirectories": "Različne podmape",
-            "the_workflows_are_currently_in_different_subdirectories_are_you_sure_you_want_to_move_them_to_the_same_subdirectory": "Delovni tokovi so trenutno v različnih podmapah. Jih res želite premakniti v isto podmapo?"
+            "the_workflows_are_currently_in_different_subdirectories_are_you_sure_you_want_to_move_them_to_the_same_subdirectory": "Delotoki so trenutno v različnih podmapah. Jih res želite premakniti v isto podmapo?"
         },
         "multi_workflow_collection_editor": {
             "add": "dodaj",
@@ -157,9 +157,9 @@
             "cannot_load_collections": "Zbirk ni mogoče naložiti",
             "discard_new_collection": "Zavrzi novo zbirko?",
             "discard_the_unsaved_new_collection": "Zavrzi neshranjeno novo zbirko?",
-            "cannot_add_workflows": "Delovnih tokov ni mogoče dodati",
+            "cannot_add_workflows": "Delotokov ni mogoče dodati",
             "remove_from_collections": "Odstrani iz zbirk",
-            "cannot_remove_workflows": "Delovnih tokov ni mogoče odstraniti",
+            "cannot_remove_workflows": "Delotokov ni mogoče odstraniti",
             "cannot_create_collection": "Zbirke ni mogoče ustvariti"
         },
         "user_object_table": {
@@ -267,7 +267,7 @@
             "cannot_save_model_settings": "Nastavitev modelov ni mogoče shraniti",
             "cannot_delete_user_defined_type": "Uporabniško določenega tipa ni mogoče izbrisati",
             "cannot_save_model_extensions": "Končnic modelov ni mogoče shraniti",
-            "cannot_save_workflow_settings": "Nastavitev delovnih tokov ni mogoče shraniti",
+            "cannot_save_workflow_settings": "Nastavitev delotokov ni mogoče shraniti",
             "settings_saved_but_the_scan_could_not_start": "Nastavitve so shranjene, vendar pregleda ni bilo mogoče začeti",
             "cannot_save_settings": "Nastavitev ni mogoče shraniti",
             "cannot_discover_model_mappings": "Preslikav map modelov ni mogoče odkriti"
@@ -280,7 +280,7 @@
             "individual_types_can_be_scanned_from_the_settings_dialog": "Posamezne tipe lahko pregledate v pogovornem oknu z nastavitvami",
             "loading_repository_summary": "Nalaganje povzetka repozitorija ...",
             "models": "Modeli",
-            "workflows": "Delovni tokovi",
+            "workflows": "Delotoki",
             "user_types": "Uporabniški tipi",
             "collections": "Zbirke",
             "cannot_load_repository_summary": "Povzetka repozitorija ni mogoče naložiti",
@@ -290,7 +290,7 @@
             "close_tag_remapping": "Zapri preslikavo značk",
             "unsaved_tag_mappings": "Neshranjene preslikave značk",
             "models": "Modeli",
-            "workflows": "Delovni tokovi",
+            "workflows": "Delotoki",
             "user_types": "Uporabniški tipi",
             "collections": "Zbirke",
             "remap_tags": "Preslikaj značke",
@@ -319,7 +319,7 @@
             "about_model_archivist": "O programu",
             "tab_select": "Izberi zavihek",
             "model": "model",
-            "workflows": "delovni tokovi",
+            "workflows": "delotoki",
             "select_user_defined_type": "Izberi uporabniško določen tip",
             "collections": "zbirke",
             "repository": "Repozitorij",
@@ -330,7 +330,7 @@
             "toggle_theme": "preklopi temo",
             "dark_light_mode": "temni ali svetli način",
             "models": "Modeli",
-            "workflows_2": "Delovni tokovi",
+            "workflows_2": "Delotoki",
             "configure_types": "Nastavi tipe ...",
             "collections_2": "Zbirke",
             "server": "Strežnik ...",
@@ -346,6 +346,7 @@
             "library_illustrations": "Ilustracije knjižnic",
             "previous_image": "Prejšnja slika",
             "next_image": "Naslednja slika",
+            "open_image_full_size": "Odpri sliko v polni velikosti",
             "model_archivist": "Model Archivist",
             "github": "GitHub:",
             "https_github_com_tumbislav_comfyui_modelarchivist": "https://github.com/tumbislav/ComfyUI-ModelArchivist",
@@ -561,7 +562,7 @@
         },
         "file_set": {
             "model": "Model:",
-            "workflow": "Delovni tok:",
+            "workflow": "Delotok:",
             "metadata": "Metapodatki:",
             "others": "Drugo:",
             "samples": "Primeri:"
@@ -581,8 +582,8 @@
             "no_collections": "Ni zbirk.",
             "tags": "Značke",
             "direct_models": "Neposredni modeli",
-            "direct_workflows": "Neposredni delovni tokovi",
-            "direct_udt_objects": "Neposredni objekti uporabniških tipov",
+            "direct_workflows": "Neposredni delotoki",
+            "direct_udt_objects": "Neposredni uporabniških predmet",
             "direct_collections": "Neposredne zbirke"
         },
         "collection_details": {
@@ -604,7 +605,7 @@
             "to_archive": "V arhiv",
             "save_metadata_changes_before_running_location_actions": "Pred izvajanjem dejanj na lokacijah shranite spremembe metapodatkov.",
             "models": "Modeli",
-            "workflows": "Delovni tokovi",
+            "workflows": "Delotoki",
             "user_types": "Uporabniški tipi",
             "collections": "Zbirke"
         },
@@ -663,7 +664,7 @@
             "base": "Osnova",
             "name": "Ime",
             "models": "Modeli",
-            "workflows": "Delovni tokovi",
+            "workflows": "Delotoki",
             "user_types": "Uporabniški tipi"
         },
         "boolean": {
@@ -676,7 +677,7 @@
             "has_models": "Vsebuje modele",
             "no_models": "Brez modelov",
             "has_workflows": "Vsebuje delovne tokove",
-            "no_workflows": "Brez delovnih tokov",
+            "no_workflows": "Brez delotokov",
             "has_user_objects": "Vsebuje uporabniški objekt",
             "no_user_objects": "Brez uporabniških objektov",
             "has_collections": "Vsebuje zbirke",
@@ -707,7 +708,7 @@
         "invalid_tag": "Značka ni veljavna.",
         "application_read_only": "Aplikacija je v načinu samo za branje.",
         "model_read_only": "Model ima napake in ga ni mogoče spreminjati.",
-        "workflow_read_only": "Delovni tok ima napake in ga ni mogoče spreminjati.",
+        "workflow_read_only": "Delotok ima napake in ga ni mogoče spreminjati.",
         "ambiguous_components": "Na isti strani je bilo najdenih več naborov komponent.",
         "missing_source": "Izvorne datoteke manjkajo.",
         "unmapped_destination": "Ciljna mapa ni nastavljena.",
@@ -740,7 +741,7 @@
         "incomplete_model": "Nepopoln model.",
         "duplicate_model": "Podvojena zgoščena vrednost modela.",
         "unknown_model": "Model ne obstaja.",
-        "unknown_workflow": "Delovni tok ne obstaja.",
+        "unknown_workflow": "Delotok ne obstaja.",
         "invalid_user_type": "Neveljaven uporabniško določen tip.",
         "unknown_user_type": "Uporabniško določen tip ne obstaja.",
         "unknown_user_object": "Uporabniško določen objekt ne obstaja.",
@@ -794,12 +795,12 @@
             "few": "Odstrani izbrane delovne tokove iz {count} zbirk?"
         },
         "move_selected_workflows": "Premakni izbrane delovne tokove v {destination}?",
-        "move_workflow": "Premakni delovni tok v {destination}?",
+        "move_workflow": "Premakni delotok v {destination}?",
         "remove_workflow_collections": {
-            "one": "Odstrani ta delovni tok iz {count} zbirke?",
-            "other": "Odstrani ta delovni tok iz {count} zbirk?",
-            "two": "Odstrani ta delovni tok iz {count} zbirk?",
-            "few": "Odstrani ta delovni tok iz {count} zbirk?"
+            "one": "Odstrani ta delotok iz {count} zbirke?",
+            "other": "Odstrani ta delotok iz {count} zbirk?",
+            "two": "Odstrani ta delotok iz {count} zbirk?",
+            "few": "Odstrani ta delotok iz {count} zbirk?"
         },
         "remove_member": "Odstrani {name} iz te zbirke? Datoteke in vsebina ugnezdenih zbirk bodo ostale nespremenjene.",
         "remove_member_label": "Odstrani {name} iz zbirke",

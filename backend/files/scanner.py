@@ -22,7 +22,6 @@ import datetime
 from backend.base_models import normalize_base_model
 from backend.config import get_config, Configuration
 from backend.files.metadata import (ARCHIVIST_METADATA_SUFFIX,
-                                    LEGACY_METADATA_SUFFIX,
                                     scan_model_metadata,
                                     model_component_stem)
 import backend.repository.repository as repo
@@ -120,17 +119,17 @@ class Scanner:
     user_objects_scanned: int = 0
     hashes_calculated: int = 0
     errors: list[str] = field(default_factory=list)
-    lock: Lock = Lock()
+    lock: Lock = field(default_factory=Lock)
     barrier: Barrier | None = None
     config: Configuration | None = None
     scope: str = 'all'
     type_id: str | list[str] | None = None
-    logger: logging.Logger = field(default_factory=lambda:logging.getLogger('archivist.files'))
+    logger: logging.Logger = field(default_factory=lambda: logging.getLogger('archivist.files'))
 
     def start(self, rehash: bool = False, scope: str = 'all',
               type_id: str | list[str] | None = None) -> str | None:
         if self.started:
-            self.logger.error(f'attempting to start an already started scanner')
+            self.logger.error('attempting to start an already started scanner')
             return None
         self.config = get_config()
         self.scope = scope
@@ -189,13 +188,13 @@ class Scanner:
                          'hashes_calculated': self.hashes_calculated}
 
         if self.start_time is not None:
-            progress_dict['start_time'] = self.start_time.isoformat()  # noqa
+            progress_dict['start_time'] = self.start_time.isoformat()
             if self.end_time is None:
                 interval = datetime.datetime.now(tz=datetime.timezone.utc) - self.start_time
             else:
-                progress_dict['end_time'] = self.end_time.isoformat()  # noqa
+                progress_dict['end_time'] = self.end_time.isoformat()
                 interval = self.end_time - self.start_time
-            progress_dict['duration'] = interval.total_seconds()  # noqa
+            progress_dict['duration'] = interval.total_seconds()
 
         return progress_dict
 
@@ -205,13 +204,13 @@ class Scanner:
 
     def cleanup(self):
         self.barrier.wait()
-        self.logger.debug(f'starting cleanup')
+        self.logger.debug('starting cleanup')
         with repo.lock:
             repo.scan_cleanup(self.timestamp, self.scope, self.type_id)
         with self.lock:
             self.end_time = datetime.datetime.now(tz=datetime.timezone.utc)
             self.finished = True
-        self.logger.debug(f'completed filesystem scan')
+        self.logger.debug('completed filesystem scan')
 
     def find_models(self, type_name: str, working_root: Path, archive_root: Path, rehash: bool):
         """
@@ -651,7 +650,6 @@ def get_scanner(scan_timestamp: str | None = None) -> Scanner | None:
     """
     Return the selected scanner, or return the only scanner.
     """
-    global _scanner
     if scan_timestamp is None:
         return _scanner
     if _scanner is None or _scanner.timestamp != scan_timestamp:

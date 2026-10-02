@@ -394,8 +394,3 @@ async function refreshAfterMultiEdit() {
     </aside>
 {/if}
 </div>
-
-
-<style>
-
-</style>

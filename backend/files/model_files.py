@@ -6,7 +6,7 @@
 
 import logging
 from pathlib import Path
-from backend.repository.tables import Model, ComponentType, DeploymentStatus
+from backend.repository.tables import Model, ComponentType
 import json
 from backend.files.metadata import ARCHIVIST_METADATA_SUFFIX
 
@@ -42,16 +42,3 @@ def update_model(model: Model, name: str, internal_name: str, tags: list[str],
             file_path.write_text(json.dumps(metadata, ensure_ascii=True), encoding='utf-8')
         if rename_files:
             file_path.rename(renamed_file(file_path, name))
-
-def move_model(model: Model, deployment: DeploymentStatus) -> Model:
-    """
-    Move all of a model's components to the requested deployment. Update metadata as needed.
-    """
-    # Path().move works across filesystems
-    pass
-
-def sync_model(model: Model) -> Model:
-    """
-    Sync a model's components to both deployment locations.
-    """
-    pass

@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from backend.config import (ConfigError, ConfigException, Configuration, DatabaseConfig,
-                            LoggingConfig, WebConfig, load_config)
+                            LoggingConfig, WebConfig, initialize_logging, load_config)
 
 
 def make_configuration(tmp_path: Path, mode: str = 'standalone') -> Configuration:
@@ -39,6 +39,25 @@ def test_log_handlers_preserve_unicode_and_escape_invalid_surrogates(tmp_path, h
         handler.close()
     assert Path(config.log_file).read_text(encoding='utf-8') == (
         'Model \u8272\u60c5\u5927\u5e2b \U0001f7e1 invalid: \\ud800\n')
+
+
+def test_initialize_logging_clears_existing_log_before_configuring(
+        tmp_path, monkeypatch: pytest.MonkeyPatch):
+    config = make_configuration(tmp_path)
+    log_file = Path(config.log_file)
+    log_file.write_text('old run\n', encoding='utf-8')
+    observed = None
+
+    def configure(_definition):
+        nonlocal observed
+        observed = log_file.read_text(encoding='utf-8')
+
+    monkeypatch.setattr(logging.config, 'dictConfig', configure)
+
+    initialize_logging(config)
+
+    assert observed == ''
+    assert all(handler['mode'] == 'a' for handler in config.log_config['handlers'].values())
 
 
 def test_load_config_reports_missing_file(tmp_path: Path):

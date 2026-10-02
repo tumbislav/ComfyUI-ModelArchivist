@@ -7,8 +7,9 @@
 from pathlib import Path
 
 import pytest
+from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
-from sqlmodel import Session, create_engine
+from sqlmodel import SQLModel, Session, create_engine
 
 from backend.config import Configuration, DatabaseConfig, LoggingConfig, WebConfig
 from backend.exception import ArcException
@@ -84,7 +85,7 @@ def test_new_database_starts_in_setup_mode_without_scan(tmp_path, monkeypatch):
     assert repository.repo_status()['setup_required'] is True
     assert repository.repo_status()['ready'] is True
     with repository._engine.connect() as connection:
-        assert MigrationContext.configure(connection).get_current_revision() == '000000000002'
+        assert MigrationContext.configure(connection).get_current_revision() == '000000000001'
 
 
 def test_sql_log_handler_preserves_unicode(tmp_path, monkeypatch):
@@ -135,8 +136,18 @@ def test_schema_update_is_idempotent(tmp_path):
     repository.update_database_schema(engine)
     repository.update_database_schema(engine)
     with engine.connect() as connection:
-        assert MigrationContext.configure(connection).get_current_revision() == '000000000002'
+        assert MigrationContext.configure(connection).get_current_revision() == '000000000001'
     engine.dispose()
+
+
+def test_baseline_matches_current_metadata(tmp_path):
+    engine = create_engine(f'sqlite:///{tmp_path / "database.db"}')
+    repository.update_database_schema(engine)
+    with engine.connect() as connection:
+        differences = compare_metadata(MigrationContext.configure(connection), SQLModel.metadata)
+    engine.dispose()
+
+    assert differences == []
 
 
 def test_repository_configuration_persists_standalone_locations(tmp_path, monkeypatch):
@@ -233,23 +244,3 @@ def test_model_extension_allowlist_persists(tmp_path, monkeypatch):
     assert repository.get_repository_configuration()['model_extensions'] == ['.safetensors']
     repository.update_model_extensions([])
     assert config.model_extension_allowlist == []
-
-
-def test_allowlist_migration_preserves_settings(tmp_path):
-    from alembic import command
-    from backend.repository.migrations import alembic_config
-    engine = create_engine(f'sqlite:///{tmp_path / "old.db"}')
-    with engine.begin() as connection:
-        command.upgrade(alembic_config(connection), '000000000001')
-        connection.exec_driver_sql(
-            'INSERT INTO applicationsettings '
-            '(id, setup_complete, update_json_metadata, ignore_unknown_types, always_recalc_hashes) '
-            'VALUES (1, 1, 0, 1, 0)')
-    repository.update_database_schema(engine)
-    with Session(engine) as session:
-        settings = session.get(ApplicationSettings, 1)
-        assert settings.setup_complete
-        assert not settings.update_json_metadata
-        assert settings.ignore_unknown_types
-        assert settings.model_extension_allowlist is None
-    engine.dispose()

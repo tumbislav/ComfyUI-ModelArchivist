@@ -125,7 +125,6 @@
 {#if title}
     <h2 class="slim-margin">{title}</h2>
 {/if}
-
 <div class="multi-select">
     <div class="multi-select-list">
         {#each draft_tags as tag}
@@ -180,6 +179,3 @@
         {locale.t('ui.tag_editor.start_with_a_letter_underscore_or_digit_0_9_use_name_characters_or_spaces_ascii_colon_and_dash_are_allowed_only_inside_the_tag')}
     </p>
 {/if}
-
-<style>
-</style>

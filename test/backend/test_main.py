@@ -36,6 +36,7 @@ def test_main_handles_repository_failure(monkeypatch: pytest.MonkeyPatch, capsys
     config = SimpleNamespace(log_config={'version': 1, 'disable_existing_loggers': False})
 
     monkeypatch.setattr(backend_main, 'load_config', lambda _config_file: config)
+    monkeypatch.setattr(backend_main, 'initialize_logging', lambda _config: None)
 
     def fail_repo():
         raise RuntimeError('database unavailable')

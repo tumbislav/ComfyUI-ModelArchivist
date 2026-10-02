@@ -46,7 +46,3 @@
             </div>
     </dialog>
 {/if}
-
-<style>
-
-</style>

@@ -32,6 +32,13 @@
         selected = (selected + direction + slides.length) % slides.length;
     }
 
+    function handleKeydown(event: KeyboardEvent): void {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+
+        event.preventDefault();
+        advance(event.key === 'ArrowLeft' ? -1 : 1);
+    }
+
     onMount(() => {
         selected = Math.max(0, slides.findIndex(slide => slide.url === image));
         void loadAbout();
@@ -50,6 +57,7 @@
 </script>
 
 <dialog class="nav-dialog" use:modalDialog aria-label={locale.t('ui.about_modal.about_model_archivist')}
+        onkeydown={handleKeydown}
         oncancel={event => {
             event.preventDefault();
             onClose();
@@ -65,6 +73,9 @@
         <section class="about-carousel" aria-label={locale.t('ui.about_modal.library_illustrations')} aria-roledescription="carousel">
             <div class="about-slide">
                 <img class="about-image" src={slide.url} alt={slide.name} width="1600" height="640" />
+
+                <a class="about-image-open" href={slide.url} target="_blank" rel="noopener noreferrer"
+                   aria-label={locale.t('ui.about_modal.open_image_full_size')}></a>
 
                 <button class="about-carousel-arrow about-carousel-left" type="button"
                         aria-label={locale.t('ui.about_modal.previous_image')} onclick={() => advance(-1)}>

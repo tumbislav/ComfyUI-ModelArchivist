@@ -10,11 +10,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "comfyui-model-archivist"
-version = "0.8.0"
+version = "1.0.0"
 requires-python = ">= 3.12"
 description = "Organize, archive, and synchronize models, workflows, and user-defined files in ComfyUI or as a standalone application."
 readme = "README.md"
-authors = [{name="Marko Čibej"}]
+authors = [{name="Tumbislav Nilski"}]
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE.md"]
 dependencies = [
@@ -36,6 +36,9 @@ dev = [
 Repository = "https://github.com/tumbislav/ComfyUI-ModelArchivist"
 Documentation = "https://github.com/tumbislav/ComfyUI-ModelArchivist#readme"
 Issues = "https://github.com/tumbislav/ComfyUI-ModelArchivist/issues"
+
+[tool.setuptools.packages.find]
+include = ["backend*"]
 
 [tool.comfy]
 PublisherId = "tumbislav-nilski"

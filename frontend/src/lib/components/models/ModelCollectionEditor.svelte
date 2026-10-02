@@ -154,6 +154,3 @@ async function removeSelected() {
                       onCreate={createNew}
                       onClose={closePopup} />
 {/if}
-
-<style>
-</style>

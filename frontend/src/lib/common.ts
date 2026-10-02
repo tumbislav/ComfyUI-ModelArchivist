@@ -13,20 +13,8 @@ export const short_date: Intl.DateTimeFormatOptions = {
     dateStyle: 'short'
 };
 
-export const timestamp: Intl.DateTimeFormatOptions = {
-    dateStyle: 'short',
-    timeStyle: 'short'
-}
-
 export function shortDate(d: Date): string {
     return locale.date(d, short_date);
-}
-
-/* Paths
- * ---------------------------------------------------------------------------*/
-
-export function joinPath(root: string, subdir: string | null): string {
-    return subdir === '.' ? root : [root, subdir].join('/');
 }
 
 /* Transitions

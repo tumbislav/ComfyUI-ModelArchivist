@@ -26,8 +26,13 @@
 
 .about-carousel-arrow {
     position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
+    z-index: 2;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    box-sizing: border-box;
+    width: 10%;
+    align-items: center;
     padding: var(--gap-small);
     border: 0;
     background: transparent;
@@ -40,9 +45,16 @@
 .about-carousel-arrow:focus-visible,
 .about-carousel-arrow:active {
     opacity: 1;
-    transform: translateY(-50%);
+    transform: none;
     background: transparent;
     box-shadow: none;
+}
+
+.about-image-open {
+    position: absolute;
+    z-index: 1;
+    inset: 0 10%;
+    cursor: zoom-in;
 }
 
 .about-carousel-left {
@@ -51,6 +63,7 @@
 
 .about-carousel-right {
     right: 0;
+    justify-content: flex-end;
 }
 
 .about-caption {

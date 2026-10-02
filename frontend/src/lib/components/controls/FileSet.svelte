@@ -47,6 +47,3 @@ let unpacked = $derived((set?.components ?? []).reduce<Record<string, string[]>>
         <p class="labeled"><span>{locale.t('ui.file_set.samples')}</span>{unpacked.example.join(', ')}</p>
     {/if}
 </div>
-
-<style>
-</style>

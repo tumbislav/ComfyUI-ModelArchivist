@@ -119,26 +119,6 @@ export function toModel(json: any): Model {
     }
 }
 
-export function toModelSummary(model: any): ModelSummary {
-    return {
-        id: model.id,
-        file_name: model.file_name,
-        internal_name: model.internal_name,
-        type: model.type,
-        file_format: model.file_format,
-        base_model_abbreviation: model.base_model_abbreviation,
-        relative_path: model.relative_path,
-        deployment: model.deployment,
-        has_tags: model.has_tags ?? (model.tags?.length > 0),
-        has_collections: model.has_collections ?? (model.collections?.length > 0),
-        tag_values: model.tag_values ?? model.tags ?? [],
-        collection_names: model.collection_names ?? model.collections?.map((item: any) => item.name) ?? [],
-        error_values: model.error_values ?? model.errors ?? [],
-        errors: model.errors ?? [],
-        read_only: model.read_only ?? false
-    }
-}
-
 /* Workflows
  * ---------------------------------------------------------------------------*/
 
@@ -194,25 +174,6 @@ export function toWorkflow(json: any): Workflow {
         errors: json.errors ?? [],
         read_only: json.read_only ?? false
     }
-}
-
-export function toWorkflowSummary(workflow: any): WorkflowSummary {
-    return {
-        id: workflow.id,
-        file_name: workflow.file_name,
-        internal_name: workflow.internal_name,
-        purpose: workflow.purpose,
-        relative_path: workflow.relative_path,
-        deployment: workflow.deployment,
-        has_tags: workflow.has_tags ?? (workflow.tags?.length > 0),
-        has_collections: workflow.has_collections ?? (workflow.collections?.length > 0),
-        tag_values: workflow.tag_values ?? workflow.tags ?? [],
-        collection_names: workflow.collection_names
-            ?? workflow.collections?.map((item: any) => item.name) ?? [],
-        error_values: workflow.error_values ?? workflow.errors ?? [],
-        errors: workflow.errors ?? [],
-        read_only: workflow.read_only ?? false
-    };
 }
 
 /* User-defined objects

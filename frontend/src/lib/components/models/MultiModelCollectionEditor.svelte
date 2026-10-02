@@ -132,6 +132,3 @@ async function createNew(name: string): Promise<string | null> {
                       onCreate={createNew}
                       onClose={closePopup} />
 {/if}
-
-<style>
-</style>

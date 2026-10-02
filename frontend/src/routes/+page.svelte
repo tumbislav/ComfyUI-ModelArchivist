@@ -127,6 +127,3 @@ onMount(() => {
 
 <ConfirmBox />
 <UnsavedChangesBox />
-
-<style>
-</style>

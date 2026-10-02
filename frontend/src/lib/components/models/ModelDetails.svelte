@@ -85,7 +85,6 @@ async function handleEnter(event: KeyboardEvent) {
         <img class="action-icon" alt="" src={closeIcon} />
     </button>
 </div>
-
 <div class="sidebar-body">
     <div class="space-below spaced-horizontally">
         <div>
@@ -195,6 +194,3 @@ async function handleEnter(event: KeyboardEvent) {
         <ModelCollectionEditor {model} onChanged={onCollectionsChanged} />
     </div>
 </div>
-
-<style>
-</style>

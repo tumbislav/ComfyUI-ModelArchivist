@@ -78,6 +78,3 @@ function select(value: string) {
         </div>
     {/if}
 </div>
-
-<style>
-</style>

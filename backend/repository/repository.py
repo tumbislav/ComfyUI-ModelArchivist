@@ -908,21 +908,6 @@ def model_batch_operation(ids: list[str], operation: str, simulate: bool = True,
         })
     return output
 
-def deploy_model(id: str, deployment: DeploymentStatus) -> Model:
-    """
-    Move the model to either working set or archive, or synchronize them both.
-    """
-    if _config.read_only:
-        raise ArcException(ArcException.Code.READ_ONLY, 'Model deployment is disabled')
-    with Session(_engine) as session:
-        model: Model | None = session.get(Model, id)
-        if model is None:
-            msg = f'unknown model {id}'
-            _logger.error(msg)
-            raise ArcException(ArcException.Code.UNKNOWN_MODEL, msg)
-        _logger.debug(f'deploying model {model.internal_name} ({id}) to {deployment}')
-    pass
-
 def list_models(ordered, search_criteria: dict | None = None) -> list[dict]:
     with Session(_engine) as session:
         if ordered:

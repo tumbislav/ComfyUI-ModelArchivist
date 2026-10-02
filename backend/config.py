@@ -5,6 +5,7 @@
 # ---------------------------------------------------------------------------
 
 import os
+import logging.config
 import tomllib
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -233,6 +234,7 @@ class Configuration:
         }
         handlers = {name: {'formatter': name, 'class': 'logging.FileHandler',
                            'filename': filename, 'encoding': 'utf-8',
+                           'mode': 'a',
                            'errors': 'backslashreplace'} for name in formatters}
         loggers = {'archivist': {'handlers': ['default'], 'level': self.logging.level,
                                  'propagate': False}}
@@ -245,6 +247,12 @@ class Configuration:
     @property
     def uvicorn_log_config(self) -> dict:
         return self.log_config
+
+
+def initialize_logging(config: Configuration) -> None:
+    """Start a fresh log for this process, then configure append-only handlers."""
+    Path(config.log_file).write_text('', encoding='utf-8')
+    logging.config.dictConfig(config.log_config)
 
 
 _config: Configuration | None = None

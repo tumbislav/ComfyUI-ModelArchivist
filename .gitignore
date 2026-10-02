@@ -1,6 +1,15 @@
 # Back end
-# Testing and developent artefacts
+# Testing and development artefacts
 
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+*.egg-info/
+/build/
+/dist/
 /test/temp/
 /test/data/
 /model-archivist.log
@@ -14,7 +23,6 @@
 /model_archivist.db-wal
 /model_archivist.db-shm
 /model_archivist.db-journal
-/archivist.log
 /model_archivist.log
 
 # Front end

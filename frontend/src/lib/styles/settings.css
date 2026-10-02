@@ -55,7 +55,6 @@
     overflow: hidden;
 }
 
-.settings-heading,
 .settings-actions {
     display: flex;
     align-items: center;

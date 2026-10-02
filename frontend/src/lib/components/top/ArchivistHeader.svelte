@@ -303,8 +303,6 @@ $effect(() => {
 {/if}
 
 
-<style>
-</style>
 
 {#if repositoryOpen}
     <RepositorySummary onClose={() => repositoryOpen = false} />

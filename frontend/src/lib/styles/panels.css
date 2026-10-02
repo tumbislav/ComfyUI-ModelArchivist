@@ -73,20 +73,6 @@ body {
     outline: 0;
 }
 
-.left-sidebar {
-    flex: 1 1 300px;
-    height: 100%;
-    margin: 0px;
-    padding: var(--gap-mid);
-    z-index: var(--z-commands);
-    overflow: hidden;
-    min-width: var(--min-width-left);
-    max-width: var(--max-width-left);
-    border-right: var(--solid-border);
-    box-shadow: var(--shadow-right);
-    background: var(--bg-color);
-}
-
 .object-view {
     display: flex;
     flex-direction: column;

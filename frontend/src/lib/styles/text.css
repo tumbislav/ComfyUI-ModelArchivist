@@ -9,7 +9,6 @@
     --large-font-size: 12pt;
     --medium-font-size: 10pt;
     --small-font-size: 9pt;
-    --smaller-font-size: 8pt;
     --tiny-font-size: 7pt;
 }
 
@@ -113,13 +112,6 @@ p {
 /* Errors and warnings
  * ----------------------------------------------- */
 
-.warning-message {
-    color: var(--text-warning);
-    font-size: var(--medium-font-size);
-    text-align: center;
-    font-weight: 600;
-}
-
 .message-container {
     border: 1px solid var(--text-error);
 }
@@ -155,10 +147,6 @@ sup {
 
 .slim-margin {
     margin: var(--gap-small) 0;
-}
-
-.text-small {
-    font-size: var(--small-font-size);
 }
 
 .fine-print {

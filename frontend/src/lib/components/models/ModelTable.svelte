@@ -189,7 +189,3 @@ function toggleSection(type: string) {
         {/each}
     </table>
 {/if}
-
-<style>
-
-</style>

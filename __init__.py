@@ -4,7 +4,7 @@
 # purpose: ComfyUI plugin entry point
 # ---------------------------------------------------------------------------
 
-import logging.config
+import logging
 import sys
 from pathlib import Path
 
@@ -31,7 +31,7 @@ try:
     from aiohttp import ClientSession
     from server import PromptServer
 
-    from backend.config import load_config
+    from backend.config import initialize_logging, load_config
     from backend.environment import ComfyEnvironmentProvider, set_environment_provider
     from backend.repository.repository import start_repo
 
@@ -73,7 +73,7 @@ try:
         runtime_directory = environment.runtime_data_directory()
         if runtime_directory is not None:
             config.use_runtime_data_directory(runtime_directory)
-        logging.config.dictConfig(config.log_config)
+        initialize_logging(config)
         start_repo()
         from backend.server.gui import start_ui
         _server_thread, internal_port = start_ui(

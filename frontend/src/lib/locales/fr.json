@@ -346,6 +346,7 @@
             "library_illustrations": "Illustrations de bibliothèques",
             "previous_image": "Image précédente",
             "next_image": "Image suivante",
+            "open_image_full_size": "Ouvrir l’image en taille réelle",
             "model_archivist": "Model Archivist",
             "github": "GitHub :",
             "https_github_com_tumbislav_comfyui_modelarchivist": "https://github.com/tumbislav/ComfyUI-ModelArchivist",

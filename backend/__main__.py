@@ -5,9 +5,9 @@
 # ---------------------------------------------------------------------------
 
 import argparse
-import logging.config
+import logging
 import sys
-from backend.config import load_config
+from backend.config import initialize_logging, load_config
 from backend.repository.repository import start_repo
 
 
@@ -19,7 +19,7 @@ def main(argv: list[str] | None = None) -> int:
     logging_initialized = False
     try:
         config = load_config(args.config)
-        logging.config.dictConfig(config.log_config)
+        initialize_logging(config)
         logging_initialized = True
         logger = logging.getLogger('archivist.root')
         logger.debug('Logging initialized')

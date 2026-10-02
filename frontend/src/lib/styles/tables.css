@@ -6,10 +6,6 @@
 
 /* Tables -----------------------------------------*/
 
-.table-container {
-    padding: var(--gap-mid);
-}
-
 .main-table {
     width: 100%;
     border-collapse: collapse;
