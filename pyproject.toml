@@ -40,6 +40,9 @@ Issues = "https://github.com/tumbislav/ComfyUI-ModelArchivist/issues"
 [tool.setuptools.packages.find]
 include = ["backend*"]
 
+[tool.pytest.ini_options]
+cache_dir = "${MODEL_ARCHIVIST_PYTEST_ROOT}/cache"
+
 [tool.comfy]
 PublisherId = "tumbislav-nilski"
 DisplayName = "Model Archivist"

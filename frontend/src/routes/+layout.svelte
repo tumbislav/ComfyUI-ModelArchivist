@@ -8,6 +8,7 @@
     let { children } = $props();
     import '$styles/app.css';
     import { locale } from '$lib/locale.svelte';
+    import { accessError } from '$lib/api';
 
     if (typeof document !== 'undefined') {
         locale.initialize();
@@ -57,4 +58,8 @@
     <link href="archivist-ico-32.png" rel="icon"/>
 </svelte:head>
 
-{@render children()}
+{#if $accessError}
+    <p role="alert">{$accessError}</p>
+{:else}
+    {@render children()}
+{/if}

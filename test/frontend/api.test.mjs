@@ -23,9 +23,10 @@ function client(fetch) {
     const timers = new Map();
     let nextTimer = 0;
     const context = {
-        exports: {}, Response, AbortController, DOMException, URL, fetch,
+        exports: {}, Response, AbortController, DOMException, URL, TextDecoder, fetch,
         require: name => {
             if (name === 'svelte/store') return stores;
+            if (name === '$lib/session') return { sessionHeaders: (_input, init) => init.headers };
             if (name === '$lib/locale.svelte') return { locale: { t: key => ({
                 'errors.request_cancelled': 'Request cancelled',
                 'errors.server_unresponsive': 'The server is not responding'
@@ -130,4 +131,16 @@ test('all frontend API callers use the timeout wrapper', async () => {
         if (!/\.(ts|svelte)$/.test(name) || name.replaceAll('\\', '/') === 'lib/api.ts') continue;
         assert.doesNotMatch(readFileSync(new URL(name.replaceAll('\\', '/'), root), 'utf8'), /\bfetch\(/, name);
     }
+});
+
+test('authorization failures are displayed separately from connectivity failures', async () => {
+    const { api } = client(async (_url, init) => {
+        assert.equal(init.credentials, 'same-origin');
+        assert.equal(init.redirect, 'error');
+        return Response.json({ detail: { code: 'access_session_required', message: 'Reopen Archivist.' } },
+            { status: 401 });
+    });
+    await api.apiFetch('/test');
+    assert.equal(stores.get(api.accessError), 'Reopen Archivist.');
+    assert.equal(stores.get(api.serverUnresponsive), false);
 });

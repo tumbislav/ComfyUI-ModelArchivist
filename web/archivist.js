@@ -5,11 +5,15 @@
  * ---------------------------------------------------------------------------*/
 
 import { app } from '../../scripts/app.js';
+import { api } from '../../scripts/api.js';
 
 const BUTTON_TOOLTIP = 'Launch Model Archivist';
 
 async function openArchivist() {
-    window.open(new URL('/model-archivist/', window.location.origin), '_blank', 'noopener');
+    const url = new URL('/model-archivist/', window.location.origin);
+    // This selects the host profile; it is not an authentication credential.
+    url.hash = new URLSearchParams({ 'comfy-user': api.user || 'default' }).toString();
+    window.open(url, '_blank', 'noopener');
 }
 
 app.registerExtension({

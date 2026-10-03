@@ -68,6 +68,35 @@ Mutable embedded runtime data is kept outside the installed custom-node director
 `<ComfyUI user directory>/_archivist/`. This directory contains the SQLite database and
 log file. Standalone mode continues to use the paths specified in `config.toml`.
 
+## Endpoint access
+
+Public API paths and methods are explicitly listed in
+`backend/server/public_routes.py`; new endpoints require updating that list.
+Frontend files receive exact GET/HEAD routes from the configured build directory.
+There is no catch-all proxy or static mount, and API documentation endpoints are disabled.
+
+Standalone startup generates a random, process-lifetime session secret and passes
+it to the locally opened browser in a URL fragment. The frontend immediately removes
+the fragment, retains the session in tab-scoped session storage, and supplies it on
+every API call. Restarting the backend invalidates previous sessions. No public
+endpoint issues the secret. See the installation guide for reopening the application.
+
+Embedded FastAPI always binds to `127.0.0.1`, regardless of `web.host`, and requires
+a separate in-memory proxy token for every request. Only the aiohttp proxy knows
+that token; it is not sent to the browser. Comfy routes remain within PromptServer's
+middleware, and API requests are checked through its user manager. The launcher
+preserves the selected Comfy profile. Upstream Comfy's named profiles and
+`Comfy-User` header are not authentication; anonymous host access remains anonymous.
+The host access adapter is the integration point for future verified authentication.
+This does not implement cloud login, multiple-user repository isolation, or remote
+standalone provisioning.
+
+Browser API requests must be same-origin and carry an Archivist request header.
+The internal listener does not trust forwarded headers, and the proxy strips host
+credentials before forwarding. Other applications sharing the Comfy origin remain
+in the same browser trust boundary. Endpoint protection does not replace filesystem
+path restrictions.
+
 # Assumptions
 
 - ModelArchivist is a single-user application using SQLite.
@@ -83,6 +112,17 @@ log file. Standalone mode continues to use the paths specified in `config.toml`.
 - Other applications may rename files in the working set. The working filename is authoritative and metadata can be updated later.
 - Invalid third-party metadata is treated like an unreadable sidecar. Third-party and Archivist metadata are not reconciled.
 - Orphaned sidecars and orphaned example directories are ignored.
+
+# Development verification
+
+Backend tests use the repository virtual environment:
+`.venv/Scripts/python.exe -m pytest test/backend -q`. Pytest temporary runs and its
+cache live under `test/temp/account-<identity>/`, separated by the actual process
+account (Windows SID or Unix UID). This avoids permission conflicts between a
+developer and a sandbox account sharing the checkout. Temporary runs use pytest's
+normal numbering, locking, and retention; they no longer share a fixed directory
+that each run deletes. Explicit `--basetemp`, `PYTEST_DEBUG_TEMPROOT`, and
+`-o cache_dir=...` overrides remain supported.
 
 # Frontend production build
 

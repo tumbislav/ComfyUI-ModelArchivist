@@ -5,10 +5,9 @@
 # ---------------------------------------------------------------------------
 
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import Response
+from fastapi.responses import Response, JSONResponse
 import uvicorn
 import webbrowser
 from threading import Thread
@@ -16,22 +15,38 @@ import socket
 import time
 
 from backend.config import get_config
+from .access import API_PREFIX, AccessDenied, AccessPolicy
+from .public_routes import api_routes, registered_http_routes, static_routes
 from .routers import (admin, collections, configuration, health, models, operations, tags,
                       user_types, workflows)
 
-app = FastAPI(title='Model Archivist API', version='1.0.0')
-APP_PREFIX = '/model-archivist'
-API_PREFIX = f'{APP_PREFIX}/api'
+app = FastAPI(title='Model Archivist API', version='1.0.0',
+              docs_url=None, redoc_url=None, openapi_url=None,
+              redirect_slashes=False)
 
 config = get_config()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=['*'],
-    allow_credentials=False,
-    allow_methods=['*'],
-    allow_headers=['*']
-)
+access_policy: AccessPolicy | None = None
+
+
+@app.middleware('http')
+async def enforce_access(request: Request, call_next):
+    if access_policy is None:
+        return JSONResponse({'detail': {
+            'code': 'access_unavailable', 'message': 'Access policy is not initialized.',
+            'params': {}}}, status_code=503)
+    try:
+        access_policy.authorize(
+            request.headers,
+            api=request.url.path == API_PREFIX or request.url.path.startswith(f'{API_PREFIX}/'),
+            scheme=request.url.scheme, host=request.headers.get('host', ''))
+    except AccessDenied as error:
+        return JSONResponse({'detail': error.detail()}, status_code=error.status)
+    response = await call_next(request)
+    response.headers['Referrer-Policy'] = 'no-referrer'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Cache-Control'] = 'no-store'
+    return response
 
 app.include_router(models.router, prefix=API_PREFIX)
 app.include_router(workflows.router, prefix=API_PREFIX)
@@ -55,24 +70,40 @@ class AppFiles(StaticFiles):
 
 def create_server(listener: socket.socket, port: int) -> uvicorn.Server:
     server_config = uvicorn.Config(
-        app, host=config.host, port=port, log_config=config.uvicorn_log_config)
+        app, host=listener.getsockname()[0], port=port,
+        proxy_headers=False, log_config=config.uvicorn_log_config)
     return uvicorn.Server(server_config)
 
 _mounted = False
 
 
 def start_ui(open_browser: bool = True, block: bool = True,
-             port: int | None = None) -> tuple[Thread, int]:
+             port: int | None = None, policy: AccessPolicy | None = None) -> tuple[Thread, int]:
     """Start FastAPI on the configured port, or an OS-assigned private port."""
-    global _mounted
+    global _mounted, access_policy
+    access_policy = policy or AccessPolicy(config.mode)
+    if access_policy.mode != config.mode:
+        raise ValueError('Access policy does not match the operating mode')
     if not _mounted:
-        app.mount(APP_PREFIX, app=AppFiles(directory=config.static_html, html=True),
-                  name='static')
+        actual = registered_http_routes(app.routes)
+        if actual != set(api_routes()):
+            raise RuntimeError('API routes do not match the reviewed public route list')
+        files = AppFiles(directory=config.static_html)
+
+        def asset_handler(relative: str):
+            async def serve(request: Request):
+                return await files.get_response(relative, request.scope)
+            return serve
+
+        for path, relative in static_routes(config.static_html).items():
+            app.add_api_route(path, asset_handler(relative), methods=['GET', 'HEAD'],
+                              include_in_schema=False)
         _mounted = True
     requested_port = config.http_port if port is None else port
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        listener.bind((config.host, requested_port))
+        bind_host = '127.0.0.1' if config.mode == 'comfyui' else config.host
+        listener.bind((bind_host, requested_port))
         listener.listen(2048)
         listener.setblocking(False)
     except BaseException:
@@ -99,7 +130,8 @@ def start_ui(open_browser: bool = True, block: bool = True,
                 f'Archivist web server failed to start: {startup_errors[0]}') from startup_errors[0]
         raise RuntimeError('Archivist web server was not ready within 10 seconds.')
     if open_browser:
-        webbrowser.open(f'http://{config.host}:{actual_port}{APP_PREFIX}/')
+        browser_host = '127.0.0.1' if bind_host == '0.0.0.0' else bind_host
+        webbrowser.open(access_policy.launch_url(f'http://{browser_host}:{actual_port}'))
     if block:
         server_thread.join()
     return server_thread, actual_port

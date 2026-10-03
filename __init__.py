@@ -19,54 +19,41 @@ NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 WEB_DIRECTORY = './web'
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', 'WEB_DIRECTORY']
-_internal_url: str | None = None
-_hop_by_hop_headers = frozenset({
-    'connection', 'content-length', 'keep-alive', 'proxy-authenticate',
-    'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade'
-})
 
 try:
     import folder_paths
-    from aiohttp import web as aiohttp_web
-    from aiohttp import ClientSession
     from server import PromptServer
 
     from backend.config import initialize_logging, load_config
     from backend.environment import ComfyEnvironmentProvider, set_environment_provider
     from backend.repository.repository import start_repo
+    from backend.server.access import API_PREFIX, AccessDenied, AccessPolicy
+    from backend.server.proxy import create_proxy_handler
+    from backend.server.public_routes import api_routes, static_routes
 
-    @PromptServer.instance.routes.route('*', '/model-archivist/{tail:.*}')
-    async def archivist_proxy(request):
-        """Expose the internal FastAPI service through ComfyUI's public origin."""
-        if _internal_url is None:
-            return aiohttp_web.json_response(
-                {'error': 'Model Archivist backend is unavailable',
-                 'detail': 'Embedded backend initialization did not complete'},
-                status=503)
-        target = f'{_internal_url}{request.rel_url}'
-        request_headers = {
-            name: value for name, value in request.headers.items()
-            if name.lower() not in _hop_by_hop_headers and name.lower() != 'host'
-        }
+    async def authorize_comfy_request(request):
+        """Preserve host middleware and profile checks; profiles are not a login.
+
+        All routes remain on PromptServer's application, so its middleware runs
+        first. Future authenticated hosts can supply a different adapter here.
+        Static navigation has no Comfy-User header; API requests carry the profile
+        selected by the Comfy launcher. No profile grants extra privileges.
+        """
+        if not request.path.startswith(f'{API_PREFIX}/'):
+            return
+        manager = getattr(PromptServer.instance, 'user_manager', None)
+        resolve_user = getattr(manager, 'get_request_user_id', None)
+        if not callable(resolve_user):
+            raise AccessDenied('host_access_unavailable',
+                               'ComfyUI user access checks are unavailable.', 503)
         try:
-            async with ClientSession(auto_decompress=False) as session:
-                async with session.request(
-                        request.method, target, headers=request_headers,
-                        data=await request.read(), allow_redirects=False) as upstream:
-                    response_headers = {
-                        name: value for name, value in upstream.headers.items()
-                        if name.lower() not in _hop_by_hop_headers
-                    }
-                    return aiohttp_web.Response(
-                        status=upstream.status, headers=response_headers,
-                        body=await upstream.read())
-        except OSError as error:
-            return aiohttp_web.json_response(
-                {'error': 'Model Archivist backend is unavailable', 'detail': str(error)},
-                status=502)
+            user = resolve_user(request)
+        except KeyError:
+            raise AccessDenied('host_user_denied', 'ComfyUI did not accept this user.') from None
+        if not user:
+            raise AccessDenied('host_user_denied', 'ComfyUI did not accept this user.')
 
     def _start_archivist() -> None:
-        global _internal_url
         environment = ComfyEnvironmentProvider(folder_paths)
         set_environment_provider(environment)
         config = load_config(mode='comfyui')
@@ -76,9 +63,19 @@ try:
         initialize_logging(config)
         start_repo()
         from backend.server.gui import start_ui
+        policy = AccessPolicy('comfyui')
         _server_thread, internal_port = start_ui(
-            open_browser=False, block=False, port=0)
-        _internal_url = f'http://{config.host}:{internal_port}'
+            open_browser=False, block=False, port=0, policy=policy)
+        proxy = create_proxy_handler(
+            f'http://127.0.0.1:{internal_port}', policy.secret, authorize_comfy_request)
+        routes = PromptServer.instance.routes
+        for method, path in api_routes():
+            if method == 'GET':
+                routes.get(path, allow_head=False)(proxy)
+            else:
+                routes.route(method, path)(proxy)
+        for path in static_routes(config.static_html):
+            routes.get(path)(proxy)
 
     _start_archivist()
 except ModuleNotFoundError as exc:

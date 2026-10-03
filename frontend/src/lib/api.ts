@@ -10,10 +10,12 @@
 
 import { writable } from 'svelte/store';
 import { locale } from '$lib/locale.svelte';
+import { sessionHeaders } from '$lib/session';
 
 const API_PREFIX = '/model-archivist/api';
 export const API_TIMEOUT_MS = 3000;
 export const serverUnresponsive = writable(false);
+export const accessError = writable<string | null>(null);
 let requestSequence = 0;
 let lastFailedRequest = 0;
 
@@ -30,9 +32,28 @@ export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {},
         timeoutMs);
 
     try {
-        const response = await globalThis.fetch(input, { ...init, signal: controller.signal });
+        const response = await globalThis.fetch(input, {
+            ...init,
+            headers: sessionHeaders(input, init),
+            credentials: 'same-origin',
+            redirect: 'error',
+            signal: controller.signal
+        });
         // Include the response body in the timeout, not just the arrival of headers.
         const body = await response.arrayBuffer();
+
+        if (response.status === 401 || response.status === 403) {
+            let message = 'Access is missing or expired. Reopen Archivist from its launcher.';
+            try {
+                const issue = JSON.parse(new TextDecoder().decode(body));
+                if (issue?.detail?.message) message = locale.error(issue.detail);
+            } catch {
+                // Host authentication failures can have a non-JSON body.
+            }
+            accessError.set(message);
+        } else if (response.ok) {
+            accessError.set(null);
+        }
 
         if ([408, 502, 503, 504].includes(response.status)) {
             lastFailedRequest = Math.max(lastFailedRequest, sequence);

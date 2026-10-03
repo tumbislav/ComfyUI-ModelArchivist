@@ -118,6 +118,21 @@ ComfyUI's `extra_model_paths.yaml` is used only in ComfyUI mode.
 
 ## Startup and browser preferences
 
+Standalone startup opens a browser tab with access for the current backend run.
+The launch URL briefly contains a secret after `#`; the frontend removes it and
+keeps it in that tab's session storage. Do not share the launch URL. Refreshing the
+tab retains access, but a bare bookmarked URL in a new tab does not grant access.
+To regain access after closing the tab or restarting the backend, restart the
+standalone application and use the tab it opens. If browser session storage is
+blocked, access lasts only until that page is refreshed. The session is not a
+remote-login mechanism; keep standalone binding at its default `127.0.0.1`.
+
+In ComfyUI mode, open Archivist using its action-bar button so the selected Comfy
+profile is carried into the new tab. Host middleware still applies. Named profiles
+alone do not authenticate users or isolate the shared Archivist repository.
+The private Archivist port always listens on loopback and cannot be used directly
+without the server-only proxy credential.
+
 **Settings → General** contains preferences stored in the current browser:
 
 - **Always run a full scan at startup** requests one scan after each backend
