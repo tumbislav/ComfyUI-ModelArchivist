@@ -11,6 +11,7 @@ from threading import Lock, Thread
 from time import sleep
 from typing import Callable
 from uuid import uuid4
+from backend.filesystem_policy import FilesystemPolicyError
 
 class OperationBusyError(RuntimeError):
     pass
@@ -133,6 +134,8 @@ class OperationDispatcher:
                     'type': type(error).__name__,
                     'message': str(error),
                 }
+                if isinstance(error, FilesystemPolicyError):
+                    operation['error'].update(error.detail())
         finally:
             with self._lock:
                 operation = self._operations[operation_id]
@@ -164,7 +167,12 @@ def submit_scan(rehash: bool = False, scope: str = 'all', type_id: str | list[st
             sleep(0.1)
         progress = scanner.progress()
         report(progress)
-        return {'scan_id': scan_id, 'progress': progress}
+        result = {'scan_id': scan_id, 'progress': progress}
+        if progress.get('errors'):
+            result.update(allowed=False, errors=progress.get('filesystem_issues') or [
+                {'code': 'scan_incomplete', 'message': message, 'params': {}}
+                for message in progress['errors']])
+        return result
 
     return dispatcher.submit('scan', run, {
         'scope': scope,

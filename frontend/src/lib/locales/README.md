@@ -81,6 +81,6 @@ browser rather than bundled into every initial view.
    narrow-screen wrapping in the running application.
 
 Missing keys are reported during development and fall back to English in production.
-Invalid saved locale preferences fall back to browser language matching and then to
-English. The language picker stores explicit choices in browser persistent storage and
-updates the open interface without a reload.
+English is used until the user explicitly selects another language. Invalid saved
+locale preferences also fall back to English. The language picker stores explicit
+choices in browser persistent storage and updates the open interface without a reload.

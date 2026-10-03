@@ -7,9 +7,12 @@
 import os
 import logging.config
 import tomllib
+import json
+import tempfile
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
+from backend.filesystem_policy import FilesystemPolicy, FilesystemPolicyError, get_policy, set_policy
 
 DEFAULT_MODEL_EXTENSIONS = ['.safetensors', '.ckpt', '.pt', '.pth', '.bin', '.gguf']
 
@@ -65,6 +68,8 @@ class Configuration:
     database: DatabaseConfig
     web: WebConfig
     logging: LoggingConfig
+    filesystem: FilesystemPolicy = field(default_factory=get_policy)
+    filesystem_issues: list[dict] = field(default_factory=list)
 
     app_root: Path | None = field(default=None, metadata={'suppress': True})
     cfg_file: Path | None = field(default=None, metadata={'suppress': True})
@@ -119,6 +124,7 @@ class Configuration:
         return Path(value).resolve()
 
     def reset_runtime_paths(self) -> None:
+        self.filesystem_issues.clear()
         self.model_folders.clear()
         self.workflow_folders.clear()
         self.all_archive.clear()
@@ -132,11 +138,18 @@ class Configuration:
 
     def _check_folder(self, folder: Path, flag: str) -> None:
         try:
+            self.filesystem.check(folder, 'archive' if 'archive' in flag else 'working')
             folder.mkdir(exist_ok=True, parents=True)
             next(folder.iterdir(), None)
             if not os.access(folder, os.R_OK | os.W_OK):
-                setattr(self, flag, False)
-        except OSError:
+                raise PermissionError('directory is not readable and writable')
+        except FilesystemPolicyError as error:
+            self.filesystem_issues.append(error.detail())
+            setattr(self, flag, False)
+        except OSError as error:
+            self.filesystem_issues.append(FilesystemPolicyError(
+                'filesystem_unverifiable', folder,
+                'archive' if 'archive' in flag else 'working', str(error)).detail())
             setattr(self, flag, False)
 
     def add_model_locations(self, model_type: str, working: Path, archive: Path) -> None:
@@ -174,7 +187,7 @@ class Configuration:
 
     @property
     def read_only(self) -> bool:
-        return not all((self.model_working_accessible, self.model_archive_accessible,
+        return bool(self.filesystem_issues) or not all((self.model_working_accessible, self.model_archive_accessible,
                         self.workflow_working_accessible,
                         self.workflow_archive_accessible))
 
@@ -290,6 +303,37 @@ def load_config(cfg_file: Path | None = None, mode: str = 'standalone') -> Confi
     except Exception as error:
         raise ConfigException(ConfigError.INVALID_CONFIG, f'{cfg_file}: {error}') from error
     config.initialize(app_root, cfg_file, mode)
+    try:
+        if 'filesystem' not in values:
+            from backend.environment import get_environment_provider
+            home = str(Path.home().absolute())
+            working = ([home] if mode == 'standalone' else
+                       [str(get_environment_provider().default_working_root())])
+            values['filesystem'] = {'working_roots': working, 'archive_roots': [home], 'exclusions': []}
+            policy = FilesystemPolicy.from_dict(values['filesystem'])
+            addition = '\n\n# Filesystem permissions are edited here, never through the API.\n[filesystem]\n'
+            addition += ''.join(f'{key} = {json.dumps(value, ensure_ascii=False)}\n'
+                                for key, value in policy.to_dict().items())
+            temporary = None
+            try:
+                with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=cfg_file.parent,
+                                                 prefix='.archivist-config-', delete=False) as stream:
+                    temporary = Path(stream.name)
+                    stream.write(toml_string + addition)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                if cfg_file.read_text(encoding='utf-8') != toml_string:
+                    raise OSError('config.toml changed during initialization; restart to retry')
+                os.chmod(temporary, cfg_file.stat().st_mode)
+                os.replace(temporary, cfg_file)
+            finally:
+                if temporary is not None and temporary.exists():
+                    temporary.unlink()
+        config.filesystem = FilesystemPolicy.from_dict(values['filesystem'])
+    except (OSError, ValueError, TypeError, FilesystemPolicyError, AttributeError) as error:
+        raise ConfigException(ConfigError.INVALID_CONFIG,
+                              f'Cannot initialize filesystem permissions in {cfg_file}: {error}') from error
+    set_policy(config.filesystem)
     _config = config
     return config
 

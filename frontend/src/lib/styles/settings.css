@@ -196,3 +196,11 @@
     .settings-tabs { flex-flow: row wrap; border-right: 0; border-bottom: var(--solid-border); }
     .settings-form { grid-template-columns: 1fr; }
 }
+
+/* Keep permission details and long server paths inside the settings modal. */
+.filesystem-policy {
+    flex-shrink: 0;
+    max-height: 10rem;
+    overflow: auto;
+    overflow-wrap: anywhere;
+}

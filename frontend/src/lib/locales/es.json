@@ -1,4 +1,31 @@
 {
+    "picker": {
+        "working": "Elegir carpeta de trabajo",
+        "archive": "Elegir carpeta de archivo",
+        "help": "Las carpetas están en el servidor. Elija una carpeta permitida; guarde los ajustes después.",
+        "up": "Subir",
+        "choose": "Elegir carpeta",
+        "roots": "Raíces permitidas",
+        "folders": "Subcarpetas",
+        "loading": "Cargando carpetas…",
+        "no_roots": "No hay raíces permitidas. Edite los permisos en disco y reinicie Archivist.",
+        "empty": "No hay subcarpetas accesibles.",
+        "omitted": "Algunas entradas están ocultas por permisos, exclusiones o restricciones de enlaces.",
+        "cancel": "Cancelar",
+        "use": "Usar esta carpeta",
+        "expand": "Expandir carpeta",
+        "collapse": "Contraer carpeta",
+        "failed": "No se puede cargar esta carpeta."
+    },
+    "filesystem": {
+        "permissions": "Permisos del sistema de archivos",
+        "instructions": "Las rutas corresponden a este servidor. Edite {path} en disco y reinicie Archivist para cambiar los permisos. Use rutas absolutas; no se permiten enlaces.",
+        "working_roots": "Raíces de trabajo permitidas",
+        "archive_roots": "Raíces de archivo permitidas",
+        "exclusions": "Rutas excluidas y todos sus descendientes",
+        "none": "Ninguna",
+        "blocked": "El repositorio es de solo lectura porque hay ubicaciones configuradas bloqueadas. Se han conservado las asignaciones existentes."
+    },
     "settings": {
         "title": "Ajustes",
         "language": "Idioma",
@@ -759,6 +786,7 @@
         "no_tags": "Sin etiquetas",
         "in_collections": "En colecciones",
         "not_in_collection": "No pertenece a ninguna colección",
+        "discovering": "Detectando…",
         "saving": "Guardando…",
         "save": "Guardar",
         "save_and_scan": "Guardar y analizar",

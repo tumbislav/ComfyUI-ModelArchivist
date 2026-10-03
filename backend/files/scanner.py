@@ -12,6 +12,9 @@ from backend.repository.tables import (Model, Component, ComponentSet, Workflow,
 import logging
 from threading import Thread, Lock, Barrier
 from pathlib import Path
+from functools import wraps
+from backend.filesystem_policy import (checked_path, safe_children, safe_tree, safe_walk,
+                                       FilesystemPolicyError)
 from uuid import UUID
 import hashlib
 import json
@@ -30,7 +33,7 @@ import backend.repository.repository as repo
 def scanned_component(path: Path, component_type: ComponentType, touched: str,
                       relative_path: str = '') -> Component:
     try:
-        stat = path.stat()
+        stat = checked_path(path).stat()
         size = stat.st_size
         modified_at_ns = stat.st_mtime_ns
     except OSError:
@@ -71,7 +74,7 @@ class UserObjectCandidate:
 def read_workflow_candidate(path: Path, root: Path, where: str) -> WorkflowCandidate | None:
     """Return UUID-bearing workflow metadata, or None when the file is not a workflow."""
     try:
-        data = json.loads(path.read_text(encoding='utf-8'))
+        data = json.loads(checked_path(path, 'working' if where == 'w' else 'archive').read_text(encoding='utf-8'))
         if not isinstance(data, dict) or not isinstance(data.get('id'), str):
             return None
         workflow_id = str(UUID(data['id']))
@@ -108,6 +111,22 @@ def read_workflow_candidate(path: Path, root: Path, where: str) -> WorkflowCandi
                              errors=errors)
 
 
+def scan_worker(function):
+    @wraps(function)
+    def run(self, *args, **kwargs):
+        try:
+            return function(self, *args, **kwargs)
+        except FilesystemPolicyError as error:
+            self.blocked(error)
+        except Exception as error:
+            self.report(error=str(error))
+            self.logger.exception('Scan worker failed')
+        finally:
+            if self.barrier is not None:
+                self.barrier.wait()
+    return run
+
+
 @dataclass
 class Scanner:
     start_time: datetime.datetime | None = None
@@ -119,6 +138,7 @@ class Scanner:
     user_objects_scanned: int = 0
     hashes_calculated: int = 0
     errors: list[str] = field(default_factory=list)
+    filesystem_issues: list[dict] = field(default_factory=list)
     lock: Lock = field(default_factory=Lock)
     barrier: Barrier | None = None
     config: Configuration | None = None
@@ -164,6 +184,12 @@ class Scanner:
             thread.start()
         return self.timestamp
 
+    def blocked(self, error: FilesystemPolicyError) -> None:
+        with self.lock:
+            self.filesystem_issues.append(error.detail())
+        self.report(error=str(error))
+        self.logger.warning('%s', error)
+
     def report(self, models: int=0, workflows: int=0, user_objects: int=0,
                hashes: int=0, error: str=''):
         with self.lock:
@@ -185,7 +211,9 @@ class Scanner:
                          'models_scanned': self.models_scanned,
                          'workflows_scanned': self.workflows_scanned,
                          'user_objects_scanned': self.user_objects_scanned,
-                         'hashes_calculated': self.hashes_calculated}
+                         'hashes_calculated': self.hashes_calculated,
+                         'errors': list(self.errors),
+                         'filesystem_issues': list(self.filesystem_issues)}
 
         if self.start_time is not None:
             progress_dict['start_time'] = self.start_time.isoformat()
@@ -206,12 +234,14 @@ class Scanner:
         self.barrier.wait()
         self.logger.debug('starting cleanup')
         with repo.lock:
-            repo.scan_cleanup(self.timestamp, self.scope, self.type_id)
+            if not self.errors:
+                repo.scan_cleanup(self.timestamp, self.scope, self.type_id)
         with self.lock:
             self.end_time = datetime.datetime.now(tz=datetime.timezone.utc)
             self.finished = True
         self.logger.debug('completed filesystem scan')
 
+    @scan_worker
     def find_models(self, type_name: str, working_root: Path, archive_root: Path, rehash: bool):
         """
         Scan a directory with subdirectories and records for all models found.
@@ -261,7 +291,7 @@ class Scanner:
                                                     self.timestamp,
                                                     relative_path))
                 try:
-                    with (model_dir / file_name).open('rb') as component_file:
+                    with checked_path(model_dir / file_name).open('rb') as component_file:
                         component_file.read(1)
                 except OSError:
                     errors.add(ModelError.UNREADABLE)
@@ -294,10 +324,10 @@ class Scanner:
                                                     self.timestamp,
                                                     relative_path))
             sha = metadata['sha256']
-            ex_dir = ex_root / sha
+            ex_dir = checked_path(ex_root / sha, 'working' if where == 'w' else 'archive')
             if ex_dir.is_dir():
                 try:
-                    example_files = [path for path in ex_dir.iterdir() if path.is_file()]
+                    example_files = [path for path in safe_children(ex_dir, 'working' if where == 'w' else 'archive', self.blocked) if path.is_file()]
                 except OSError:
                     errors.add(ModelError.UNREADABLE)
                     example_files = []
@@ -305,7 +335,7 @@ class Scanner:
                     components.append(scanned_component(ex, ComponentType.EXAMPLE,
                                                         self.timestamp))
                     try:
-                        with ex.open('rb') as example_file:
+                        with checked_path(ex).open('rb') as example_file:
                             example_file.read(1)
                     except OSError:
                         errors.add(ModelError.UNREADABLE)
@@ -333,8 +363,8 @@ class Scanner:
                         return Path(component.file_name).suffix.lower().removeprefix('.')
             return ''
 
-        for working_dir, subdirs, filenames in working_root.walk():
-            relative_path = str(match_folders(working_root, archive_root, working_dir, subdirs))
+        for working_dir, subdirs, filenames in safe_walk(working_root, 'working', self.blocked):
+            relative_path = str(match_folders(working_root, archive_root, working_dir, subdirs, self.blocked))
             archive_dir = archive_root / relative_path
 
             found = {}
@@ -342,7 +372,7 @@ class Scanner:
             # first collect all model and sidecar files
             self.logger.debug(f'current dir {working_dir}')
             for file_path, where in chain(((working_dir / fn, 'w') for fn in filenames),
-                                          ((f.resolve(), 'a') for f in archive_dir.iterdir() if f.is_file())):
+                                          ((f, 'a') for f in safe_children(archive_dir, 'archive', self.blocked) if f.is_file())):
                 stem = model_component_stem(file_path)
                 c_type = (ComponentType.MODEL if file_path.suffix.lower() in model_extensions else
                           ComponentType.METADATA if file_path.name.endswith(ARCHIVIST_METADATA_SUFFIX) else
@@ -407,15 +437,15 @@ class Scanner:
                     repo.save_scanned_model(model, metadata['tags'])
                 self.report(models=1)
         self.logger.debug(f'scan for {type_name} complete in {working_root} and {archive_root}')
-        self.barrier.wait()
 
+    @scan_worker
     def find_workflows(self, folder_pairs: list[tuple[Path, Path]]):
         """Scan and reconcile workflows by UUID across every configured folder pair."""
         grouped: dict[str, list[WorkflowCandidate]] = {}
         for working_root, archive_root in folder_pairs:
             for root, where in ((working_root, 'w'), (archive_root, 'a')):
                 self.logger.debug(f'scanning workflows in {root}')
-                for path in sorted(root.rglob('*'), key=str):
+                for path in sorted(safe_tree(root, 'working' if where == 'w' else 'archive', self.blocked), key=str):
                     if not path.is_file() or path.suffix.lower() != '.json':
                         continue
                     candidate = read_workflow_candidate(path, root, where)
@@ -481,7 +511,6 @@ class Scanner:
             self.report(workflows=1)
 
         self.logger.debug('workflow scan complete')
-        self.barrier.wait()
 
     @staticmethod
     def _matches_extension(path: Path, extensions: list[str]) -> bool:
@@ -492,17 +521,16 @@ class Scanner:
     def _scan_user_object(self, path: Path, root: Path, where: str,
                           size_limit: int) -> UserObjectCandidate:
         """Build a bounded filesystem snapshot for one UDP object."""
+        checked_path(path, 'working' if where == 'w' else 'archive')
         relative_object = path.relative_to(root).as_posix()
         entries = []
         errors = set()
         total_size = 0
         latest_mtime = 0
-        paths = [path] if path.is_file() else [path, *sorted(path.rglob('*'), key=str)]
+        paths = [path] if path.is_file() else [path, *sorted(safe_tree(path, 'working' if where == 'w' else 'archive'), key=str)]
         for entry_path in paths:
             try:
-                if entry_path.is_symlink():
-                    self.logger.warning('ignoring symlink in user object: %s', entry_path)
-                    continue
+                checked_path(entry_path, 'working' if where == 'w' else 'archive')
                 stat = entry_path.stat()
                 if entry_path.is_dir():
                     entry_type = 'directory'
@@ -510,7 +538,7 @@ class Scanner:
                 elif entry_path.is_file():
                     entry_type = 'file'
                     entry_size = stat.st_size
-                    with entry_path.open('rb') as stream:
+                    with checked_path(entry_path).open('rb') as stream:
                         stream.read(1)
                 else:
                     self.logger.warning('ignoring special filesystem entry: %s', entry_path)
@@ -530,6 +558,7 @@ class Scanner:
         return UserObjectCandidate(relative_object, where, total_size, latest_mtime,
                                    entries, errors)
 
+    @scan_worker
     def find_user_objects(self, user_types: list[dict]):
         """Discover file- and folder-class objects for all database-defined types."""
         for type_definition in user_types:
@@ -540,11 +569,11 @@ class Scanner:
                 root = Path(root_value)
                 try:
                     if type_definition['object_class'] == UserObjectClass.FILE.value:
-                        paths = (path for path in sorted(root.rglob('*'), key=str)
+                        paths = (path for path in sorted(safe_tree(root, 'working' if where == 'w' else 'archive', self.blocked), key=str)
                                  if path.is_file() and not path.is_symlink() and
                                  self._matches_extension(path, type_definition['extensions']))
                     else:
-                        paths = (path for path in sorted(root.iterdir(), key=str)
+                        paths = (path for path in sorted(safe_children(root, 'working' if where == 'w' else 'archive', self.blocked), key=str)
                                  if path.is_dir() and not path.is_symlink())
                     for path in paths:
                         candidate = self._scan_user_object(
@@ -601,7 +630,6 @@ class Scanner:
                     repo.retain_unreadable_user_type_objects(
                         type_definition['id'], self.timestamp)
         self.logger.debug('user-defined object scan complete')
-        self.barrier.wait()
 
 def check_deployment(working_set: ComponentSet, archive_set: ComponentSet) -> DeploymentStatus:
     """
@@ -619,21 +647,32 @@ def check_deployment(working_set: ComponentSet, archive_set: ComponentSet) -> De
         return DeploymentStatus.MISMATCH
     return DeploymentStatus.SYNCED
 
-def match_folders(root_1: Path, root_2: Path, dir_1: Path, sub_dirs: list[str]) -> Path:
-    """
-    Make sure folders in two branches match
-    """
+def match_folders(root_1: Path, root_2: Path, dir_1: Path, sub_dirs: list[str],
+                  on_blocked=None) -> Path:
+    """Mirror only directories permitted on both sides, without following links."""
+    checked_path(dir_1, 'working')
     relative_path = dir_1.relative_to(root_1)
-    dir_2 = root_2 / relative_path
-    for d in sub_dirs:
-        (dir_2 / d).mkdir(exist_ok=True)
-    for subdir in (d.name for d in dir_2.iterdir() if d.is_dir()):
-        if subdir not in sub_dirs:
-            (dir_1 / subdir).mkdir()
-            sub_dirs.append(subdir)
+    dir_2 = checked_path(root_2 / relative_path, 'archive')
+    allowed = []
+    names = list(dict.fromkeys(sub_dirs + [d.name for d in safe_children(
+        dir_2, 'archive', on_blocked) if d.is_dir()]))
+    for name in names:
+        try:
+            first = checked_path(dir_1 / name, 'working')
+            second = checked_path(dir_2 / name, 'archive')
+            first.mkdir(exist_ok=True)
+            second.mkdir(exist_ok=True)
+            allowed.append(name)
+        except FilesystemPolicyError as error:
+            if on_blocked is None:
+                raise
+            on_blocked(error)
+    sub_dirs[:] = allowed
     return relative_path
 
+
 def compute_sha256(path: Path, chunk_size: int = 1 << 20) -> str:
+    checked_path(path)
     h = hashlib.sha256()
     with path.open('rb') as f:
         while True:

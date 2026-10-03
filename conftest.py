@@ -49,3 +49,11 @@ def configure_test_paths(config) -> None:
 def pytest_configure(config):
     # Run before pytest's cache and temporary-directory plugins configure themselves.
     configure_test_paths(config)
+
+
+@pytest.fixture(autouse=True)
+def isolated_filesystem_policy(tmp_path, monkeypatch):
+    """Tests explicitly permit their own temporary tree, never the host filesystem."""
+    from backend import filesystem_policy
+    policy = filesystem_policy.FilesystemPolicy((tmp_path,), (tmp_path,))
+    monkeypatch.setattr(filesystem_policy, '_policy', policy)

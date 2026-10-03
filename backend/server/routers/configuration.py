@@ -8,11 +8,22 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from backend.config import get_config
+from backend import directory_browser
+from backend.filesystem_policy import Role
 from backend.dispatcher import dispatcher, OperationBusyError
-from backend.directory_picker import DirectoryPickerUnavailable, pick_directory
 import backend.repository.repository as repo
 
 router = APIRouter()
+
+
+@router.get('/config/directory-roots')
+def directory_roots(role: Role) -> list[dict]:
+    return directory_browser.roots(role)
+
+
+@router.get('/config/directories')
+def browse_directories(path: str, role: Role) -> dict:
+    return directory_browser.directories(path, role)
 
 
 class OptionsInput(BaseModel):
@@ -64,22 +75,10 @@ async def update_model_extensions(data: ModelExtensionsInput) -> dict:
             'code': 'invalid_model_extensions', 'message': str(error), 'params': {}}) from error
 
 
-class DirectoryPickerInput(BaseModel):
-    initial_path: str | None = None
-
-
 class ModelMappingInput(BaseModel):
     working_root: str
     archive_root: str
     extensions: list[str] = Field(default_factory=list)
-
-
-@router.post('/config/pick-directory')
-def open_directory_picker(data: DirectoryPickerInput) -> dict[str, str | None]:
-    try:
-        return {'path': pick_directory(data.initial_path)}
-    except DirectoryPickerUnavailable as error:
-        raise HTTPException(503, str(error)) from error
 
 
 @router.get('/config/model-mapping-roots')

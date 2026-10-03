@@ -7,6 +7,7 @@
 import hashlib
 import json
 from pathlib import Path
+from backend.filesystem_policy import checked_path
 from dataclasses import dataclass
 
 from backend.base_models import normalize_base_model
@@ -35,6 +36,7 @@ def model_component_stem(file_path: Path) -> str:
 
 
 def compute_sha256(path: Path, chunk_size: int = 1 << 20) -> str:
+    checked_path(path)
     digest = hashlib.sha256()
     with path.open('rb') as model:
         while chunk := model.read(chunk_size):
@@ -45,18 +47,20 @@ def compute_sha256(path: Path, chunk_size: int = 1 << 20) -> str:
 def load_model_metadata(model_file: Path, archivist_file: Path) -> dict:
     """Load Archivist metadata, importing a LoraManager sidecar if necessary."""
     legacy_file = model_file.with_suffix(LEGACY_METADATA_SUFFIX)
+    for path in (model_file, archivist_file, legacy_file):
+        checked_path(path)
     if archivist_file.is_file():
-        data = json.loads(archivist_file.read_text(encoding='utf-8'))
+        data = json.loads(checked_path(archivist_file).read_text(encoding='utf-8'))
         if 'base_model' not in data and legacy_file.is_file():
             try:
-                legacy_data = json.loads(legacy_file.read_text(encoding='utf-8'))
+                legacy_data = json.loads(checked_path(legacy_file).read_text(encoding='utf-8'))
                 if isinstance(legacy_data, dict):
                     data['base_model'] = legacy_data.get('base_model', '')
             except (OSError, UnicodeError, ValueError, TypeError):
                 pass
     else:
         if legacy_file.is_file():
-            data = json.loads(legacy_file.read_text(encoding='utf-8'))
+            data = json.loads(checked_path(legacy_file).read_text(encoding='utf-8'))
         else:
             data = {'sha256': compute_sha256(model_file),
                     'model_name': model_file.stem,
@@ -68,7 +72,7 @@ def load_model_metadata(model_file: Path, archivist_file: Path) -> dict:
     data.setdefault('file_name', model_file.stem)
     data.setdefault('tags', [])
     data['base_model'] = normalize_base_model(data.get('base_model'))
-    archivist_file.write_text(json.dumps(data), encoding='utf-8')
+    checked_path(archivist_file).write_text(json.dumps(data), encoding='utf-8')
     return data
 
 
@@ -76,13 +80,15 @@ def scan_model_metadata(model_file: Path, rehash: bool = False) -> ScannedModelM
     """Read cached metadata for scanning, computing a hash only when necessary."""
     archivist_file = model_file.with_suffix(ARCHIVIST_METADATA_SUFFIX)
     legacy_file = model_file.with_suffix(LEGACY_METADATA_SUFFIX)
+    for path in (model_file, archivist_file, legacy_file):
+        checked_path(path)
     unreadable = False
     data = None
     for metadata_file in (archivist_file, legacy_file):
         if data is not None or not metadata_file.exists():
             continue
         try:
-            loaded = json.loads(metadata_file.read_text(encoding='utf-8'))
+            loaded = json.loads(checked_path(metadata_file).read_text(encoding='utf-8'))
             if not isinstance(loaded, dict):
                 raise ValueError('metadata root is not an object')
             data = loaded
@@ -93,7 +99,7 @@ def scan_model_metadata(model_file: Path, rehash: bool = False) -> ScannedModelM
     imported_base_model = False
     if 'base_model' not in data and archivist_file.exists() and legacy_file.is_file():
         try:
-            legacy_data = json.loads(legacy_file.read_text(encoding='utf-8'))
+            legacy_data = json.loads(checked_path(legacy_file).read_text(encoding='utf-8'))
             if isinstance(legacy_data, dict) and 'base_model' in legacy_data:
                 data['base_model'] = legacy_data['base_model']
                 imported_base_model = True
@@ -110,6 +116,6 @@ def scan_model_metadata(model_file: Path, rehash: bool = False) -> ScannedModelM
     data.setdefault('tags', [])
     data['base_model'] = normalize_base_model(data.get('base_model'))
     if not unreadable and (not archivist_file.exists() or imported_base_model):
-        archivist_file.write_text(json.dumps(data), encoding='utf-8')
+        checked_path(archivist_file).write_text(json.dumps(data), encoding='utf-8')
     return ScannedModelMetadata(data=data, unreadable=unreadable,
                                 hash_calculated=hash_calculated)

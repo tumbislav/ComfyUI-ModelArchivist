@@ -23,7 +23,16 @@ export type ModelTypeSetting = {
     _new?: boolean;
 };
 
+export type FilesystemIssue = {
+    code: string;
+    message: string;
+    params: Record<string, string | number>;
+};
+
 export type RepositorySettings = {
+    filesystem?: { working_roots: string[]; archive_roots: string[]; exclusions: string[] };
+    filesystem_issues?: FilesystemIssue[];
+    filesystem_config_file?: string;
     mode: 'standalone' | 'comfyui';
     setup_complete: boolean;
     model_extensions: string[];
@@ -58,17 +67,30 @@ export const saveModelSettings = (model_types: ModelTypeSetting[]) =>
 export const saveWorkflowSettings = (workflow_locations: RepositoryLocation[]) =>
     request<RepositorySettings>('/config/workflows', 'PUT', {workflow_locations});
 
-export const pickDirectory = (initial_path: string) =>
-    request<{path: string | null}>('/config/pick-directory', 'POST', {initial_path}, null);
-
 export const getModelMappingRoots = () =>
     request<string[]>('/config/model-mapping-roots');
 
 export const previewModelMappings = (working_root: string, archive_root: string,
                                      extensions: string[]) =>
     request<ModelTypeSetting[]>('/config/model-mapping-preview', 'POST',
-        {working_root, archive_root, extensions});
+        {working_root, archive_root, extensions}, null);
 
 export const saveModelType = (type: ModelTypeSetting, originalName?: string) =>
     request<RepositorySettings>('/config/model-type' + (originalName === undefined ? ''
         : `?original_name=${encodeURIComponent(originalName)}`), 'PUT', type);
+
+export type DirectoryRole = 'working' | 'archive';
+export type DirectoryEntry = { path: string; name: string; issue: FilesystemIssue | null };
+export type DirectoryListing = {
+    path: string;
+    parent: string | null;
+    ancestors: string[];
+    directories: DirectoryEntry[];
+    omitted: number;
+};
+
+export const getDirectoryRoots = (role: DirectoryRole) =>
+    request<DirectoryEntry[]>(`/config/directory-roots?${new URLSearchParams({ role })}`);
+
+export const getDirectories = (path: string, role: DirectoryRole) =>
+    request<DirectoryListing>(`/config/directories?${new URLSearchParams({ path, role })}`);

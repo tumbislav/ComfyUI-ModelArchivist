@@ -28,6 +28,8 @@ def workflow_repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(repository, '_engine', engine)
     monkeypatch.setattr(repository, '_config', SimpleNamespace(
         read_only=False,
+        all_working={working},
+        all_archive={archive},
         workflow_folders=[(working, archive)],
     ))
     yield engine, working, archive

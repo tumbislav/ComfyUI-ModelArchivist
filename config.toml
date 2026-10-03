@@ -16,3 +16,14 @@ static_html = "{$app}/frontend/build"
 level = "DEBUG"
 sql_level = "WARNING"
 file = "{$app}/model-archivist.log"
+
+# On first startup, Archivist appends [filesystem] permissions for this machine.
+# Edit those absolute working/archive roots and exclusions on disk, then restart.
+# See docs/INSTALLATION.md#filesystem-permissions.
+
+
+# Filesystem permissions are edited here, never through the API.
+[filesystem]
+working_roots = ["C:\\Users\\marko"]
+archive_roots = ["E:\\AIArchive"]
+exclusions = ["E:\\ModelArchivist"]

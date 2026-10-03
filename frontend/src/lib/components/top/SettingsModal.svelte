@@ -59,7 +59,7 @@
 
     export type SettingsTab = 'general' | 'models' | 'workflows' | 'user-types';
     const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
-    const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right); let activeTab = $state<SettingsTab>('general'); let settings = $state<RepositorySettings | null>(null); let savedModels = $state<ModelTypeSetting[]>([]); let savedExtensions = $state<string[]>([]); let savedWorkflows = $state<RepositoryLocation[]>([]); let userTypes = $state<UserDefinedType[]>([]); let savedUserTypes = $state<UserDefinedType[]>([]); let deletedUserTypeIds = $state<string[]>([]); let loading = $state(true); let startupScan = $state(true); let rememberTab = $state(false); let saving = $state(false); let error = $state<string | null>(null); let guardTarget = $state<SettingsTab | 'close' | null>(null); let modelMappingRoots = $state<string[]>([]); let mappingWorkingRoot = $state(''); let mappingArchiveRoot = $state(''); let mappingExtensions = $state('.safetensors, .ckpt, .pt, .pth, .bin, .gguf'); let operationActive = $derived(statusMonitor.operation?.state === 'pending' || statusMonitor.operation?.state === 'running'); let editingLocked = $derived(saving || operationActive || $serverUnresponsive); const modelOriginalNames = new SvelteMap<object, string>(); const expandedTypes = new SvelteMap<object, boolean>(); function preserveExpansion<T extends object>(previous: T[], next: T[], key: (type: T) => string): void {
+    const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right); let activeTab = $state<SettingsTab>('general'); let settings = $state<RepositorySettings | null>(null); let savedModels = $state<ModelTypeSetting[]>([]); let savedExtensions = $state<string[]>([]); let savedWorkflows = $state<RepositoryLocation[]>([]); let userTypes = $state<UserDefinedType[]>([]); let savedUserTypes = $state<UserDefinedType[]>([]); let deletedUserTypeIds = $state<string[]>([]); let loading = $state(true); let startupScan = $state(true); let rememberTab = $state(false); let saving = $state(false); let mappingDiscoveryBusy = $state(false); let error = $state<string | null>(null); let guardTarget = $state<SettingsTab | 'close' | null>(null); let modelMappingRoots = $state<string[]>([]); let mappingWorkingRoot = $state(''); let mappingArchiveRoot = $state(''); let mappingExtensions = $state('.safetensors, .ckpt, .pt, .pth, .bin, .gguf'); let operationActive = $derived(statusMonitor.operation?.state === 'pending' || statusMonitor.operation?.state === 'running'); let editingLocked = $derived(saving || mappingDiscoveryBusy || operationActive || $serverUnresponsive); const modelOriginalNames = new SvelteMap<object, string>(); const expandedTypes = new SvelteMap<object, boolean>(); function preserveExpansion<T extends object>(previous: T[], next: T[], key: (type: T) => string): void {
         for (const type of next) {
             const old = previous.find(candidate => key(candidate) === key(type));
 
@@ -322,9 +322,10 @@
             }
             if (ids === null) return false;
 
-            if (scan && (scope === 'all' || scope === 'workflows' || ids.length > 0)) {
+            const scanAllModels = scope === 'models' && model === undefined && ids.length === 0;
+            if (scan && (scope === 'all' || scope === 'workflows' || scanAllModels || ids.length > 0)) {
                 const result = await startScan(false, scope,
-                    scope === 'all' || scope === 'workflows' ? undefined : ids);
+                    scope === 'all' || scope === 'workflows' || scanAllModels ? undefined : ids);
                 if (!result.ok) {
                     error = result.message ?? locale.t('ui.settings_modal.settings_saved_but_the_scan_could_not_start');
                     return false;
@@ -348,27 +349,36 @@
             locations: [{working_dir: '', archive_dir: ''}], _new: true});
     }
     async function addModelMappings(): Promise<void> {
-        if (!settings) return;
+        if (!settings || mappingDiscoveryBusy) return;
         error = null;
-        const extensions = mappingExtensions.split(',').map(item => item.trim()).filter(Boolean);
-        const result = await previewModelMappings(
-            mappingWorkingRoot, mappingArchiveRoot, extensions);
-        if (!result.ok) {
-            error = result.message ?? locale.t('ui.settings_modal.cannot_discover_model_mappings');
-            return;
-        }
-        const newTypes: ModelTypeSetting[] = [];
-        for (const candidate of result.data) {
-            const existing = settings.model_types.find(item => item.name === candidate.name);
-            if (existing === undefined) {
-                newTypes.push({...candidate, _new: true});
-                continue;
+        mappingDiscoveryBusy = true;
+
+        try {
+            const extensions = mappingExtensions.split(',').map(item => item.trim()).filter(Boolean);
+            const result = await previewModelMappings(
+                mappingWorkingRoot, mappingArchiveRoot, extensions);
+            if (!result.ok) {
+                error = result.message ?? locale.t('ui.settings_modal.cannot_discover_model_mappings');
+                return;
             }
-            const knownPaths = new Set(existing.locations.map(item => item.working_dir.toLowerCase()));
-            existing.locations.push(...candidate.locations.filter(
-                item => !knownPaths.has(item.working_dir.toLowerCase())));
+            const newTypes: ModelTypeSetting[] = [];
+            for (const candidate of result.data) {
+                const existing = settings.model_types.find(item => item.name === candidate.name);
+                if (existing === undefined) {
+                    newTypes.push({...candidate, _new: true});
+                    continue;
+                }
+                const knownPaths = new Set(existing.locations.map(item => item.working_dir.toLowerCase()));
+                existing.locations.push(...candidate.locations.filter(
+                    item => !knownPaths.has(item.working_dir.toLowerCase())));
+            }
+            settings.model_types.unshift(...newTypes);
+        } catch (cause) {
+            error = cause instanceof Error ? cause.message
+                : locale.t('ui.settings_modal.cannot_discover_model_mappings');
+        } finally {
+            mappingDiscoveryBusy = false;
         }
-        settings.model_types.unshift(...newTypes);
     }
     function addUserType(): void {
         userTypes.unshift({id: '', name: '', short_name: '', object_class: 'folder', extensions: [],
@@ -401,6 +411,33 @@
         </button>
     </header>
 
+    {#if settings?.filesystem}
+        <details class="dialog-section-blank filesystem-policy">
+            <summary>{locale.t('filesystem.permissions')}</summary>
+            <p>{locale.t('filesystem.instructions', { path: settings.filesystem_config_file ?? 'config.toml' })}</p>
+            {#each ['working_roots', 'archive_roots', 'exclusions'] as key}
+                <p><strong>{locale.t(`filesystem.${key}`)}</strong></p>
+                <ul>
+                    {#each settings.filesystem[key as keyof typeof settings.filesystem] as path}
+                        <li><code>{path}</code></li>
+                    {:else}
+                        <li>{locale.t('filesystem.none')}</li>
+                    {/each}
+                </ul>
+            {/each}
+        </details>
+    {/if}
+    {#if settings?.filesystem_issues?.length}
+        <div class="dialog-section-blank filesystem-policy error-message" role="alert">
+            <p>{locale.t('filesystem.blocked')}</p>
+            <ul>
+                {#each settings.filesystem_issues as issue}
+                    <li>{locale.error(issue)}</li>
+                {/each}
+            </ul>
+        </div>
+    {/if}
+
     <SettingsLayout
         {activeTab}
         dirty={{
@@ -432,12 +469,13 @@
                     bind:mappingExtensions
                     dirty={modelsDirty}
                     {saving}
+                    mappingBusy={mappingDiscoveryBusy}
                     {expandedTypes}
                     isDirty={modelDirty}
                     onAddType={addModelType}
                     onAddMappings={addModelMappings}
                     onUndo={undo}
-                    onSave={save}
+                    onSave={scan => runSave('models', scan)}
                     onSaveType={(type, scan) => runSave('models', scan, type)}
                     onRemoveType={index => settings?.model_types.splice(index, 1)}
                     onError={message => error = message} />
@@ -447,7 +485,7 @@
                     dirty={workflowsDirty}
                     {saving}
                     onUndo={undo}
-                    onSave={save}
+                    onSave={scan => runSave('workflows', scan)}
                     onError={message => error = message} />
             {:else}
                 <UserTypeSettings

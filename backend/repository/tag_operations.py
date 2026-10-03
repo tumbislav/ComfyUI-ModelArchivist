@@ -7,6 +7,7 @@
 import os
 import json
 from pathlib import Path
+from backend.filesystem_policy import checked_path, check_component_sets, FilesystemPolicyError
 import tempfile
 
 from sqlmodel import Session, select
@@ -32,6 +33,7 @@ def tag_usage(engine) -> list[dict]:
 
 def _replace_bytes(path: Path, contents: bytes, mode: int) -> None:
     """Replace one file without exposing truncated JSON to readers."""
+    checked_path(path)
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(dir=path.parent, prefix='.archivist-tags-', delete=False) as stream:
@@ -40,7 +42,7 @@ def _replace_bytes(path: Path, contents: bytes, mode: int) -> None:
             stream.flush()
             os.fsync(stream.fileno())
         os.chmod(temporary, mode)
-        os.replace(temporary, path)
+        os.replace(checked_path(temporary), checked_path(path))
     finally:
         if temporary is not None and temporary.exists():
             temporary.unlink()
@@ -51,6 +53,7 @@ def prepare_tag_files(changes) -> list:
     for item, tags in changes:
         if not isinstance(item, (Model, Workflow)):
             continue
+        check_component_sets(item.component_sets)
         for component_set in item.component_sets:
             found = False
             for component in component_set.components:
@@ -64,7 +67,7 @@ def prepare_tag_files(changes) -> list:
                 path = Path(component.file_dir) / component.file_name
                 if path.is_symlink() or not os.access(path, os.W_OK) or not os.access(path.parent, os.W_OK):
                     raise OSError(f'Metadata is not writable: {path}')
-                original = path.read_bytes()
+                original = checked_path(path).read_bytes()
                 stat = path.stat()
                 data = json.loads(original)
                 if not isinstance(data, dict):
@@ -150,7 +153,7 @@ def remap_tags(engine, mappings: dict[str, str], read_only: bool, prepare_files=
 
             for index, entry in enumerate(files):
                 path, original, updated, stat, components = entry
-                if path.read_bytes() != original:
+                if checked_path(path).read_bytes() != original:
                     raise OSError(f'File changed during remap: {path}')
                 written.append(entry)
                 _replace_bytes(path, updated, stat.st_mode)
@@ -172,12 +175,13 @@ def remap_tags(engine, mappings: dict[str, str], read_only: bool, prepare_files=
             result['applied'] = list(replacements)
         except Exception as error:
             session.rollback()
-            result['errors'].append({'code': 'remap_failed', 'message': str(error)})
+            result['errors'].append(error.detail() if isinstance(error, FilesystemPolicyError)
+                                    else {'code': 'remap_failed', 'message': str(error)})
             for path, original, updated, stat, components in reversed(written):
                 try:
                     _replace_bytes(path, original, stat.st_mode)
-                    os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
-                except OSError as restore_error:
+                    os.utime(checked_path(path), ns=(stat.st_atime_ns, stat.st_mtime_ns))
+                except (OSError, FilesystemPolicyError) as restore_error:
                     result['errors'].append({'code': 'restore_failed',
                                                'message': f'{path}: {restore_error}'})
         return result

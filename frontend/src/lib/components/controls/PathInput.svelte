@@ -1,30 +1,30 @@
 <!---------------------------------------------------
  ! system: ModelArchivist
  ! file: PathInput.svelte
- ! purpose: Editable server path with host directory picker
+ ! purpose: Editable server path validated against the disk-owned filesystem policy
  ! -------------------------------------------------->
 
 <script lang="ts">
     import { locale } from '$lib/locale.svelte';
+    import type { DirectoryRole } from '$lib/settings';
+    import DirectoryPicker from './DirectoryPicker.svelte';
 
-import rightIcon from '$icons/actions/right12.png';
-import { pickDirectory } from '$lib/settings';
-
-let { value = $bindable(), disabled = false, onError = () => {} }: {
-    value: string | null | undefined; disabled?: boolean;
-    onError?: (message: string) => void;
-} = $props();
-
-async function choose(): Promise<void> {
-    const result = await pickDirectory(value ?? '');
-    if (result.ok && result.data.path !== null) value = result.data.path;
-    else if (!result.ok) onError(result.message ?? locale.t('ui.path_input.cannot_open_directory_picker'));
-}
+    let { value = $bindable(), disabled = false, role }: {
+        value: string | null | undefined;
+        role: DirectoryRole;
+        disabled?: boolean;
+        onError?: (message: string) => void;
+    } = $props();
+    let open = $state(false);
 </script>
 
 <div class="path-input">
     <input class="text-input" bind:value {disabled} />
-    <button type="button" aria-label={locale.t('ui.path_input.select_folder')} {disabled} onclick={choose}>
-        <img class="action-icon" alt="" src={rightIcon} />
-    </button>
+    <button type="button" {disabled} aria-label={locale.t(`picker.${role}`)}
+            title={locale.t(`picker.${role}`)} onclick={() => open = true}>…</button>
 </div>
+{#if open && !disabled}
+    <DirectoryPicker {role} initialPath={value ?? ''}
+                     onSelect={path => { value = path; open = false; }}
+                     onClose={() => open = false} />
+{/if}

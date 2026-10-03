@@ -15,6 +15,7 @@ import socket
 import time
 
 from backend.config import get_config
+from backend.filesystem_policy import FilesystemPolicyError
 from .access import API_PREFIX, AccessDenied, AccessPolicy
 from .public_routes import api_routes, registered_http_routes, static_routes
 from .routers import (admin, collections, configuration, health, models, operations, tags,
@@ -27,6 +28,11 @@ app = FastAPI(title='Model Archivist API', version='1.0.0',
 config = get_config()
 
 access_policy: AccessPolicy | None = None
+
+
+@app.exception_handler(FilesystemPolicyError)
+async def filesystem_denied(request: Request, error: FilesystemPolicyError):
+    return JSONResponse({'detail': error.detail()}, status_code=403)
 
 
 @app.middleware('http')

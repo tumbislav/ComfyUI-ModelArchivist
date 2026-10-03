@@ -144,3 +144,14 @@ test('authorization failures are displayed separately from connectivity failures
     assert.equal(stores.get(api.accessError), 'Reopen Archivist.');
     assert.equal(stores.get(api.serverUnresponsive), false);
 });
+
+test('filesystem denials remain ordinary request errors without locking the application', async () => {
+    const { api } = client(async () => Response.json({ detail: {
+        code: 'filesystem_excluded', message: 'This path is excluded.', params: { path: '/private' }
+    } }, { status: 403 }));
+    const result = await api.parseResponse(await api.apiFetch('/test'), value => value, 'test');
+    assert.equal(result.ok, false);
+    assert.equal(result.message, 'This path is excluded.');
+    assert.equal(stores.get(api.accessError), null);
+    assert.equal(stores.get(api.serverUnresponsive), false);
+});

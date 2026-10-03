@@ -1,4 +1,31 @@
 {
+    "picker": {
+        "working": "Choisir un dossier de travail",
+        "archive": "Choisir un dossier d’archive",
+        "help": "Les dossiers sont sur le serveur. Choisissez un dossier autorisé ; enregistrez ensuite les paramètres.",
+        "up": "Remonter",
+        "choose": "Choisir un dossier",
+        "roots": "Racines autorisées",
+        "folders": "Sous-dossiers",
+        "loading": "Chargement des dossiers…",
+        "no_roots": "Aucune racine autorisée. Modifiez les permissions sur disque et redémarrez Archivist.",
+        "empty": "Aucun sous-dossier accessible.",
+        "omitted": "Certaines entrées sont masquées en raison des permissions, des exclusions ou des restrictions sur les liens.",
+        "cancel": "Annuler",
+        "use": "Utiliser ce dossier",
+        "expand": "Développer le dossier",
+        "collapse": "Réduire le dossier",
+        "failed": "Impossible de charger ce dossier."
+    },
+    "filesystem": {
+        "permissions": "Autorisations du système de fichiers",
+        "instructions": "Les chemins désignent ce serveur. Modifiez {path} sur disque et redémarrez Archivist pour changer les autorisations. Utilisez des chemins absolus ; les liens sont interdits.",
+        "working_roots": "Racines de travail autorisées",
+        "archive_roots": "Racines d’archive autorisées",
+        "exclusions": "Chemins exclus et tous leurs descendants",
+        "none": "Aucun",
+        "blocked": "Le dépôt est en lecture seule car des emplacements configurés sont bloqués. Les correspondances existantes sont conservées."
+    },
     "settings": {
         "title": "Paramètres",
         "language": "Langue",
@@ -759,6 +786,7 @@
         "no_tags": "Aucune étiquette",
         "in_collections": "Dans des collections",
         "not_in_collection": "N’appartient à aucune collection",
+        "discovering": "Détection…",
         "saving": "Enregistrement…",
         "save": "Enregistrer",
         "save_and_scan": "Enregistrer et analyser",

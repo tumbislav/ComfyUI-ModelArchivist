@@ -28,10 +28,14 @@ class EnvironmentProvider(Protocol):
     def model_locations(self) -> list[DiscoveredModelLocation]: ...
     def workflow_locations(self) -> list[Path]: ...
     def runtime_data_directory(self) -> Path | None: ...
+    def default_working_root(self) -> Path: ...
 
 
 class StandaloneEnvironmentProvider:
     mode = 'standalone'
+
+    def default_working_root(self) -> Path:
+        return Path.home().absolute()
 
     def model_locations(self) -> list[DiscoveredModelLocation]:
         return []
@@ -50,6 +54,9 @@ class ComfyEnvironmentProvider:
     def __init__(self, folder_paths: Any):
         self.folder_paths = folder_paths
 
+    def default_working_root(self) -> Path:
+        return Path(self.folder_paths.models_dir).absolute()
+
     def model_locations(self) -> list[DiscoveredModelLocation]:
         discovered: dict[str, DiscoveredModelLocation] = {}
         registry = getattr(self.folder_paths, 'folder_names_and_paths', {})
@@ -67,7 +74,8 @@ class ComfyEnvironmentProvider:
                 for extension in extensions
             }
             for path in paths:
-                working_dir = Path(path).resolve(strict=False)
+                # Retain links lexically so policy validation can reject them.
+                working_dir = Path(path).absolute()
                 path_key = os.path.normcase(str(working_dir))
                 existing = discovered.get(path_key)
                 if existing is None:

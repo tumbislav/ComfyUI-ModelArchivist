@@ -1,4 +1,31 @@
 {
+    "picker": {
+        "working": "Izberi delovno mapo",
+        "archive": "Izberi arhivsko mapo",
+        "help": "Mape so na strežniku. Izberite dovoljeno mapo; nastavitve nato shranite posebej.",
+        "up": "Gor",
+        "choose": "Izberite mapo",
+        "roots": "Dovoljeni koreni",
+        "folders": "Podmape",
+        "loading": "Nalaganje map…",
+        "no_roots": "Ni dovoljenih korenov. Uredite dovoljenja na disku in znova zaženite Archivist.",
+        "empty": "Ni dostopnih podmap.",
+        "omitted": "Nekateri vnosi so skriti zaradi dovoljenj, izključitev ali omejitev povezav.",
+        "cancel": "Prekliči",
+        "use": "Uporabi to mapo",
+        "expand": "Razširi mapo",
+        "collapse": "Strni mapo",
+        "failed": "Te mape ni mogoče naložiti."
+    },
+    "filesystem": {
+        "permissions": "Dovoljenja datotečnega sistema",
+        "instructions": "Poti se nanašajo na ta strežnik. Dovoljenja spremenite v datoteki {path} in znova zaženite Archivist. Uporabite absolutne poti; povezave niso dovoljene.",
+        "working_roots": "Dovoljeni delovni koreni",
+        "archive_roots": "Dovoljeni arhivski koreni",
+        "exclusions": "Izključene poti in vse podrejene poti",
+        "none": "Brez",
+        "blocked": "Repozitorij je samo za branje, ker so nastavljene lokacije blokirane. Obstoječe preslikave so ohranjene."
+    },
     "settings": {
         "title": "Nastavitve",
         "language": "Jezik",
@@ -759,6 +786,7 @@
         "no_tags": "Brez značk",
         "in_collections": "V zbirkah",
         "not_in_collection": "Ni v nobeni zbirki",
+        "discovering": "Odkrivanje …",
         "saving": "Shranjevanje …",
         "save": "Shrani",
         "save_and_scan": "Shrani in preglej",

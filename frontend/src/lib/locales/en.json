@@ -1,4 +1,31 @@
 {
+    "picker": {
+        "working": "Choose a working folder",
+        "archive": "Choose an archive folder",
+        "help": "Folders are on the server. Choose a permitted directory; saving settings is a separate step.",
+        "up": "Up",
+        "choose": "Choose a folder",
+        "roots": "Permitted roots",
+        "folders": "Subfolders",
+        "loading": "Loading folders…",
+        "no_roots": "No permitted roots. Edit the filesystem policy on disk and restart Archivist.",
+        "empty": "No accessible subfolders.",
+        "omitted": "Some entries are hidden because permissions, exclusions, or link restrictions prevent access.",
+        "cancel": "Cancel",
+        "use": "Use this folder",
+        "expand": "Expand folder",
+        "collapse": "Collapse folder",
+        "failed": "Cannot load this directory."
+    },
+    "filesystem": {
+        "permissions": "Filesystem permissions",
+        "instructions": "Paths refer to this server. Edit {path} on disk and restart Archivist to change permissions. Use absolute paths; links are not permitted.",
+        "working_roots": "Permitted working roots",
+        "archive_roots": "Permitted archive roots",
+        "exclusions": "Excluded paths and all descendants",
+        "none": "None",
+        "blocked": "The repository is read-only because configured locations are blocked. Existing mappings have been preserved."
+    },
     "settings": {
         "title": "Settings",
         "language": "Language",
@@ -759,6 +786,7 @@
         "no_tags": "No tags",
         "in_collections": "In collections",
         "not_in_collection": "Not in a collection",
+        "discovering": "Discovering…",
         "saving": "Saving…",
         "save": "Save",
         "save_and_scan": "Save & scan",

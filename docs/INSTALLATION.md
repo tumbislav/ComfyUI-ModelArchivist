@@ -83,7 +83,8 @@ The application opens in your default browser. By default it listens only on
 ### Choose another configuration file
 
 The root `config.toml` contains only the settings needed before the repository
-database can be opened: database path, web server address, and logging. Start the
+database can be opened: database path, web server address, logging, and filesystem
+permissions. Start the
 standalone application with another configuration file by passing its full path:
 
 ```powershell
@@ -94,6 +95,69 @@ The `{$app}` placeholder in the supplied configuration means the repository or
 installed application directory. Model types, extensions, repository behavior,
 and working/archive mappings are configured in the application and stored in its
 SQLite database.
+
+## Filesystem permissions
+
+On the first start without a `[filesystem]` section, Archivist appends one to the
+configuration file it loaded, preserving the other settings and comments:
+
+- Standalone: both working and archive roots default to the operating-system
+  user's home directory (`%USERPROFILE%` on Windows, `$HOME` on Unix).
+- ComfyUI: working roots default to ComfyUI's `models` directory; archive roots
+  default to that operating-system user's home directory.
+- Exclusions initially contain no paths.
+
+Initialization happens only when the entire section is absent. Explicit empty root
+lists deny all access for that role. Invalid or incomplete policy settings stop
+startup rather than restoring permissive defaults. The configuration file must be
+writable for this one-time initialization; alternatively, add the section yourself.
+
+Edit the file on the server and restart Archivist to change permissions. For example
+(replace these paths with your actual directories):
+
+```toml
+[filesystem]
+working_roots = ['C:\ComfyUI\models', 'C:\ComfyUI\user\default\workflows']
+archive_roots = ['D:\ModelArchive', '\\nas\models\archive']
+exclusions = ['C:\ComfyUI\models\private', 'D:\ModelArchive\backups']
+```
+
+Use absolute literal paths. TOML single-quoted strings are useful for Windows
+backslashes. Unix paths such as `/home/alex/models` or `/mnt/archive` work too.
+Variables, `~`, `{$app}`, globs, and regular expressions are not expanded here.
+Exclusions apply recursively and override every allowed root, including nested
+roots. The settings screen shows the active permissions and configuration filename.
+
+ComfyUI-discovered paths do **not** grant permission automatically. Explicitly add
+extra model directories and the ComfyUI workflow directory to `working_roots` when
+needed. Choose archive locations within the archive roots. User-defined types follow
+the same rules. Model examples use the sibling `examples` directory; permit that
+location too if your allowed root is narrower than its parent.
+
+Symbolic links, junctions, and files with multiple hard links are blocked, even if
+their other locations are permitted. Use actual directories and independent file
+copies. Mounted volumes and network shares are supported as explicitly allowed
+roots; a scan cannot silently cross into a mounted volume below another root.
+File systems that cannot provide the required link information are denied.
+
+After upgrading an existing installation, blocked mappings are preserved and
+reported in Settings, and the repository becomes read-only. Amend the policy on
+disk or correct the mappings, then restart as needed and rescan. Files are not moved
+or deleted by this migration. A blocked scan reports an incomplete result and
+preserves the existing index instead of deleting unseen records.
+
+Use the browse button beside an editable location field to open the in-app directory
+browser. Its tree starts at the permitted roots for that field (working or archive).
+Expand a folder or open a subfolder to load its immediate children. The current path
+is shown above the panels; Up stops at the permitted root. Existing allowed paths
+open as the initial selection. Missing, inaccessible, or blocked paths show an error.
+
+Choose **Use this folder** to fill the field, then save Settings separately. Cancel
+or Escape leaves the field unchanged. Arrow keys navigate the tree; Enter opens the
+focused folder. Links and excluded entries are hidden, with a notice when entries
+were omitted. The browser does not create, rename, or delete directories. Manual
+absolute path entry remains available, including for directories not yet created.
+ComfyUI-owned working locations remain non-editable.
 
 ## Complete the first-run setup
 

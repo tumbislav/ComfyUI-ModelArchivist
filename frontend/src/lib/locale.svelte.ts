@@ -49,20 +49,6 @@ function storedLanguage(): string | null {
     }
 }
 
-function browserLanguage(): string {
-    const supported = Object.keys(config.locales);
-
-    for (const requested of navigator.languages) {
-        const normalized = requested.toLowerCase();
-        const exact = supported.find(language => language.toLowerCase() === normalized);
-        const base = supported.find(language => language.toLowerCase() === normalized.split('-')[0]);
-
-        if (exact ?? base) return (exact ?? base)!;
-    }
-
-    return config.default;
-}
-
 class LocaleState {
     language = $state(config.default);
 
@@ -75,7 +61,7 @@ class LocaleState {
 
     initialize(): void {
         const stored = storedLanguage();
-        this.set(stored && stored in config.locales ? stored : browserLanguage(), false);
+        this.set(stored && stored in config.locales ? stored : config.default, false);
     }
 
     set(language: string, persist = true): void {

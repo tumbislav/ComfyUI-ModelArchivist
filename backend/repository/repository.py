@@ -10,6 +10,9 @@ import logging
 import datetime
 import os
 from pathlib import Path, PurePosixPath
+from backend.filesystem_policy import (checked_path, safe_children, safe_tree,
+                                       FilesystemPolicyError, get_policy, log_blocked,
+                                       check_component_sets, check_transfer_tree)
 from time import monotonic
 from uuid import uuid4
 
@@ -193,6 +196,19 @@ def load_repository_configuration(config: Configuration) -> None:
                     config.unmapped_workflow_folders.append(path)
             session.commit()
 
+    with Session(_engine) as session:
+        user_types = session.exec(select(UserDefinedType)).all()
+        for item in user_types:
+            config._check_folder(Path(item.working_dir), 'model_working_accessible')
+            config._check_folder(Path(item.archive_dir), 'model_archive_accessible')
+    roots = [path for paths in config.unmapped_model_folders.values() for path in paths]
+    roots.extend(config.unmapped_workflow_folders)
+    for path in roots:
+        try:
+            config.filesystem.check(path, 'working')
+        except FilesystemPolicyError as error:
+            config.filesystem_issues.append(error.detail())
+
 
 def start_repo():
     global _engine, _logger, _config, _first_run, _repo_started
@@ -236,7 +252,8 @@ def repo_status():
                    'first_run': _first_run,
                    'read_only': _config.read_only,
                    'setup_required': _config.setup_required,
-                   'mode': _config.mode}
+                   'mode': _config.mode,
+                   'filesystem_issues': _config.filesystem_issues}
     sc = get_scanner()
     if sc is None:
         status_dict['ready'] = True
@@ -300,6 +317,9 @@ def get_repository_configuration() -> dict:
                 'extensions': list(item.extensions),
                 'locations': by_type.get(item.name, []),
             } for item in model_types],
+            'filesystem': get_policy().to_dict(),
+            'filesystem_issues': _config.filesystem_issues,
+            'filesystem_config_file': str(_config.cfg_file),
             'workflow_locations': [{
                 'id': item.id,
                 'working_dir': item.working_dir,
@@ -310,10 +330,16 @@ def get_repository_configuration() -> dict:
         }
 
 
-def _normalized_location(value: str) -> str:
+def _check_runtime_roots() -> None:
+    for role, paths in (('working', _config.all_working), ('archive', _config.all_archive)):
+        for path in paths:
+            checked_path(path, role)
+
+
+def _normalized_location(value: str, role: str = 'working') -> str:
     if not value.strip():
         raise ValueError('folder paths cannot be empty')
-    return str(Path(value).expanduser().absolute())
+    return str(checked_path(value, role))
 
 
 def update_repository_configuration(data: dict) -> dict:
@@ -338,7 +364,7 @@ def update_repository_configuration(data: dict) -> dict:
                 value = location.get(key)
                 if key == 'archive_dir' and not value and _config.mode == 'comfyui':
                     continue
-                normalized = _normalized_location(value or '')
+                normalized = _normalized_location(value or '', key.removesuffix('_dir'))
                 if normalized in seen:
                     raise ValueError(f'folder is reused by more than one location: {normalized}')
                 seen.add(normalized)
@@ -347,7 +373,7 @@ def update_repository_configuration(data: dict) -> dict:
             value = location.get(key)
             if key == 'archive_dir' and not value and _config.mode == 'comfyui':
                 continue
-            normalized = _normalized_location(value or '')
+            normalized = _normalized_location(value or '', key.removesuffix('_dir'))
             if normalized in seen:
                 raise ValueError(f'folder is reused by more than one location: {normalized}')
             seen.add(normalized)
@@ -377,12 +403,12 @@ def update_repository_configuration(data: dict) -> dict:
                     session.add(ModelLocationSetting(
                         model_type=item['name'].strip(), source='standalone',
                         working_dir=_normalized_location(location['working_dir']),
-                        archive_dir=_normalized_location(location['archive_dir'])))
+                        archive_dir=_normalized_location(location['archive_dir'], 'archive')))
             for location in workflow_locations:
                 session.add(WorkflowLocationSetting(
                     source='standalone',
                     working_dir=_normalized_location(location['working_dir']),
-                    archive_dir=_normalized_location(location['archive_dir'])))
+                    archive_dir=_normalized_location(location['archive_dir'], 'archive')))
         else:
             stored_types = {row.name: row for row in session.exec(
                 select(ModelTypeSetting)).all()}
@@ -398,7 +424,7 @@ def update_repository_configuration(data: dict) -> dict:
                     row = stored_models.get(working)
                     if row is None or not row.active:
                         raise ValueError(f'working folder is not supplied by ComfyUI: {working}')
-                    row.archive_dir = (_normalized_location(location['archive_dir'])
+                    row.archive_dir = (_normalized_location(location['archive_dir'], 'archive')
                                        if location.get('archive_dir') else None)
                     session.add(row)
             stored_workflows = {row.working_dir: row for row in session.exec(
@@ -409,7 +435,7 @@ def update_repository_configuration(data: dict) -> dict:
                 row = stored_workflows.get(working)
                 if row is None or not row.active:
                     raise ValueError(f'workflow folder is not supplied by ComfyUI: {working}')
-                row.archive_dir = (_normalized_location(location['archive_dir'])
+                row.archive_dir = (_normalized_location(location['archive_dir'], 'archive')
                                    if location.get('archive_dir') else None)
                 session.add(row)
 
@@ -434,18 +460,15 @@ def update_model_configuration(data: dict) -> dict:
 
 
 def model_mapping_roots() -> list[str]:
-    """Return inferred working roots available to the bulk mapping assistant."""
-    if _config.mode != 'comfyui':
-        return []
-    roots = {str(item.working_dir.parent) for item in get_environment_provider().model_locations()}
-    return sorted(roots, key=str.casefold)
+    """Offer only working roots explicitly permitted by disk configuration."""
+    return [str(root) for root in get_policy().working_roots]
 
 
 def propose_model_mappings(working_root_value: str, archive_root_value: str,
                            extensions: list[str]) -> list[dict]:
     """Discover non-persistent model mappings beneath a pair of top-level roots."""
     working_root = Path(_normalized_location(working_root_value))
-    archive_root = Path(_normalized_location(archive_root_value))
+    archive_root = Path(_normalized_location(archive_root_value, 'archive'))
     normalized_extensions = {f'.{value.lower().lstrip(".")}' for value in extensions if value}
     if not normalized_extensions:
         raise ValueError('at least one model extension is required')
@@ -456,27 +479,33 @@ def propose_model_mappings(working_root_value: str, archive_root_value: str,
         existing_by_name = {item['name']: item for item in existing}
         candidates: dict[str, dict] = {}
         if _config.mode == 'standalone':
-            for child in sorted((item for item in working_root.iterdir() if item.is_dir()),
+            for child in sorted((item for item in safe_children(working_root, 'working', log_blocked) if item.is_dir()),
                                 key=lambda item: item.name.casefold()):
                 if child.name in existing_by_name:
                     continue
-                found = sorted({item.suffix.lower() for item in child.rglob('*')
-                                if item.is_file() and item.suffix.lower() in normalized_extensions})
+                found_extensions = set()
+                for item in safe_tree(child, 'working', log_blocked):
+                    suffix = item.suffix.lower()
+                    if item.is_file() and suffix in normalized_extensions:
+                        found_extensions.add(suffix)
+                        if found_extensions == normalized_extensions:
+                            break
+                found = sorted(found_extensions)
                 if found:
                     candidates[child.name] = {
                         'name': child.name, 'display_name': child.name, 'extensions': found,
                         'locations': [{'working_dir': str(child),
-                                       'archive_dir': str(archive_root / child.name)}]}
+                                       'archive_dir': str(checked_path(archive_root / child.name, 'archive'))}]}
         else:
             for item in get_environment_provider().model_locations():
                 try:
-                    relative = item.working_dir.relative_to(working_root)
+                    relative = checked_path(item.working_dir, 'working').relative_to(working_root)
                 except ValueError:
                     continue
                 current = existing_by_name.get(item.model_type)
                 stored = next((location for location in current['locations']
-                               if Path(location['working_dir']).resolve(strict=False)
-                               == item.working_dir.resolve(strict=False)), None) if current else None
+                               if Path(location['working_dir']).absolute()
+                               == item.working_dir.absolute()), None) if current else None
                 if stored is not None and stored.get('archive_dir'):
                     continue
                 candidate = candidates.setdefault(item.model_type, {
@@ -486,7 +515,7 @@ def propose_model_mappings(working_root_value: str, archive_root_value: str,
                     'locations': []})
                 candidate['locations'].append({
                     'working_dir': str(item.working_dir),
-                    'archive_dir': str(archive_root / relative)})
+                    'archive_dir': str(checked_path(archive_root / relative, 'archive'))})
         return list(candidates.values())
     except OSError as error:
         raise ValueError(f'cannot inspect working root {working_root}: {error}') from error
@@ -608,8 +637,8 @@ def save_scanned_model(model: Model, tag_names: list[str]) -> None:
                     if existing_set is None:
                         old_model.component_sets.append(scanned_set)
                         existing_by_side[scanned_set.where] = scanned_set
-                    elif Path(existing_set.primary_dir).resolve() == Path(
-                            scanned_set.primary_dir).resolve():
+                    elif Path(existing_set.primary_dir).absolute() == Path(
+                            scanned_set.primary_dir).absolute():
                         incoming_components = list(scanned_set.components)
                         scanned_set.components.clear()
                         existing_set.components.extend(incoming_components)
@@ -948,12 +977,12 @@ def get_model(id: str) -> dict:
 def _paired_object_paths(component_sets: list[ComponentSet], relative_path: str,
                          folder_pairs: list[tuple[Path, Path]]) -> tuple[str | None, str | None]:
     """Resolve actual or prospective directories on both configured sides."""
-    roots = {component_set.where: Path(component_set.primary_dir).resolve()
+    roots = {component_set.where: Path(component_set.primary_dir).absolute()
              for component_set in component_sets}
     relative = Path(relative_path)
     for working_root, archive_root in folder_pairs:
-        working = Path(working_root).resolve()
-        archive = Path(archive_root).resolve()
+        working = Path(working_root).absolute()
+        archive = Path(archive_root).absolute()
         if roots.get('w') == working or roots.get('a') == archive:
             return str(working / relative), str(archive / relative)
     return (
@@ -980,6 +1009,10 @@ def _workflow_paths(workflow: Workflow) -> tuple[str | None, str | None]:
 
 def _execute_model_actions(actions: list[FileAction],
                            progress: Callable[[dict], None] | None) -> dict:
+    for action in actions:
+        checked_path(action.destination)
+        if action.source is not None:
+            check_transfer_tree(Path(action.source), Path(action.destination))
     bytes_total = sum(action_transfer_size(action) for action in actions)
     files_completed = 0
     bytes_completed = 0
@@ -1027,6 +1060,8 @@ def synchronize_model(id: str, simulate: bool = True,
             plan.reject('model_read_only', f'model has errors: {", ".join(model.errors)}')
             return plan.to_dict()
 
+        check_component_sets(model.component_sets)
+        _check_runtime_roots()
         sets = {side: [item for item in model.component_sets if item.where == side]
                 for side in ('w', 'a')}
         if len(sets['w']) > 1 or len(sets['a']) > 1:
@@ -1049,9 +1084,9 @@ def synchronize_model(id: str, simulate: bool = True,
             destination_examples = (Path(destination_set.examples_dir)
                                     if destination_set.examples_dir else None)
         else:
-            source_primary = Path(source_set.primary_dir).resolve()
+            source_primary = Path(source_set.primary_dir).absolute()
             for working_root, archive_root in _config.model_folders.get(model.type, set()):
-                candidate_root = Path(working_root if source_side == 'w' else archive_root).resolve()
+                candidate_root = Path(working_root if source_side == 'w' else archive_root).absolute()
                 try:
                     relative_root = source_primary.relative_to(candidate_root)
                 except ValueError:
@@ -1085,6 +1120,7 @@ def synchronize_model(id: str, simulate: bool = True,
                     return plan.to_dict()
                 destination_path = destination_root / component.relative_path / component.file_name
                 include_hash = component.component_type != ComponentType.MODEL
+                checked_path(destination_path, 'working' if destination_side == 'w' else 'archive')
                 source_snapshot = FileSnapshot.capture(source_path, include_hash=include_hash)
                 destination_snapshot = FileSnapshot.capture(destination_path, include_hash=include_hash)
                 if not source_snapshot.exists:
@@ -1174,6 +1210,8 @@ def move_model(id: str, destination: DeploymentStatus,
         if _config.read_only or model.read_only:
             plan.reject('read_only', 'model cannot be moved while read-only')
             return plan.to_dict()
+        check_component_sets(model.component_sets)
+        _check_runtime_roots()
         sets = {side: [item for item in model.component_sets if item.where == side]
                 for side in ('w', 'a')}
         if len(sets['w']) > 1 or len(sets['a']) > 1:
@@ -1199,9 +1237,9 @@ def move_model(id: str, destination: DeploymentStatus,
         else:
             destination_primary = None
             destination_examples = None
-            source_primary = Path(source_set.primary_dir).resolve()
+            source_primary = Path(source_set.primary_dir).absolute()
             for working_root, archive_root in _config.model_folders.get(model.type, set()):
-                candidate = Path(working_root if source_side == 'w' else archive_root).resolve()
+                candidate = Path(working_root if source_side == 'w' else archive_root).absolute()
                 try:
                     relative_root = source_primary.relative_to(candidate)
                 except ValueError:
@@ -1236,6 +1274,7 @@ def move_model(id: str, destination: DeploymentStatus,
                     return plan.to_dict()
                 destination_path = root / component.relative_path / component.file_name
                 include_hash = component.component_type != ComponentType.MODEL
+                checked_path(destination_path, 'working' if destination_side == 'w' else 'archive')
                 source_snapshot = FileSnapshot.capture(source_path, include_hash=include_hash)
                 destination_snapshot = FileSnapshot.capture(destination_path, include_hash=include_hash)
                 if not source_snapshot.exists:
@@ -1429,6 +1468,8 @@ def synchronize_workflow(id: str, simulate: bool = True) -> dict:
                         f'workflow has errors: {", ".join(workflow.errors)}')
             return plan.to_dict()
 
+        check_component_sets(workflow.component_sets)
+        _check_runtime_roots()
         components = {
             side: [(component_set, component)
                    for component_set in workflow.component_sets if component_set.where == side
@@ -1454,13 +1495,13 @@ def synchronize_workflow(id: str, simulate: bool = True) -> dict:
             destination_set, destination_component = components[destination_side][0]
             destination_path = Path(destination_component.file_dir) / destination_component.file_name
         else:
-            source_root = Path(source_set.primary_dir).resolve()
+            source_root = Path(source_set.primary_dir).absolute()
             destination_root = None
             for working_root, archive_root in _config.workflow_folders:
-                if source_side == 'w' and Path(working_root).resolve() == source_root:
+                if source_side == 'w' and Path(working_root).absolute() == source_root:
                     destination_root = Path(archive_root)
                     break
-                if source_side == 'a' and Path(archive_root).resolve() == source_root:
+                if source_side == 'a' and Path(archive_root).absolute() == source_root:
                     destination_root = Path(working_root)
                     break
             if destination_root is None:
@@ -1471,6 +1512,7 @@ def synchronize_workflow(id: str, simulate: bool = True) -> dict:
                                 source_component.file_name)
 
         try:
+            checked_path(destination_path, 'working' if destination_side == 'w' else 'archive')
             source_snapshot = FileSnapshot.capture(source_path, include_hash=True)
             destination_snapshot = FileSnapshot.capture(destination_path, include_hash=True)
         except OSError as error:
@@ -1547,6 +1589,8 @@ def move_workflow(id: str, destination: DeploymentStatus,
         if _config.read_only or workflow.read_only:
             plan.reject('read_only', 'workflow cannot be moved while read-only')
             return plan.to_dict()
+        check_component_sets(workflow.component_sets)
+        _check_runtime_roots()
         sets = {side: [item for item in workflow.component_sets if item.where == side]
                 for side in ('w', 'a')}
         if len(sets['w']) > 1 or len(sets['a']) > 1:
@@ -1577,9 +1621,9 @@ def move_workflow(id: str, destination: DeploymentStatus,
             destination_root = Path(destination_set.primary_dir)
         else:
             destination_root = None
-            source_root = Path(source_set.primary_dir).resolve()
+            source_root = Path(source_set.primary_dir).absolute()
             for working_root, archive_root in _config.workflow_folders:
-                candidate = Path(archive_root if source_side == 'a' else working_root).resolve()
+                candidate = Path(archive_root if source_side == 'a' else working_root).absolute()
                 if candidate == source_root:
                     destination_root = Path(working_root if destination_side == 'w' else archive_root)
                     break
@@ -1588,6 +1632,7 @@ def move_workflow(id: str, destination: DeploymentStatus,
                 return plan.to_dict()
             destination_path = destination_root / source_component.relative_path / source_component.file_name
         try:
+            checked_path(destination_path, 'working' if destination_side == 'w' else 'archive')
             source_snapshot = FileSnapshot.capture(source_path, include_hash=True)
             destination_snapshot = FileSnapshot.capture(destination_path, include_hash=True)
         except OSError as error:
@@ -1708,8 +1753,8 @@ def _validate_user_type(data: dict, current: UserDefinedType | None = None,
             archive_value, str) or not archive_value.strip():
         raise ArcException(ArcException.Code.INVALID_USER_TYPE, 'both locations are required')
     try:
-        working_dir = Path(working_value).resolve(strict=False)
-        archive_dir = Path(archive_value).resolve(strict=False)
+        working_dir = checked_path(working_value, 'working')
+        archive_dir = checked_path(archive_value, 'archive')
     except OSError as error:
         raise ArcException(ArcException.Code.INVALID_USER_TYPE, str(error)) from error
     if _paths_overlap(working_dir, archive_dir):
@@ -1734,8 +1779,8 @@ def _validate_user_type_roots(session: Session, values: dict,
     candidates = [Path(values['working_dir']), Path(values['archive_dir'])]
     configured = []
     if _config is not None:
-        configured.extend(Path(path).resolve() for path in _config.all_working)
-        configured.extend(Path(path).resolve() for path in _config.all_archive)
+        configured.extend(Path(path).absolute() for path in _config.all_working)
+        configured.extend(Path(path).absolute() for path in _config.all_archive)
     existing = session.exec(select(UserDefinedType)).all()
     configured.extend(Path(item.working_dir) for item in existing if item.id != current_id)
     configured.extend(Path(item.archive_dir) for item in existing if item.id != current_id)
@@ -1902,8 +1947,9 @@ def update_user_object(id: str, data: dict) -> dict:
 
 
 def _user_object_snapshot(path: Path, object_class: str,
-                          size_limit: int) -> tuple[dict[str, FileSnapshot], int]:
+                          size_limit: int, role: str | None = None) -> tuple[dict[str, FileSnapshot], int]:
     """Capture one UDP object, raising when it is missing, unreadable, or oversized."""
+    checked_path(path, role)
     if object_class == UserObjectClass.FILE.value:
         if not path.is_file() or path.is_symlink():
             raise FileNotFoundError(path)
@@ -1911,12 +1957,11 @@ def _user_object_snapshot(path: Path, object_class: str,
     else:
         if not path.is_dir() or path.is_symlink():
             raise FileNotFoundError(path)
-        paths = [path, *sorted(path.rglob('*'), key=str)]
+        paths = [path, *sorted(safe_tree(path, role), key=str)]
     snapshots = {}
     total = 0
     for entry in paths:
-        if entry.is_symlink():
-            continue
+        checked_path(entry, role)
         snapshot = FileSnapshot.capture(entry)
         if not snapshot.exists:
             raise OSError(f'unreadable filesystem entry: {entry}')
@@ -1932,8 +1977,8 @@ def _user_object_snapshot(path: Path, object_class: str,
 
 
 def _user_object_paths(item: UserDefinedObject) -> tuple[Path, Path]:
-    return (Path(item.type.working_dir) / item.relative_path,
-            Path(item.type.archive_dir) / item.relative_path)
+    return (checked_path(Path(item.type.working_dir) / item.relative_path, 'working'),
+            checked_path(Path(item.type.archive_dir) / item.relative_path, 'archive'))
 
 
 def _add_exact_mirror_actions(plan: OperationPlan, source_root: Path,
@@ -1984,7 +2029,8 @@ def _refresh_user_object_state(session: Session, item: UserDefinedObject) -> Non
                               ('a', Path(item.type.archive_dir), archive_path)):
         try:
             snapshots, total = _user_object_snapshot(
-                path, item.type.object_class, item.type.size_limit)
+                path, item.type.object_class, item.type.size_limit,
+                'working' if where == 'w' else 'archive')
         except FileNotFoundError:
             continue
         entries = []
@@ -2047,7 +2093,7 @@ def _user_object_operation(id: str, operation: str, simulate: bool,
         plan.source_side = source_side
         try:
             source_snapshot, _ = _user_object_snapshot(
-                source_path, item.type.object_class, item.type.size_limit)
+                source_path, item.type.object_class, item.type.size_limit, source_side)
         except OverflowError as error:
             plan.reject('over_size_limit', str(error))
             return plan.to_dict()
@@ -2056,7 +2102,8 @@ def _user_object_operation(id: str, operation: str, simulate: bool,
             return plan.to_dict()
         try:
             destination_snapshot, _ = _user_object_snapshot(
-                destination_path, item.type.object_class, item.type.size_limit)
+                destination_path, item.type.object_class, item.type.size_limit,
+                'archive' if source_side == 'working' else 'working')
         except FileNotFoundError:
             destination_snapshot = {}
         except OverflowError as error:
@@ -2074,6 +2121,11 @@ def _user_object_operation(id: str, operation: str, simulate: bool,
                 path = source_path if relative == '' else source_path / relative
                 action = 'rmdir' if snapshot.entry_type == 'directory' else 'remove'
                 plan.actions.append(FileAction(action, None, str(path), None, snapshot))
+        for action in plan.actions:
+            checked_path(action.destination,
+                         source_side if action.action in ('remove', 'rmdir') and
+                         Path(action.destination).is_relative_to(source_path) else
+                         ('archive' if source_side == 'working' else 'working'))
         output = plan.to_dict()
         output['transfer_bytes'] = transfer_bytes
         if simulate:
@@ -2187,6 +2239,7 @@ def relocate_objects(object_type: str, ids: list[str], destination: str,
                     plan.reject('read_only', f'{item.file_name} is read-only')
                     return plan.to_dict()
                 old = _relative_directory(item.relative_path)
+                check_component_sets(item.component_sets)
                 for component_set in item.component_sets:
                     for component in component_set.components:
                         if component.component_type == ComponentType.EXAMPLE:
@@ -2200,6 +2253,7 @@ def relocate_objects(object_type: str, ids: list[str], destination: str,
                         new_relative = PurePosixPath(destination) / suffix
                         source = Path(component.file_dir) / component.file_name
                         target = Path(component_set.primary_dir) / str(new_relative) / component.file_name
+                        checked_path(target, 'working' if component_set.where == 'w' else 'archive')
                         moves.append((source, target))
                         updates.append((component, _relative_directory(str(new_relative))))
                 updates.append((item, destination))
@@ -2212,10 +2266,12 @@ def relocate_objects(object_type: str, ids: list[str], destination: str,
                 if item.read_only:
                     plan.reject('read_only', f'{item.file_name} is read-only')
                     return plan.to_dict()
+                check_component_sets(item.component_sets)
                 for component_set in item.component_sets:
                     for component in component_set.components:
                         source = Path(component.file_dir) / component.file_name
                         target = Path(component_set.primary_dir) / destination / component.file_name
+                        checked_path(target, 'working' if component_set.where == 'w' else 'archive')
                         moves.append((source, target))
                         updates.append((component, destination))
                 updates.append((item, destination))
@@ -2235,18 +2291,24 @@ def relocate_objects(object_type: str, ids: list[str], destination: str,
                 name = PurePosixPath(item.relative_path.replace('\\', '/')).name
                 new_relative = (PurePosixPath(destination) / name).as_posix()
                 for object_set in item.sets:
+                    _user_object_paths(item)
                     root = item.type.working_dir if object_set.where == 'w' else item.type.archive_dir
-                    moves.append((Path(root) / item.relative_path, Path(root) / new_relative))
+                    source, target = Path(root) / item.relative_path, Path(root) / new_relative
+                    check_transfer_tree(source, target,
+                                        'working' if object_set.where == 'w' else 'archive')
+                    moves.append((source, target))
                 updates.append((item, new_relative))
         else:
             plan.reject('invalid_object_type', object_type)
             return plan.to_dict()
 
         actual_moves = [(source, target) for source, target in moves if source != target]
-        sources = {source.resolve() for source, _ in actual_moves}
+        for source, target in actual_moves:
+            check_transfer_tree(source, target)
+        sources = {source.absolute() for source, _ in actual_moves}
         targets: set[Path] = set()
         for source, target in actual_moves:
-            resolved = target.resolve()
+            resolved = target.absolute()
             if resolved in targets or (target.exists() and resolved not in sources):
                 plan.reject('duplicate_filename', str(target))
                 return plan.to_dict()
@@ -2264,21 +2326,25 @@ def relocate_objects(object_type: str, ids: list[str], destination: str,
         completed: list[tuple[Path, Path]] = []
         try:
             for source, target in actual_moves:
-                target.parent.mkdir(parents=True, exist_ok=True)
-                source.rename(target)
+                check_transfer_tree(source, target)
+                checked_path(target.parent).mkdir(parents=True, exist_ok=True)
+                checked_path(source).rename(checked_path(target))
                 completed.append((source, target))
             for item, relative_path in updates:
                 item.relative_path = relative_path
                 session.add(item)
             session.commit()
-        except (OSError, SQLAlchemyError) as error:
+        except (OSError, SQLAlchemyError, FilesystemPolicyError) as error:
             session.rollback()
             for source, target in reversed(completed):
                 try:
-                    source.parent.mkdir(parents=True, exist_ok=True)
-                    target.rename(source)
-                except OSError:
+                    check_transfer_tree(target, source)
+                    checked_path(source.parent).mkdir(parents=True, exist_ok=True)
+                    checked_path(target).rename(checked_path(source))
+                except (OSError, FilesystemPolicyError):
                     pass
+            if isinstance(error, FilesystemPolicyError):
+                raise
             plan.reject('execution_failed', str(error))
             return plan.to_dict()
         plan.performed = True

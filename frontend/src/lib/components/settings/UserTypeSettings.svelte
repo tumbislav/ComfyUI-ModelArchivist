@@ -112,11 +112,11 @@
 
                 <label class="dialog-label">
                     {locale.t('ui.user_type_settings.working_folder')}
-                    <PathInput bind:value={type.working_dir} onError={onError} />
+                    <PathInput bind:value={type.working_dir} role="working" onError={onError} />
                 </label>
                 <label class="dialog-label">
                     {locale.t('ui.user_type_settings.archive_folder')}
-                    <PathInput bind:value={type.archive_dir} onError={onError} />
+                    <PathInput bind:value={type.archive_dir} role="archive" onError={onError} />
                 </label>
                 <label class="dialog-label">
                     {locale.t('ui.user_type_settings.size_limit_bytes')}

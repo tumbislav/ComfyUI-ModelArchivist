@@ -27,6 +27,7 @@
         mappingExtensions = $bindable(),
         dirty,
         saving,
+        mappingBusy,
         expandedTypes,
         isDirty,
         onAddType,
@@ -44,12 +45,13 @@
         mappingExtensions: string;
         dirty: boolean;
         saving: boolean;
+        mappingBusy: boolean;
         expandedTypes: SvelteMap<object, boolean>;
         isDirty: (type: ModelTypeSetting) => boolean;
         onAddType: () => void;
         onAddMappings: () => void;
         onUndo: () => void;
-        onSave: () => void;
+        onSave: (scan: boolean) => void;
         onSaveType: (type: ModelTypeSetting, scan: boolean) => void;
         onRemoveType: (index: number) => void;
         onError: (message: string) => void;
@@ -74,12 +76,12 @@
                         {/each}
                     </select>
                 {:else}
-                    <PathInput bind:value={mappingWorkingRoot} onError={onError} />
+                    <PathInput bind:value={mappingWorkingRoot} role="working" onError={onError} />
                 {/if}
             </label>
             <label class="dialog-label">
                 {locale.t('ui.model_settings.archive_root')}
-                <PathInput bind:value={mappingArchiveRoot} onError={onError} />
+                <PathInput bind:value={mappingArchiveRoot} role="archive" onError={onError} />
             </label>
 
             {#if settings.mode === 'standalone'}
@@ -93,10 +95,11 @@
         <div class="spaced-horizontally">
             <div></div>
             <button class="button-with-text"
-                    disabled={!mappingWorkingRoot || !mappingArchiveRoot}
+                    disabled={mappingBusy || !mappingWorkingRoot || !mappingArchiveRoot}
                     onclick={onAddMappings}>
                 <img class="action-icon" alt={locale.t('ui.model_settings.add')} src={addIcon} />
-                <span class="button-label">{locale.t('ui.model_settings.add_mappings')}</span>
+                <span class="button-label">{locale.t(mappingBusy
+                    ? 'dynamic.discovering' : 'ui.model_settings.add_mappings')}</span>
             </button>
         </div>
     </section>
@@ -114,9 +117,13 @@
             <img class="action-icon" alt={locale.t('ui.model_settings.undo')} src={resetIcon} />
             <span class="button-label">{locale.t('ui.model_settings.undo_2')}</span>
         </button>
-        <button class="button-with-text" disabled={!dirty || saving} onclick={onSave}>
+        <button class="button-with-text" disabled={!dirty || saving} onclick={() => onSave(false)}>
             <img class="action-icon" alt={locale.t('ui.model_settings.save')} src={saveIcon} />
             <span class="button-label">{locale.t(saving ? 'dynamic.saving' : 'dynamic.save')}</span>
+        </button>
+        <button class="button-with-text" disabled={saving} onclick={() => onSave(true)}>
+            <img class="action-icon" alt="" src={refreshIcon} />
+            <span class="button-label">{locale.t(dirty ? 'dynamic.save_and_scan' : 'dynamic.refresh')}</span>
         </button>
     </div>
 
@@ -148,13 +155,13 @@
                     {#each type.locations as location}
                         <label class="dialog-label">
                             {locale.t('ui.model_settings.working_folder')}
-                            <PathInput bind:value={location.working_dir}
+                            <PathInput bind:value={location.working_dir} role="working"
                                        disabled={settings.mode === 'comfyui'}
                                        onError={onError} />
                         </label>
                         <label class="dialog-label">
                             {locale.t('ui.model_settings.archive_folder')}
-                            <PathInput bind:value={location.archive_dir} onError={onError} />
+                            <PathInput bind:value={location.archive_dir} role="archive" onError={onError} />
                         </label>
                     {/each}
                 </div>

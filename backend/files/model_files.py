@@ -6,19 +6,21 @@
 
 import logging
 from pathlib import Path
+from backend.filesystem_policy import checked_path, check_component_sets
 from backend.repository.tables import Model, ComponentType
 import json
 from backend.files.metadata import ARCHIVIST_METADATA_SUFFIX
 
 logger = logging.getLogger('archivist.files')
 
-renamed_file = lambda old_path, new_stem: str(old_path.parent / ''.join([new_stem] + old_path.suffixes))
+renamed_file = lambda old_path, new_stem: str(old_path.with_name(''.join([new_stem] + old_path.suffixes)))
 
 def update_model(model: Model, name: str, internal_name: str, tags: list[str],
                  base_model: str):
     """
     Update a model's metadata and possibly rename the model files.
     """
+    check_component_sets(model.component_sets)
     rename_files = model.file_name != name
     current_tags = [tag.tag for tag in model.tags]
     change_metadata = (model.internal_name != internal_name or current_tags != tags
@@ -26,11 +28,14 @@ def update_model(model: Model, name: str, internal_name: str, tags: list[str],
     components = [component for component_set in model.component_sets
                   for component in component_set.components]
     for c in components:
+        if c.component_type != ComponentType.EXAMPLE and rename_files:
+            checked_path(renamed_file(Path(c.file_dir) / c.file_name, name))
+    for c in components:
         if c.component_type == ComponentType.EXAMPLE:
             continue
         file_path = Path(c.file_dir) / c.file_name
         if file_path.name.endswith(ARCHIVIST_METADATA_SUFFIX) and change_metadata:
-            metadata = json.loads(file_path.read_text(encoding='utf-8'))
+            metadata = json.loads(checked_path(file_path).read_text(encoding='utf-8'))
             metadata['tags'] = tags
             metadata['model_name'] = internal_name
             metadata['file_name'] = name
@@ -39,6 +44,6 @@ def update_model(model: Model, name: str, internal_name: str, tags: list[str],
                 metadata['file_path'] = renamed_file(Path(metadata['file_path']), name).replace('\\', '/')
             if 'preview_url' in metadata:
                 metadata['preview_url'] = renamed_file(Path(metadata['preview_url']), name).replace('\\', '/')
-            file_path.write_text(json.dumps(metadata, ensure_ascii=True), encoding='utf-8')
+            checked_path(file_path).write_text(json.dumps(metadata, ensure_ascii=True), encoding='utf-8')
         if rename_files:
-            file_path.rename(renamed_file(file_path, name))
+            checked_path(file_path).rename(checked_path(renamed_file(file_path, name)))

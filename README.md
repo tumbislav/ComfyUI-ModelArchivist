@@ -22,7 +22,7 @@ storage; and groups them into collections that can be moved as a unit.
 # Configuration and operating modes
 The file `config.toml` is typically located in the root folder. It contains only the
 bootstrap settings required before the repository database can be opened: the SQLite
-database path, web server settings, and logging settings. Repository behavior, model
+database path, web server settings, logging settings, and disk-owned filesystem permissions. Repository behavior, model
 types, accepted extensions, and working/archive location mappings are stored in SQLite.
 A new database starts in setup mode and is not scanned until the required mappings have
 been saved.
@@ -96,6 +96,26 @@ The internal listener does not trust forwarded headers, and the proxy strips hos
 credentials before forwarding. Other applications sharing the Comfy origin remain
 in the same browser trust boundary. Endpoint protection does not replace filesystem
 path restrictions.
+
+## Filesystem permissions
+
+The `[filesystem]` section of `config.toml` defines permitted working roots,
+permitted archive roots, and exclusions. It is initialized on first startup and
+can only be changed by editing the file and restarting. API requests cannot grant
+access. See [filesystem setup](docs/INSTALLATION.md#filesystem-permissions) for
+defaults, examples, and migration of existing installations.
+
+Model, workflow, and user-type mappings, mapping previews, scans, metadata edits,
+and transfers all enforce these boundaries. Links, junctions, and files with
+multiple hard links are rejected. Blocked mappings remain visible and make the
+repository read-only. Scans report blocked entries and preserve existing records
+when a scan is incomplete. The native operating-system directory picker has been
+replaced with an in-app directory browser that lists only permitted server folders.
+
+Checks are repeated near file operations. This is not an OS sandbox and does not
+claim protection against a privileged local process racing filesystem changes.
+The database, logs, and shipped web assets use trusted bootstrap locations rather
+than the content working/archive policy.
 
 # Assumptions
 

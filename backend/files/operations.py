@@ -6,6 +6,7 @@
 
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from backend.filesystem_policy import checked_path, check_transfer_tree
 from typing import Callable
 import errno
 import hashlib
@@ -24,6 +25,7 @@ class FileSnapshot:
 
     @classmethod
     def capture(cls, path: Path, include_hash: bool = False) -> 'FileSnapshot':
+        checked_path(path)
         if path.is_dir():
             stat = path.stat()
             return cls(True, 0, stat.st_mtime_ns, None, 'directory')
@@ -98,8 +100,8 @@ def action_transfer_size(action: FileAction) -> int:
     if action.action != 'move' or action.source is None:
         return 0
     try:
-        destination_parent = _existing_parent(Path(action.destination))
-        if Path(action.source).stat().st_dev == destination_parent.stat().st_dev:
+        destination_parent = _existing_parent(checked_path(action.destination))
+        if checked_path(action.source).stat().st_dev == destination_parent.stat().st_dev:
             return 0
     except OSError:
         pass
@@ -108,6 +110,8 @@ def action_transfer_size(action: FileAction) -> int:
 
 def _copy_contents(source: Path, destination: Path,
                    report_bytes: Callable[[int], None] | None = None) -> None:
+    checked_path(source)
+    checked_path(destination)
     with source.open('rb') as source_file, destination.open('wb') as destination_file:
         while chunk := source_file.read(1 << 20):
             destination_file.write(chunk)
@@ -120,8 +124,8 @@ def atomic_copy(action: FileAction,
                 report_bytes: Callable[[int], None] | None = None) -> None:
     if action.source is None or action.source_before is None:
         raise ValueError('copy action requires a source')
-    source = Path(action.source)
-    destination = Path(action.destination)
+    source = checked_path(action.source)
+    destination = checked_path(action.destination)
     if not action.source_before.matches(source):
         raise RuntimeError(f'source changed after validation: {source}')
     if not action.destination_before.matches(destination):
@@ -130,7 +134,7 @@ def atomic_copy(action: FileAction,
     temporary = destination.with_name(f'.{destination.name}.{uuid4().hex}.tmp')
     try:
         _copy_contents(source, temporary, report_bytes)
-        os.replace(temporary, destination)
+        os.replace(checked_path(temporary), checked_path(destination))
     finally:
         if temporary.exists():
             temporary.unlink()
@@ -138,23 +142,26 @@ def atomic_copy(action: FileAction,
 
 def execute_file_action(action: FileAction,
                         report_bytes: Callable[[int], None] | None = None) -> None:
+    checked_path(action.destination)
+    if action.source is not None:
+        check_transfer_tree(Path(action.source), Path(action.destination))
     if action.action == 'copy':
         atomic_copy(action, report_bytes)
         return
     if action.action == 'mkdir':
-        destination = Path(action.destination)
+        destination = checked_path(action.destination)
         if not action.destination_before.matches(destination):
             raise RuntimeError(f'destination changed after validation: {destination}')
         destination.mkdir(parents=True, exist_ok=True)
         return
     if action.action == 'rmdir':
-        destination = Path(action.destination)
+        destination = checked_path(action.destination)
         if not action.destination_before.matches(destination):
             raise RuntimeError(f'destination changed after validation: {destination}')
         destination.rmdir()
         return
     if action.action == 'remove':
-        destination = Path(action.destination)
+        destination = checked_path(action.destination)
         if not action.destination_before.matches(destination):
             raise RuntimeError(f'destination changed after validation: {destination}')
         destination.unlink()
@@ -162,15 +169,15 @@ def execute_file_action(action: FileAction,
     if action.action == 'move':
         if action.source is None or action.source_before is None:
             raise ValueError('move action requires a source')
-        source = Path(action.source)
-        destination = Path(action.destination)
+        source = checked_path(action.source)
+        destination = checked_path(action.destination)
         if not action.source_before.matches(source):
             raise RuntimeError(f'source changed after validation: {source}')
         if not action.destination_before.matches(destination):
             raise RuntimeError(f'destination changed after validation: {destination}')
         destination.parent.mkdir(parents=True, exist_ok=True)
         try:
-            os.replace(source, destination)
+            os.replace(checked_path(source), checked_path(destination))
         except OSError as error:
             if error.errno != errno.EXDEV:
                 raise
@@ -183,8 +190,8 @@ def execute_file_action(action: FileAction,
                         (action.source_before.sha256 is not None and
                          copied.sha256 != action.source_before.sha256)):
                     raise RuntimeError(f'copied file verification failed: {source}')
-                os.replace(temporary, destination)
-                source.unlink()
+                os.replace(checked_path(temporary), checked_path(destination))
+                checked_path(source).unlink()
             finally:
                 if temporary.exists():
                     temporary.unlink()

@@ -240,3 +240,23 @@ larger features before implementing them.
 See the [Model Archivist roadmap](ROADMAP.md) for release work, planned cleanup,
 and ideas being considered for later versions. New proposals are welcome in
 [GitHub Discussions](https://github.com/tumbislav/ComfyUI-ModelArchivist/discussions).
+
+## Filesystem access restrictions
+
+Location fields accept absolute paths on the server. Settings shows the permitted
+working/archive roots, excluded subtrees, and any blocked configured mappings.
+Permissions are edited in `config.toml` on disk and take effect after a restart;
+the browser cannot grant itself access. See the
+[filesystem setup guide](INSTALLATION.md#filesystem-permissions) for defaults and examples.
+
+Links and junctions are blocked. Files with multiple hard links are also blocked;
+use independent copies if you want Archivist to manage them. Network shares and
+mounted volumes can be allowed explicitly. Existing mappings are retained when
+blocked, and the repository becomes read-only until the settings are corrected.
+The browse button beside editable location fields opens the server directory picker.
+Expand permitted roots in the left tree or open subfolders in the right panel.
+**Use this folder** fills the field; save Settings to apply the change. Cancel or
+Escape leaves the field unchanged. Arrow keys navigate the tree and Enter opens a
+folder. Only immediate children load, and Up never goes beyond a permitted root.
+Blocked entries are hidden with an explanatory notice. You can still type a path;
+the picker selects existing directories and does not create or modify them.

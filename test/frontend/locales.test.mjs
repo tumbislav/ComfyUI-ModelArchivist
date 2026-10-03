@@ -140,6 +140,45 @@ test('error display resolves codes, falls back to English, and retains unknown d
     assert.equal(locale.error('location_mismatch'), catalogs.en.errors.location_mismatch);
 });
 
+test('initial language is English unless the user previously selected another locale', async () => {
+    const require = createRequire(new URL('../../frontend/package.json', import.meta.url));
+    const ts = require('typescript');
+    const source = (await readFile(path.join(root, 'frontend/src/lib/locale.svelte.ts'), 'utf8'))
+        .replace('import.meta.env.DEV', 'false');
+    const catalogs = Object.fromEntries(await Promise.all(
+        ['config', 'en', 'es', 'fr', 'sl'].map(async name => [name, await readJson(`${name}.json`)])));
+    const storage = new Map();
+    const documentElement = {
+        lang: '', dir: '', style: { setProperty() {} }
+    };
+    const context = {
+        exports: {}, $state: value => value,
+        navigator: { languages: ['fr-FR', 'fr'] },
+        localStorage: {
+            getItem: key => storage.get(key) ?? null,
+            setItem: (key, value) => storage.set(key, value)
+        },
+        document: { documentElement },
+        require: name => ({ default: catalogs[name.split('/').at(-1).replace('.json', '')] })
+    };
+    runInNewContext(ts.transpileModule(source, {
+        compilerOptions: { module: ts.ModuleKind.CommonJS }
+    }).outputText, context);
+    const { locale } = context.exports;
+
+    locale.initialize();
+    assert.equal(locale.language, 'en');
+    assert.equal(documentElement.lang, 'en');
+
+    storage.set('archivist.language', 'sl');
+    locale.initialize();
+    assert.equal(locale.language, 'sl');
+
+    storage.set('archivist.language', 'unsupported');
+    locale.initialize();
+    assert.equal(locale.language, 'en');
+});
+
 test('completed translations contain text and preserve caption markup', async () => {
     const english = await readJson('en.json');
 

@@ -43,14 +43,16 @@ export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {},
         const body = await response.arrayBuffer();
 
         if (response.status === 401 || response.status === 403) {
+            let filesystemDenied = false;
             let message = 'Access is missing or expired. Reopen Archivist from its launcher.';
             try {
                 const issue = JSON.parse(new TextDecoder().decode(body));
+                filesystemDenied = issue?.detail?.code?.startsWith('filesystem_') === true;
                 if (issue?.detail?.message) message = locale.error(issue.detail);
             } catch {
                 // Host authentication failures can have a non-JSON body.
             }
-            accessError.set(message);
+            if (!filesystemDenied) accessError.set(message);
         } else if (response.ok) {
             accessError.set(null);
         }

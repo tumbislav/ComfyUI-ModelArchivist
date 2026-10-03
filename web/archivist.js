@@ -8,6 +8,8 @@ import { app } from '../../scripts/app.js';
 import { api } from '../../scripts/api.js';
 
 const BUTTON_TOOLTIP = 'Launch Model Archivist';
+const ICON_URL = new URL('./assets/archivist-icon.svg', import.meta.url).href;
+const ICON_CLASS = 'model-archivist-launch-icon';
 
 async function openArchivist() {
     const url = new URL('/model-archivist/', window.location.origin);
@@ -20,13 +22,23 @@ app.registerExtension({
     name: 'ModelArchivist.Launcher',
     setup() {
         const style = document.createElement('style');
+        style.id = 'model-archivist-launcher-styles';
         style.textContent = `button[aria-label="${BUTTON_TOOLTIP}"] {
             border-radius: 4px !important;
+        }
+        .${ICON_CLASS} {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            background: url("${ICON_URL}") center / contain no-repeat;
+        }
+        .${ICON_CLASS}::before {
+            content: none !important;
         }`;
         document.head.appendChild(style);
     },
     actionBarButtons: [{
-        icon: 'pi pi-box',
+        icon: ICON_CLASS,
         tooltip: BUTTON_TOOLTIP,
         onClick: openArchivist
     }]

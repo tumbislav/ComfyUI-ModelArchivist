@@ -33,6 +33,8 @@ def model_repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(repository, '_logger', logging.getLogger('test.model.operations'))
     monkeypatch.setattr(repository, '_config', SimpleNamespace(
         read_only=False,
+        all_working={working},
+        all_archive={archive},
         model_types={},
         model_folders={'checkpoints': {(working, archive)}},
     ))
@@ -80,6 +82,25 @@ def add_working_model(engine, working: Path, where: str = 'w') -> None:
     with Session(engine) as session:
         session.add(model)
         session.commit()
+
+
+@pytest.mark.parametrize('operation', ['move', 'synchronize'])
+def test_transfer_denied_before_any_component_changes(model_repository, monkeypatch, operation):
+    from backend import filesystem_policy as fs
+
+    engine, working, archive = model_repository
+    add_working_model(engine, working)
+    blocked = archive / 'nested' / 'model.archivist.json'
+    monkeypatch.setattr(fs, '_policy', fs.FilesystemPolicy(
+        (working.parent,), (archive.parent,), (blocked,)))
+    with pytest.raises(fs.FilesystemPolicyError) as error:
+        if operation == 'move':
+            repository.move_model(MODEL_ID, DeploymentStatus.ARCHIVE, simulate=False)
+        else:
+            repository.synchronize_model(MODEL_ID, simulate=False)
+    assert error.value.code == 'filesystem_excluded'
+    assert (working / 'nested' / 'model.safetensors').read_bytes() == b'weights'
+    assert not (archive / 'nested').exists()
 
 
 def test_model_representation_includes_actual_and_prospective_paths(model_repository):

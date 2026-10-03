@@ -229,6 +229,27 @@ def test_standalone_bulk_mapping_discovers_only_model_directories(tmp_path, monk
     }]
 
 
+def test_standalone_bulk_mapping_stops_after_finding_requested_extensions(tmp_path, monkeypatch):
+    config = repository_config(tmp_path / 'database.db', tmp_path / 'database.log')
+    monkeypatch.setattr(repository, 'get_config', lambda: config)
+    repository.start_repo()
+    working = tmp_path / 'models'
+    model_dir = working / 'checkpoints'
+    model_dir.mkdir(parents=True)
+    model_file = model_dir / 'model.safetensors'
+    model_file.write_bytes(b'model')
+
+    def entries(*_args, **_kwargs):
+        yield model_file
+        pytest.fail('mapping discovery continued after finding every requested extension')
+
+    monkeypatch.setattr(repository, 'safe_tree', entries)
+    result = repository.propose_model_mappings(
+        str(working), str(tmp_path / 'archive'), ['.safetensors'])
+
+    assert result[0]['extensions'] == ['.safetensors']
+
+
 def test_model_extension_allowlist_persists(tmp_path, monkeypatch):
     config = repository_config(tmp_path / 'database.db', tmp_path / 'database.log')
     monkeypatch.setattr(repository, 'get_config', lambda: config)

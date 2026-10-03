@@ -27,9 +27,9 @@ accepted constraints and deliberate tradeoffs.
 
 ## Operating modes and configuration
 
-`config.toml` is bootstrap configuration only: SQLite path, logging, and web-server
-settings. Repository options, model definitions, and filesystem mappings belong in
-SQLite.
+`config.toml` contains bootstrap configuration and disk-owned filesystem permissions:
+SQLite path, logging, web-server settings, permitted roots, and exclusions. Repository
+options, model definitions, and working/archive mappings belong in SQLite.
 
 - Standalone mode does not use ComfyUI's `extra_model_paths` mechanism. It permits one
   working/archive pair per model type and one workflow pair.

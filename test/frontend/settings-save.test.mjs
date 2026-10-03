@@ -29,6 +29,7 @@ const code = ts.transpileModule(script.replace(/import [\s\S]*?;\s*/g, '') + `
             editingLocked = false;
         },
         runSave, modelDirty, userDirty,
+        setWorkflowsDirty(value) { workflowsDirty = value; },
         get settings() { return settings; },
         get users() { return userTypes; },
         get error() { return error; }
@@ -92,6 +93,36 @@ test('whole-tab save scans only changed models, while clean Refresh skips saving
     assert.equal(await actions.runSave('models', true, actions.settings.model_types[1]), true);
     assert.deepEqual(plain(scans[1]), [false, 'models', ['b']]);
     assert.equal(saves, 1);
+});
+
+test('clean whole-model Refresh scans every configured model type', async () => {
+    const saved = [model('a'), model('b')];
+    const { actions, scans } = harness({
+        saveModelSettings: () => assert.fail('clean Refresh must not save')
+    });
+    actions.seed(config(structuredClone(saved)), saved);
+
+    assert.equal(await actions.runSave('models', true), true);
+    assert.deepEqual(plain(scans), [[false, 'models', null]]);
+});
+
+test('workflow Save and scan persists a draft before starting the workflow scan', async () => {
+    const original = config([]);
+    const { actions, scans } = harness({
+        saveWorkflowSettings: async locations => ({
+            ok: true,
+            data: {...config([]), setup_complete: true,
+                workflow_locations: structuredClone(locations)}
+        })
+    });
+    actions.seed(original, []);
+    actions.settings.workflow_locations[0].working_dir = 'changed workflow';
+    actions.setWorkflowsDirty(true);
+
+    assert.equal(await actions.runSave('workflows', true), true);
+    assert.equal(actions.settings.workflow_locations[0].working_dir, 'changed workflow');
+    assert.equal(actions.settings.setup_complete, true);
+    assert.deepEqual(plain(scans), [[false, 'workflows', null]]);
 });
 
 test('individual user-type save preserves unrelated drafts and uses its saved ID', async () => {
