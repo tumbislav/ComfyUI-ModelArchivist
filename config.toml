@@ -24,6 +24,6 @@ file = "{$app}/model-archivist.log"
 
 # Filesystem permissions are edited here, never through the API.
 [filesystem]
-working_roots = ["C:\\Users\\marko"]
-archive_roots = ["E:\\AIArchive"]
-exclusions = ["E:\\ModelArchivist"]
+working_roots = [""]
+archive_roots = [""]
+exclusions = [""]
