@@ -13,6 +13,14 @@ from typing import Any, Protocol
 
 _logger = logging.getLogger('archivist.root')
 _COMFY_MODEL_TYPE_ALIASES = {'unet': 'diffusion_models', 'clip': 'text_encoders'}
+_COMFY_NON_MODEL_TYPES = {'configs', 'custom_nodes', 'datasets'}
+
+
+def _contains(root: Path, path: Path) -> bool:
+    try:
+        return os.path.commonpath((os.path.normcase(root), os.path.normcase(path))) == os.path.normcase(root)
+    except ValueError:
+        return False
 
 
 @dataclass(frozen=True)
@@ -28,14 +36,14 @@ class EnvironmentProvider(Protocol):
     def model_locations(self) -> list[DiscoveredModelLocation]: ...
     def workflow_locations(self) -> list[Path]: ...
     def runtime_data_directory(self) -> Path | None: ...
-    def default_working_root(self) -> Path: ...
+    def default_working_roots(self) -> list[Path]: ...
 
 
 class StandaloneEnvironmentProvider:
     mode = 'standalone'
 
-    def default_working_root(self) -> Path:
-        return Path.home().absolute()
+    def default_working_roots(self) -> list[Path]:
+        return [Path.home().absolute()]
 
     def model_locations(self) -> list[DiscoveredModelLocation]:
         return []
@@ -54,14 +62,25 @@ class ComfyEnvironmentProvider:
     def __init__(self, folder_paths: Any):
         self.folder_paths = folder_paths
 
-    def default_working_root(self) -> Path:
-        return Path(self.folder_paths.models_dir).absolute()
+    def default_working_roots(self) -> list[Path]:
+        roots = [Path(self.folder_paths.models_dir).absolute()]
+        for location in self.model_locations():
+            path = location.working_dir
+            if any(_contains(root, path) for root in roots):
+                continue
+            roots = [root for root in roots if not _contains(path, root)]
+            roots.append(path)
+        return roots
 
     def model_locations(self) -> list[DiscoveredModelLocation]:
         discovered: dict[str, DiscoveredModelLocation] = {}
         registry = getattr(self.folder_paths, 'folder_names_and_paths', {})
+        get_output_directory = getattr(self.folder_paths, 'get_output_directory', None)
+        output_root = (Path(get_output_directory()).absolute()
+                       if callable(get_output_directory) else None)
         for model_type, definition in registry.items():
-            if not isinstance(definition, tuple) or len(definition) < 2:
+            if (str(model_type) in _COMFY_NON_MODEL_TYPES
+                    or not isinstance(definition, tuple) or len(definition) < 2):
                 continue
             paths, extensions = definition[0], definition[1]
             if isinstance(paths, (str, Path)):
@@ -76,6 +95,8 @@ class ComfyEnvironmentProvider:
             for path in paths:
                 # Retain links lexically so policy validation can reject them.
                 working_dir = Path(path).absolute()
+                if output_root is not None and _contains(output_root, working_dir):
+                    continue
                 path_key = os.path.normcase(str(working_dir))
                 existing = discovered.get(path_key)
                 if existing is None:

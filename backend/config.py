@@ -308,7 +308,8 @@ def load_config(cfg_file: Path | None = None, mode: str = 'standalone') -> Confi
             from backend.environment import get_environment_provider
             home = str(Path.home().absolute())
             working = ([home] if mode == 'standalone' else
-                       [str(get_environment_provider().default_working_root())])
+                       [str(path) for path in
+                        get_environment_provider().default_working_roots()])
             values['filesystem'] = {'working_roots': working, 'archive_roots': [home], 'exclusions': []}
             policy = FilesystemPolicy.from_dict(values['filesystem'])
             addition = '\n\n# Filesystem permissions are edited here, never through the API.\n[filesystem]\n'

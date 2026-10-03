@@ -103,8 +103,9 @@ configuration file it loaded, preserving the other settings and comments:
 
 - Standalone: both working and archive roots default to the operating-system
   user's home directory (`%USERPROFILE%` on Windows, `$HOME` on Unix).
-- ComfyUI: working roots default to ComfyUI's `models` directory; archive roots
-  default to that operating-system user's home directory.
+- ComfyUI: working roots default to ComfyUI's `models` directory and registered
+  extra model paths; archive roots default to that operating-system user's home
+  directory. Model-save paths injected below ComfyUI's output directory are excluded.
 - Exclusions initially contain no paths.
 
 Initialization happens only when the entire section is absent. Explicit empty root

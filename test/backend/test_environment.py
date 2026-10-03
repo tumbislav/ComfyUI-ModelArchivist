@@ -10,15 +10,23 @@ from backend.environment import ComfyEnvironmentProvider, StandaloneEnvironmentP
 
 
 class FolderPathsStub:
+    models_dir = 'models'
     folder_names_and_paths = {
-        'checkpoints': (['models/checkpoints', Path('extra/checkpoints')],
+        'checkpoints': (['models/checkpoints', Path('extra/checkpoints'),
+                         'output/checkpoints'],
                         {'.safetensors', 'CKPT'}),
+        'configs': (['models/configs'], {'.yaml'}),
+        'custom_nodes': (['custom_nodes'], set()),
         'invalid': ('ignored',),
     }
 
     @staticmethod
     def get_user_directory():
         return 'comfy-user'
+
+    @staticmethod
+    def get_output_directory():
+        return 'output'
 
 
 class DuplicateFolderPathsStub:
@@ -46,6 +54,8 @@ def test_comfy_environment_reads_registered_model_and_workflow_locations():
     assert len(models) == 2
     assert {item.model_type for item in models} == {'checkpoints'}
     assert all(item.extensions == ('.ckpt', '.safetensors') for item in models)
+    assert provider.default_working_roots() == [
+        Path('models').absolute(), Path('extra/checkpoints').absolute()]
     assert provider.workflow_locations() == [
         (Path('comfy-user') / 'workflows').absolute()]
     assert provider.runtime_data_directory() == (
