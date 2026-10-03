@@ -70,10 +70,9 @@ try:
             f'http://127.0.0.1:{internal_port}', policy.secret, authorize_comfy_request)
         routes = PromptServer.instance.routes
         for method, path in api_routes():
-            if method == 'GET':
-                routes.get(path, allow_head=False)(proxy)
-            else:
-                routes.route(method, path)(proxy)
+            # ComfyUI copies RouteDef kwargs to the decorator's handler call.
+            # Keep registrations keyword-free; the proxy rejects implicit HEAD.
+            routes.route(method, path)(proxy)
         for path in static_routes(config.static_html):
             routes.get(path)(proxy)
 

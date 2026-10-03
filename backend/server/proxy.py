@@ -8,7 +8,7 @@ from collections.abc import Awaitable, Callable
 
 from aiohttp import ClientError, ClientSession, web
 
-from .access import (API_PREFIX, INTERNAL_HEADER, SESSION_HEADER, AccessDenied,
+from .access import (API_PREFIX, APP_PREFIX, INTERNAL_HEADER, SESSION_HEADER, AccessDenied,
                      check_browser_request)
 
 
@@ -33,8 +33,16 @@ def create_proxy_handler(internal_url: str, secret: str,
                          authorize: Callable[[web.Request], Awaitable[None]]):
     """The host adapter runs on the original request, before credentials are stripped."""
     async def proxy(request: web.Request) -> web.Response:
+        # ComfyUI also creates /api-prefixed aliases. Only the canonical public
+        # paths are supported, so aliases must not bypass path-based access checks.
+        if request.path != APP_PREFIX and not request.path.startswith(f'{APP_PREFIX}/'):
+            raise web.HTTPNotFound()
+        is_api = request.path.startswith(f'{API_PREFIX}/')
+        if is_api and request.method == 'HEAD':
+            # aiohttp adds HEAD for GET routes. Reject it here because ComfyUI's
+            # route-copying implementation cannot accept allow_head=False.
+            raise web.HTTPMethodNotAllowed('HEAD', ['GET'])
         try:
-            is_api = request.path.startswith(f'{API_PREFIX}/')
             if is_api:
                 check_browser_request(request.headers, request.scheme, request.host)
             await authorize(request)
