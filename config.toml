@@ -21,9 +21,3 @@ file = "{$app}/model-archivist.log"
 # Edit those absolute working/archive roots and exclusions on disk, then restart.
 # See docs/INSTALLATION.md#filesystem-permissions.
 
-
-# Filesystem permissions are edited here, never through the API.
-[filesystem]
-working_roots = [""]
-archive_roots = [""]
-exclusions = [""]

@@ -10,12 +10,35 @@ import { api } from '../../scripts/api.js';
 const BUTTON_TOOLTIP = 'Launch Model Archivist';
 const ICON_URL = new URL('./assets/archivist-icon.svg', import.meta.url).href;
 const ICON_CLASS = 'model-archivist-launch-icon';
+const MAX_ICON_ATTACH_ATTEMPTS = 120;
 
 async function openArchivist() {
     const url = new URL('/model-archivist/', window.location.origin);
     // This selects the host profile; it is not an authentication credential.
     url.hash = new URLSearchParams({ 'comfy-user': api.user || 'default' }).toString();
     window.open(url, '_blank', 'noopener');
+}
+
+function attachArchivistIcon(attempt = 0) {
+    const icons = document.querySelectorAll(
+        `button[aria-label="${BUTTON_TOOLTIP}"] .${ICON_CLASS}`);
+    if (icons.length === 0) {
+        if (attempt < MAX_ICON_ATTACH_ATTEMPTS) {
+            requestAnimationFrame(() => attachArchivistIcon(attempt + 1));
+        }
+        return;
+    }
+
+    for (const icon of icons) {
+        const image = document.createElement('img');
+        image.src = ICON_URL;
+        image.alt = '';
+        image.width = 20;
+        image.height = 20;
+        image.style.display = 'block';
+        image.style.objectFit = 'contain';
+        icon.replaceChildren(image);
+    }
 }
 
 app.registerExtension({
@@ -36,6 +59,7 @@ app.registerExtension({
             content: none !important;
         }`;
         document.head.appendChild(style);
+        requestAnimationFrame(() => attachArchivistIcon());
     },
     actionBarButtons: [{
         icon: ICON_CLASS,
