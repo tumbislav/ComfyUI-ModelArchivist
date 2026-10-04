@@ -20,4 +20,3 @@ file = "{$app}/model-archivist.log"
 # On first startup, Archivist appends [filesystem] permissions for this machine.
 # Edit those absolute working/archive roots and exclusions on disk, then restart.
 # See docs/INSTALLATION.md#filesystem-permissions.
-
