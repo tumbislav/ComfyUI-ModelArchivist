@@ -6,16 +6,22 @@ purpose: User guide and documentation entry point
 
 # Model Archivist
 
-You have dozens of checkpoints, hundreds of LoRAs, a pile of workflows, and
-perhaps training data, wildcards, pose references, prompt collections, samples,
-and works in progress. Some of them belong on fast storage where ComfyUI can use
-them. Others can wait in an archive until you need them again.
+You have dozens of checkpoints, hundreds of LoRAs, a pile of workflows, training data, wildcards, pose 
+references, prompt collections, samples, works in progress. Some of that stuff belongs on fast storage so
+ComfyUI, Kohya, Musubi and whatever other tool you are using can get at it quickly. The rest
+belongs in an archive, from which it can be quickly moved to its working location. Moving all those files
+to where they are needed, not forgetting anything and keeping things tidy remains a pile of work that
+could better be user actually doing something creative.
 
-Model Archivist helps you keep track of all of it.
+Hence, Model Archivist. It won't change you into an organizing genius. The author can attest to that from his
+own experience. But it will help.
 
-Originally intended as an extension to LoraManager, Model Archivist grew into a
-separate application because it solves a different problem: organizing complete
-working and archival sets rather than managing model metadata alone.
+Originally, this was meant to be a fork of LoraManager (which you should be using, it's great), but it quickly 
+became clear that we're solving a very different problem, so Archivist became an independent application.
+
+> [!note]
+> About using AI to develop this: yes, I let Codex write a lot of the code. I even let it write the the first draft of
+> this help file. The em-dashes, however, are all mine, because, dammit,  proper punctuation matters!
 
 ## What it does
 
@@ -30,24 +36,38 @@ You can then:
 - move an object between working and archive storage without losing track of it;
 - keep working and archival copies synchronized;
 - add names, descriptions, base-model information, and tags;
-- organize related items into collections; and
-- move or synchronize an entire collection at once.
+- most importantly, **organize related items into collections** and handle entire collections with one click.
 
-A collection can represent a complete working set for a project. For example, it
-can contain a checkpoint, several LoRAs, workflows, wildcards, and reference
-images. Bringing the collection into the working set makes all of those parts
-available together; archiving it moves them out together when the project is
-finished.
+A collection can represent a complete working set for a project. Depending on what you are doing, it
+could contain a checkpoint, several LoRAs, two or three workflows, a prompt collection, a dozen controlnet 
+references, or it could be a training dataset with configuration scripts and intermediate builds. Anything, really.
 
-Model Archivist does not store your large files in its database. It catalogs
-them and performs requested file operations between the folders you configure.
+Bringing the collection into the working set makes all of those parts available together; archiving it moves them 
+out together to give you room to work with something else.
+
+Important to understand: Model Archivist does not store your files in its database. It catalogs
+them and moves them (very carefully), but it doesn't prevent you from moving files on your own. This
+means that its catalog can get out of sync. Depending on how you set things up, this can happen every time you
+run a Comfy workflow. This isn't a problem, re-scanning your folders is quick and painless. More on that later.
 
 ## How to set it up
 
-See [Installation and setup](INSTALLATION.md) for ComfyUI and standalone
-installation instructions, the first-run folder setup, and update notes.
+Model Archivist can be set up in one of two ways: as a standalone application or as a ComfyUI 
+extension. See [Installation and setup](INSTALLATION.md) for instructions how to do one or the other.
+
+On first run, Archivist doesn't yet know where you want to put your archive. If you're running it
+from ComfyUI, it knows where Comfy expects its models and workflows to be, but if it's standalone, it
+doesn't even know that. So you're going to see a friendly splash screen that will give you a starting
+hint on how to set things ups. This won't open again, unless you do something drastic like deleting the
+database.
 
 ## How to use it
+
+### Meet the nav bar
+
+The central part contains the tabs: **Models**, **Workflows**, your user-defined types, and **Collections**. This 
+is where you select what you're currently working on. User-defined types is actually a tab of tabs—you can
+pick any of the types you defined, or define another one.
 
 ### Learn the main screen
 
@@ -191,37 +211,23 @@ If any configured model or workflow folder is inaccessible, Model Archivist
 switches the repository to read-only mode. Restore access to the folder and scan
 again before attempting file operations.
 
-## About the librarians
+## About and the librarians
 
-There is a tiny image at the left of the menu bar. Click it and meet one of the
-librarians. In the About dialog, use the Left and Right arrow keys or click the
-outer edges of the image to browse. Click the center of the image to open the
-full-size illustration in a new browser tab.
-
-_The full story of the librarians will be added here._
+The tiny image at the left of the menu bar opens the About box and lets you meet [the librarians](LIBRARIANS.md).
 
 ## How you can help
 
-### Improve a translation
+### Add or improve a translation
 
-The non-English text includes machine translations. Some will need corrections.
-You can review an existing language or add a new one by following the
-[locale catalog guide](../frontend/src/lib/locales/README.md).
-
-If you are not comfortable preparing a pull request, describe the correction in
-[GitHub Discussions](https://github.com/tumbislav/ComfyUI-ModelArchivist/discussions).
+Read more about it [here](LOCALIZATION.md).
 
 ### Introduce a new librarian
 
-New librarians need an image and a short caption or story. Start a
-[Discussion](https://github.com/tumbislav/ComfyUI-ModelArchivist/discussions) with
-the proposed material and its source or licensing information.
+Introduce a new [librarian](LIBRARIANS.md) to us.
 
 ### Suggest an idea or report a problem
 
-Use [GitHub Discussions](https://github.com/tumbislav/ComfyUI-ModelArchivist/discussions)
-for ideas, questions, and early proposals. Use
-[GitHub Issues](https://github.com/tumbislav/ComfyUI-ModelArchivist/issues) for a
+Use [GitHub Discussions](https://github.com/tumbislav/ComfyUI-ModelArchivist/discussions) for ideas, questions, and early proposals. Use [GitHub Issues](https://github.com/tumbislav/ComfyUI-ModelArchivist/issues) for a
 specific reproducible problem.
 
 When reporting a problem, include your operating system, whether you use the
@@ -237,9 +243,8 @@ larger features before implementing them.
 
 ## Roadmap
 
-See the [Model Archivist roadmap](ROADMAP.md) for release work, planned cleanup,
-and ideas being considered for later versions. New proposals are welcome in
-[GitHub Discussions](https://github.com/tumbislav/ComfyUI-ModelArchivist/discussions).
+The current  [development roadmap](ROADMAP.md) is just a collection of ideas and cleanup work that 
+has already been identified. New proposals are welcome in [GitHub Discussions](https://github.com/tumbislav/ComfyUI-ModelArchivist/discussions).
 
 ## Filesystem access restrictions
 
@@ -248,6 +253,12 @@ working/archive roots, excluded subtrees, and any blocked configured mappings.
 Permissions are edited in `config.toml` on disk and take effect after a restart;
 the browser cannot grant itself access. See the
 [filesystem setup guide](INSTALLATION.md#filesystem-permissions) for defaults and examples.
+
+In ComfyUI mode, initial working permissions include every directory registered
+in ComfyUI's live folder registry. Other custom nodes can register their own
+directories there, so their resource folders may also appear in the generated
+filesystem configuration. This is expected; review `config.toml` after the
+first startup if you want a narrower boundary.
 
 Links and junctions are blocked. Files with multiple hard links are also blocked;
 use independent copies if you want Archivist to manage them. Network shares and

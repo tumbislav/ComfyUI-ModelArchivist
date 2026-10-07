@@ -15,6 +15,7 @@ import tagIcon from '$icons/nav/tag24.png';
 import settingsIcon from '$icons/nav/settings24.png';
 import lightDarkModeIcon from '$icons/nav/light-dark-mode24.png';
 import AboutModal from '$components/top/AboutModal.svelte';
+import FirstRunModal from '$components/top/FirstRunModal.svelte';
 import downIcon from '$icons/actions/down16.png';
 import refreshIcon from '$icons/actions/refresh24.png';
 import RepositorySummary from '$components/top/RepositorySummary.svelte';
@@ -32,12 +33,14 @@ let {
     current_tab = $bindable(),
     navigationLocked = false,
     serverReady,
+    firstRun = false,
     remapBlocked = false,
     onTagsRemapped
 }: {
     current_tab: ActiveTab;
     navigationLocked: boolean;
     serverReady: boolean;
+    firstRun?: boolean;
     remapBlocked?: boolean;
     onTagsRemapped: () => void;
 } = $props();
@@ -64,6 +67,8 @@ function closeAbout(): void {
 let themeLoaded = $state(false);
 let typeMenuOpen = $state(false);
 let settingsOpen = $state(false);
+let firstRunOpen = $state(false);
+let firstRunShown = $state(false);
 let remapOpen = $state(false);
 let repositoryOpen = $state(false);
 let scanSubmitting = $state(false);
@@ -155,6 +160,11 @@ function openSettings(tab: SettingsTab): void {
     settingsOpen = true;
 }
 
+function beginFirstRunSetup(): void {
+    firstRunOpen = false;
+    openSettings('models');
+}
+
 function selectUserType(type: typeof userTypeState.active): void {
     if (type === null) return;
     userTypeState.select(type);
@@ -167,6 +177,13 @@ $effect(() => {
 
     document.documentElement.dataset.theme = theme;
     saveTheme(theme);
+});
+
+$effect(() => {
+    if (firstRun && serverReady && !firstRunShown) {
+        firstRunShown = true;
+        firstRunOpen = true;
+    }
 });
 </script>
 
@@ -296,6 +313,10 @@ $effect(() => {
 
 {#if settingsOpen}
     <SettingsModal initialTab={settingsInitialTab} onClose={() => settingsOpen = false} />
+{/if}
+
+{#if firstRunOpen}
+    <FirstRunModal onContinue={beginFirstRunSetup} />
 {/if}
 
 {#if remapOpen}

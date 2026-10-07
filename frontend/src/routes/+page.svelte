@@ -22,7 +22,7 @@ import { statusMonitor } from '$lib/status.svelte';
 import { apiFetch, getUrl, parseResponse, serverUnresponsive } from '$lib/api';
 import { type Operation } from '$lib/models';
 
-let current_tab = $state<ActiveTab>( null ); let server_ready = $state( false ); let content_modal_open = $state(false); let remapBlocked = $state(false); let tagRevision = $state(0); let startupError = $state<string | null>(null);
+let current_tab = $state<ActiveTab>( null ); let server_ready = $state( false ); let firstRun = $state(false); let content_modal_open = $state(false); let remapBlocked = $state(false); let tagRevision = $state(0); let startupError = $state<string | null>(null);
 
 $effect(() => {
     if (server_ready && current_tab !== null) {
@@ -39,6 +39,8 @@ onMount(() => {
             if (cancelled) return;
 
             if (status.ok && status.data.started) {
+                if (status.data.first_run) firstRun = true;
+
                 if (!startupChecked) {
                     startupChecked = true;
 
@@ -106,7 +108,7 @@ onMount(() => {
 
 <heading class="page-header">
     <ArchivistHeader bind:current_tab navigationLocked={content_modal_open} serverReady={server_ready}
-        {remapBlocked} onTagsRemapped={() => tagRevision += 1} />
+        {firstRun} {remapBlocked} onTagsRemapped={() => tagRevision += 1} />
 </heading>
 
 <div class="page-contents">

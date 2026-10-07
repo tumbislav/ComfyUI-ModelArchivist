@@ -68,7 +68,7 @@
 
         <div class="settings-form model-settings-form">
             <label class="dialog-label">
-                Working root
+                {locale.t('ui.model_settings.working_root')}
                 {#if settings.mode === 'comfyui'}
                     <select class="text-input" bind:value={mappingWorkingRoot}>
                         {#each modelMappingRoots as root}

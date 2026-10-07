@@ -12,7 +12,6 @@ the application is tested in real installations.
 ## Post-release work
 Some issues were identified in testing but will be fixed after initial release.
 - Button layout and table headings must be fixed for French and Spanish translations.
-- The label "Working root" in the settings menu is not translated.
 - Do more Linux and macOS testing
 - Test with more browsers
 

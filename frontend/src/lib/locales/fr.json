@@ -82,6 +82,11 @@
             "startup_scan_failed": "Échec de l’analyse au démarrage",
             "cannot_contact_server": "Impossible de contacter le serveur"
         },
+        "first_run": {
+            "welcome": "Bienvenue dans Model Archivist",
+            "setup_explanation": "Avant de continuer, configurez les emplacements de travail et d’archive que Model Archivist doit gérer.",
+            "open_settings": "Ouvrir les paramètres"
+        },
         "workflow_table": {
             "does_the_workflow_have_tags": "Le flux de travail a-t-il des étiquettes ?",
             "is_the_workflow_in_collection_s": "Le flux de travail appartient-il à des collections ?",
@@ -421,6 +426,7 @@
             "undo": "annuler les modifications",
             "save": "enregistrer",
             "map_model_directories": "Associer les dossiers des modèles",
+            "working_root": "Racine de travail",
             "archive_root": "Racine de l’archive",
             "model_extensions": "Extensions des modèles",
             "add_mappings": "Ajouter des correspondances",

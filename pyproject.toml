@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "comfyui-model-archivist"
-version = "1.0.0"
+version = "1.0.1"
 requires-python = ">= 3.12"
 description = "Organize, archive, and synchronize models, workflows, and user-defined files in ComfyUI or as a standalone application."
 readme = "README.md"
