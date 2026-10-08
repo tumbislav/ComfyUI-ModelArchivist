@@ -106,6 +106,9 @@ configuration file it loaded, preserving the other settings and comments:
 - ComfyUI: working roots default to ComfyUI's `models` directory and registered
   extra model paths; archive roots default to that operating-system user's home
   directory. Model-save paths injected below ComfyUI's output directory are excluded.
+  Two or more distinct extra model folders with the same immediate parent grant
+  that parent instead. This consolidation runs once and never climbs further up
+  the directory tree; an extra folder without a sibling keeps its own root.
 - Exclusions initially contain no paths.
 
 Initialization happens only when the entire section is absent. Explicit empty root

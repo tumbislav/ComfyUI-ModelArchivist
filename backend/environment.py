@@ -64,8 +64,17 @@ class ComfyEnvironmentProvider:
 
     def default_working_roots(self) -> list[Path]:
         roots = [Path(self.folder_paths.models_dir).absolute()]
-        for location in self.model_locations():
-            path = location.working_dir
+        extra_paths = [location.working_dir for location in self.model_locations()
+                       if not _contains(roots[0], location.working_dir)]
+        siblings: dict[str, set[str]] = {}
+        for path in extra_paths:
+            parent_key = os.path.normcase(str(path.parent))
+            siblings.setdefault(parent_key, set()).add(os.path.normcase(str(path)))
+
+        # Group only the original locations; never promote consolidated parents again.
+        for path in extra_paths:
+            if len(siblings[os.path.normcase(str(path.parent))]) >= 2:
+                path = path.parent
             if any(_contains(root, path) for root in roots):
                 continue
             roots = [root for root in roots if not _contains(path, root)]

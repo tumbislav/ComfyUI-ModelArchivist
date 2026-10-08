@@ -5,6 +5,9 @@
 # ---------------------------------------------------------------------------
 
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 from backend.environment import ComfyEnvironmentProvider, StandaloneEnvironmentProvider
 
@@ -73,3 +76,26 @@ def test_comfy_environment_collapses_duplicate_model_locations(caplog):
     assert by_type['diffusion_models'].extensions == ('.gguf', '.safetensors')
     assert by_type['checkpoints'].working_dir == Path('models/shared').resolve(strict=False)
     assert 'Ignoring duplicate ComfyUI model location' in caplog.text
+
+
+@pytest.mark.parametrize(('paths', 'expected'), [
+    (['extra/checkpoints', 'extra/loras'], ['extra']),
+    (['extra/checkpoints', 'other/loras'], ['extra/checkpoints', 'other/loras']),
+    (['extra/checkpoints', 'extra/checkpoints'], ['extra/checkpoints']),
+    (['extra/one/checkpoints', 'extra/one/loras',
+      'extra/two/checkpoints', 'extra/two/loras'], ['extra/one', 'extra/two']),
+    (['extra/one/checkpoints', 'extra/two/loras'],
+     ['extra/one/checkpoints', 'extra/two/loras']),
+    (['models/checkpoints', 'models/loras', 'extra/checkpoints'], ['extra/checkpoints']),
+    (['extra/checkpoints', 'extra/loras', 'extra/checkpoints/nested'], ['extra']),
+])
+def test_comfy_default_roots_consolidate_only_immediate_siblings(paths, expected):
+    provider = ComfyEnvironmentProvider(SimpleNamespace(
+        models_dir='models',
+        folder_names_and_paths={'checkpoints': (paths, {'.safetensors'})},
+    ))
+
+    assert provider.default_working_roots() == [
+        Path(path).absolute() for path in ['models', *expected]]
+    assert {location.working_dir for location in provider.model_locations()} == {
+        Path(path).absolute() for path in paths}
