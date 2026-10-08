@@ -20,6 +20,7 @@ PUBLIC_API_ROUTES = (
     ('GET', '/config/directory-roots'),
     ('GET', '/config/directories'),
     ('PUT', '/config/model-extensions'),
+    ('PUT', '/config/initial-filesystem-roots'),
     ('POST', '/config/model-mapping-preview'),
     ('GET', '/config/model-mapping-roots'),
     ('PUT', '/config/model-type'),

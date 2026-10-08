@@ -15,6 +15,7 @@ import pytest
 
 from backend import filesystem_policy as fs
 from backend.config import load_config, ConfigException
+from backend.environment import DiscoveredModelLocation
 from backend.files.metadata import scan_model_metadata
 from backend.files.operations import FileAction, FileSnapshot, execute_file_action
 from backend.files.scanner import Scanner
@@ -39,6 +40,44 @@ def test_role_boundaries_missing_targets_and_prefix_siblings(policy):
                        (working.with_name('working-other'), 'working')):
         with pytest.raises(fs.FilesystemPolicyError, match='outside'):
             policy.check(path, role)
+
+
+@pytest.mark.parametrize('outside_first', [False, True])
+def test_comfy_mapping_preview_ignores_unpermitted_folders_outside_selected_root(
+        policy, monkeypatch, outside_first):
+    working, archive = policy.working_roots[0], policy.archive_roots[0]
+    locations = [
+        DiscoveredModelLocation('checkpoints', working / 'checkpoints', ('.safetensors',)),
+        DiscoveredModelLocation('luts', working.parent / 'custom_nodes' / 'luts', ('.cube',)),
+        DiscoveredModelLocation('loras', working.with_name('working-other') / 'loras',
+                                ('.safetensors',)),
+    ]
+    if outside_first:
+        locations.reverse()
+    monkeypatch.setattr(repository, '_config', SimpleNamespace(mode='comfyui'))
+    monkeypatch.setattr(repository, 'get_environment_provider',
+                        lambda: SimpleNamespace(model_locations=lambda: locations))
+    monkeypatch.setattr(repository, 'get_repository_configuration', lambda: {'model_types': []})
+
+    assert repository.propose_model_mappings(str(working), str(archive), ['.safetensors']) == [{
+        'name': 'checkpoints', 'display_name': 'checkpoints', 'extensions': ['.safetensors'],
+        'locations': [{'working_dir': str(working / 'checkpoints'),
+                       'archive_dir': str(archive / 'checkpoints')}],
+    }]
+
+
+def test_comfy_mapping_preview_reports_excluded_folder_inside_selected_root(policy, monkeypatch):
+    working, archive = policy.working_roots[0], policy.archive_roots[0]
+    location = DiscoveredModelLocation('checkpoints', working / 'private' / 'checkpoints',
+                                       ('.safetensors',))
+    monkeypatch.setattr(repository, '_config', SimpleNamespace(mode='comfyui'))
+    monkeypatch.setattr(repository, 'get_environment_provider',
+                        lambda: SimpleNamespace(model_locations=lambda: [location]))
+    monkeypatch.setattr(repository, 'get_repository_configuration', lambda: {'model_types': []})
+
+    with pytest.raises(fs.FilesystemPolicyError) as error:
+        repository.propose_model_mappings(str(working), str(archive), ['.safetensors'])
+    assert error.value.code == 'filesystem_excluded'
 
 
 @pytest.mark.parametrize('value', ['relative/path', '~', '../escape'])

@@ -30,6 +30,7 @@ export type FilesystemIssue = {
 };
 
 export type RepositorySettings = {
+    filesystem_setup_available?: boolean;
     filesystem?: { working_roots: string[]; archive_roots: string[]; exclusions: string[] };
     filesystem_issues?: FilesystemIssue[];
     filesystem_config_file?: string;
@@ -57,6 +58,9 @@ async function request<T>(path: string, method = 'GET', body?: unknown,
 }
 
 export const getRepositorySettings = () => request<RepositorySettings>('/config/repository');
+
+export const saveInitialFilesystemRoots = (working_roots: string[], archive_roots: string[]) =>
+    request<RepositorySettings>('/config/initial-filesystem-roots', 'PUT', {working_roots, archive_roots});
 
 export const saveModelExtensions = (extensions: string[]) =>
     request<RepositorySettings>('/config/model-extensions', 'PUT', {extensions});

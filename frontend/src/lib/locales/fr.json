@@ -85,7 +85,10 @@
         "first_run": {
             "welcome": "Bienvenue dans Model Archivist",
             "setup_explanation": "Avant de continuer, configurez les emplacements de travail et d’archive que Model Archivist doit gérer.",
-            "open_settings": "Ouvrir les paramètres"
+            "open_settings": "Ouvrir les paramètres",
+            "roots_instructions": "Saisissez un dossier racine autorisé par ligne. Vous pouvez les modifier ici uniquement lors de la configuration initiale. Les modifications ultérieures nécessitent de modifier config.toml et de redémarrer Archivist.",
+            "load_failed": "Impossible de charger les dossiers racines.",
+            "save_failed": "Impossible d’enregistrer les dossiers racines."
         },
         "workflow_table": {
             "does_the_workflow_have_tags": "Le flux de travail a-t-il des étiquettes ?",

@@ -111,8 +111,15 @@ configuration file it loaded, preserving the other settings and comments:
   the directory tree; an extra folder without a sibling keeps its own root.
 - Exclusions initially contain no paths.
 
-Initialization happens only when the entire section is absent. Explicit empty root
-lists deny all access for that role. Invalid or incomplete policy settings stop
+Initialization happens only when the entire section is absent.
+A new repository's first-run screen presents working and archive
+roots as multiline fields, pre-populated from these defaults or the existing file.
+Enter one root per line. Opening Settings saves the roots to `config.toml` and
+applies them immediately. This can be done only once; later changes require editing
+the file and restarting. An interrupted first-run screen reappears on restart until
+the roots are saved. Upgrading an existing repository does not enable this editor.
+
+Explicit empty root lists deny all access for that role. Invalid or incomplete policy settings stop
 startup rather than restoring permissive defaults. The configuration file must be
 writable for this one-time initialization; alternatively, add the section yourself.
 

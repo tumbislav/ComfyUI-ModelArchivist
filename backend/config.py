@@ -9,6 +9,7 @@ import logging.config
 import tomllib
 import json
 import tempfile
+import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
@@ -312,7 +313,7 @@ def load_config(cfg_file: Path | None = None, mode: str = 'standalone') -> Confi
                         get_environment_provider().default_working_roots()])
             values['filesystem'] = {'working_roots': working, 'archive_roots': [home], 'exclusions': []}
             policy = FilesystemPolicy.from_dict(values['filesystem'])
-            addition = '\n\n# Filesystem permissions are edited here, never through the API.\n[filesystem]\n'
+            addition = '\n\n# After first-run setup, edit filesystem permissions here and restart.\n[filesystem]\n'
             addition += ''.join(f'{key} = {json.dumps(value, ensure_ascii=False)}\n'
                                 for key, value in policy.to_dict().items())
             temporary = None
@@ -343,3 +344,38 @@ def get_config() -> Configuration:
     if _config is None:
         raise RuntimeError('Config is not initialized.')
     return _config
+
+
+def save_filesystem_policy(config: Configuration, policy: FilesystemPolicy) -> None:
+    """Replace only the filesystem table, preserving unrelated bootstrap settings."""
+    original = config.cfg_file.read_text(encoding='utf-8')
+    values = tomllib.loads(original)
+    expected = {**values, 'filesystem': policy.to_dict()}
+    match = re.search(r'^\[filesystem\][^\n]*\n', original, re.MULTILINE)
+    if match is None:
+        raise ValueError('filesystem section is missing')
+    next_table = re.search(r'^\s*\[', original[match.end():], re.MULTILINE)
+    end = match.end() + next_table.start() if next_table else len(original)
+    table = '[filesystem]\n' + ''.join(
+        f'{key} = {json.dumps(value, ensure_ascii=False)}\n'
+        for key, value in policy.to_dict().items()) + '\n'
+    updated = original[:match.start()] + table + original[end:]
+    if tomllib.loads(updated) != expected:
+        raise ValueError('cannot safely replace filesystem section')
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=config.cfg_file.parent,
+                                         prefix='.archivist-config-', delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(updated)
+            stream.flush()
+            os.fsync(stream.fileno())
+        if config.cfg_file.read_text(encoding='utf-8') != original:
+            raise ValueError('config.toml changed during setup; reload and retry')
+        os.chmod(temporary, config.cfg_file.stat().st_mode)
+        os.replace(temporary, config.cfg_file)
+    finally:
+        if temporary is not None and temporary.exists():
+            temporary.unlink()
+    config.filesystem = policy
+    set_policy(policy)

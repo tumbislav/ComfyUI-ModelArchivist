@@ -6,6 +6,7 @@
 
 from pathlib import Path
 from types import SimpleNamespace
+import tomllib
 
 import pytest
 from alembic.autogenerate import compare_metadata
@@ -87,7 +88,7 @@ def test_new_database_starts_in_setup_mode_without_scan(tmp_path, monkeypatch):
     assert repository.repo_status()['setup_required'] is True
     assert repository.repo_status()['ready'] is True
     with repository._engine.connect() as connection:
-        assert MigrationContext.configure(connection).get_current_revision() == '000000000001'
+        assert MigrationContext.configure(connection).get_current_revision() == '000000000002'
 
 
 def test_comfy_model_types_are_created_only_when_user_saves_mappings(tmp_path, monkeypatch):
@@ -177,8 +178,61 @@ def test_schema_update_is_idempotent(tmp_path):
     repository.update_database_schema(engine)
     repository.update_database_schema(engine)
     with engine.connect() as connection:
-        assert MigrationContext.configure(connection).get_current_revision() == '000000000001'
+        assert MigrationContext.configure(connection).get_current_revision() == '000000000002'
     engine.dispose()
+
+
+def test_filesystem_setup_saves_once_and_remains_locked_after_reload(tmp_path, monkeypatch):
+    config = repository_config(tmp_path / 'database.db', tmp_path / 'database.log')
+    config.cfg_file.write_text(
+        '# Keep bootstrap comment\n[database]\ndatabase_file="unchanged.db"\n'
+        '[filesystem]\nworking_roots=[]\narchive_roots=[]\nexclusions=[]\n'
+        '[other]\nvalue="keep"\n', encoding='utf-8')
+    monkeypatch.setattr(repository, 'get_config', lambda: config)
+    import backend.filesystem_policy as fs
+    monkeypatch.setattr(fs, '_policy', config.filesystem)
+    repository.start_repo()
+    assert repository.filesystem_setup_available()
+    before = config.cfg_file.read_bytes()
+    with pytest.raises(fs.FilesystemPolicyError):
+        repository.initialize_filesystem_roots(['relative'], [str(tmp_path / 'archive')])
+    assert config.cfg_file.read_bytes() == before
+    assert repository.filesystem_setup_available()
+
+    working = str(tmp_path / 'models')
+    archive = str(tmp_path / 'external' / 'archive')
+    result = repository.initialize_filesystem_roots([working], [archive])
+    assert result['filesystem_setup_available'] is False
+    assert fs.checked_path(Path(archive) / 'checkpoints', 'archive') == Path(archive) / 'checkpoints'
+    contents = config.cfg_file.read_text(encoding='utf-8')
+    assert contents.startswith('# Keep bootstrap comment')
+    values = tomllib.loads(contents)
+    assert values['database'] == {'database_file': 'unchanged.db'}
+    assert values['other'] == {'value': 'keep'}
+    assert values['filesystem']['working_roots'] == [working]
+    assert values['filesystem']['archive_roots'] == [archive]
+    repository.load_repository_configuration(config)
+    with pytest.raises(PermissionError):
+        repository.initialize_filesystem_roots([], [])
+    assert config.cfg_file.read_text(encoding='utf-8') == contents
+
+
+def test_filesystem_setup_migration_locks_existing_installations(tmp_path):
+    from alembic import command
+    from backend.repository.migrations import alembic_config
+    engine = create_engine(f'sqlite:///{tmp_path / "existing.db"}')
+    try:
+        with engine.begin() as connection:
+            command.upgrade(alembic_config(connection), '000000000001')
+            connection.exec_driver_sql(
+                'INSERT INTO applicationsettings '
+                '(id, setup_complete, update_json_metadata, ignore_unknown_types, always_recalc_hashes) '
+                'VALUES (1, 0, 1, 0, 0)')
+        repository.update_database_schema(engine)
+        with Session(engine) as session:
+            assert session.get(ApplicationSettings, 1).filesystem_setup_complete is True
+    finally:
+        engine.dispose()
 
 
 def test_baseline_matches_current_metadata(tmp_path):

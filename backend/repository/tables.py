@@ -117,6 +117,7 @@ class UserObjectCollectionLink(SQLModel, table=True):
 
 class ApplicationSettings(SQLModel, table=True):
     id: int = Field(default=1, primary_key=True)
+    filesystem_setup_complete: bool = False
     setup_complete: bool = False
     update_json_metadata: bool = True
     ignore_unknown_types: bool = False

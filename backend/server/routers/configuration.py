@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
 # system: ModelArchivist
 # file: configuration.py
-# purpose: Read-only REST access to application configuration
+# purpose: REST access to repository settings and one-time filesystem setup
 # ---------------------------------------------------------------------------
 
 from fastapi import APIRouter, HTTPException
@@ -30,6 +30,27 @@ class OptionsInput(BaseModel):
     update_json_metadata: bool = True
     ignore_unknown_types: bool = False
     always_recalc_hashes: bool = False
+
+
+class FilesystemRootsInput(BaseModel):
+    working_roots: list[str]
+    archive_roots: list[str]
+
+
+@router.put('/config/initial-filesystem-roots')
+async def initialize_filesystem_roots(data: FilesystemRootsInput) -> dict:
+    try:
+        with dispatcher.configuration_change():
+            return repo.initialize_filesystem_roots(data.working_roots, data.archive_roots)
+    except repo.FilesystemSetupClosedError as error:
+        raise HTTPException(403, detail={
+            'code': 'filesystem_setup_closed', 'message': str(error), 'params': {}}) from error
+    except OperationBusyError as error:
+        raise HTTPException(409, detail={
+            'code': 'operation_busy', 'message': str(error), 'params': {}}) from error
+    except (ValueError, OSError) as error:
+        raise HTTPException(400, detail={
+            'code': 'filesystem_setup_failed', 'message': str(error), 'params': {}}) from error
 
 
 class LocationInput(BaseModel):

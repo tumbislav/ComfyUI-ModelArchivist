@@ -85,7 +85,10 @@
         "first_run": {
             "welcome": "Bienvenido a Model Archivist",
             "setup_explanation": "Antes de continuar, configura las ubicaciones de trabajo y archivo que administrará Model Archivist.",
-            "open_settings": "Abrir configuración"
+            "open_settings": "Abrir configuración",
+            "roots_instructions": "Introduce una carpeta raíz permitida por línea. Solo puedes editarlas aquí durante la configuración inicial. Los cambios posteriores requieren editar config.toml y reiniciar Archivist.",
+            "load_failed": "No se pueden cargar las carpetas raíz.",
+            "save_failed": "No se pueden guardar las carpetas raíz."
         },
         "workflow_table": {
             "does_the_workflow_have_tags": "¿Tiene etiquetas el flujo de trabajo?",

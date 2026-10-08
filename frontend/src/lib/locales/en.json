@@ -85,7 +85,10 @@
         "first_run": {
             "welcome": "Welcome to Model Archivist",
             "setup_explanation": "Before continuing, set up the working and archive locations that Model Archivist will manage.",
-            "open_settings": "Open settings"
+            "open_settings": "Open settings",
+            "roots_instructions": "Enter one permitted root per line. These roots can be edited here only during first-run setup. Later changes require editing config.toml and restarting Archivist.",
+            "load_failed": "Cannot load filesystem roots.",
+            "save_failed": "Cannot save filesystem roots."
         },
         "workflow_table": {
             "does_the_workflow_have_tags": "Does the workflow have tags?",

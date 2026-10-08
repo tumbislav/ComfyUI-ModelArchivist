@@ -33,7 +33,9 @@ from backend.repository.tables import (Model, Workflow, Collection, Component, C
 from backend.exception import ArcException
 from backend.base_models import normalize_base_model
 from backend.tags import edited_tags
-from backend.config import Configuration, OptionsConfig, get_config, DEFAULT_MODEL_EXTENSIONS
+from backend.config import (Configuration, OptionsConfig, get_config, DEFAULT_MODEL_EXTENSIONS,
+                            save_filesystem_policy)
+from backend.filesystem_policy import FilesystemPolicy
 from backend.environment import get_environment_provider
 from backend.repository.migrations import update_database_schema
 import backend.files.model_files as model_files
@@ -245,7 +247,7 @@ def repo_status():
                 'ready': False,
                 'read_only': True if _config is None else _config.read_only}
     status_dict = {'started': True,
-                   'first_run': _first_run,
+                   'first_run': filesystem_setup_available(),
                    'read_only': _config.read_only,
                    'setup_required': _config.setup_required,
                    'mode': _config.mode,
@@ -299,6 +301,7 @@ def get_repository_configuration() -> dict:
         return {
             'mode': _config.mode,
             'setup_complete': settings.setup_complete,
+            'filesystem_setup_available': not settings.filesystem_setup_complete,
             'model_extensions': list(settings.model_extension_allowlist)
                 if settings.model_extension_allowlist is not None else model_extension_choices(),
             'available_model_extensions': model_extension_choices(),
@@ -324,6 +327,35 @@ def get_repository_configuration() -> dict:
                 'active': item.active,
             } for item in workflows],
         }
+
+
+class FilesystemSetupClosedError(PermissionError):
+    """The one-time filesystem permission editor has already been closed."""
+
+
+def filesystem_setup_available() -> bool:
+    with Session(_engine) as session:
+        settings = session.get(ApplicationSettings, 1)
+        return settings is not None and not settings.filesystem_setup_complete
+
+
+def initialize_filesystem_roots(working_roots: list[str], archive_roots: list[str]) -> dict:
+    """Accept filesystem permissions once, before proceeding to repository setup."""
+    with Session(_engine) as session:
+        settings = session.get(ApplicationSettings, 1)
+        if settings is None or settings.filesystem_setup_complete:
+            raise FilesystemSetupClosedError(
+                'Filesystem roots can only be saved during first-run setup.')
+        policy = FilesystemPolicy.from_dict({
+            'working_roots': working_roots, 'archive_roots': archive_roots,
+            'exclusions': list(map(str, _config.filesystem.exclusions)),
+        })
+        save_filesystem_policy(_config, policy)
+        settings.filesystem_setup_complete = True
+        session.add(settings)
+        session.commit()
+    load_repository_configuration(_config)
+    return get_repository_configuration()
 
 
 def _check_runtime_roots() -> None:
@@ -514,9 +546,10 @@ def propose_model_mappings(working_root_value: str, archive_root_value: str,
         else:
             for item in get_environment_provider().model_locations():
                 try:
-                    relative = checked_path(item.working_dir, 'working').relative_to(working_root)
+                    relative = item.working_dir.relative_to(working_root)
                 except ValueError:
                     continue
+                checked_path(item.working_dir, 'working')
                 current = existing_by_name.get(item.model_type)
                 stored = next((location for location in current['locations']
                                if Path(location['working_dir']).absolute()
