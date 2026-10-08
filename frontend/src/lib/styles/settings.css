@@ -10,7 +10,7 @@
 .settings-layout {
     min-height: 0;
     display: grid;
-    grid-template-columns: 13rem 380px;
+    grid-template-columns: 13rem minmax(0, 500px);
     gap: var(--gap-mid);
 }
 
@@ -43,7 +43,8 @@
 
 .settings-content {
     box-sizing: border-box;
-    width: 380px;
+    width: 500px;
+    max-width: 100%;
     height: 600px;
     overflow-y: auto;
     padding-right: var(--gap-small);

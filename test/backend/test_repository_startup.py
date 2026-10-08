@@ -5,14 +5,16 @@
 # ---------------------------------------------------------------------------
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import SQLModel, Session, create_engine, select
 
 from backend.config import Configuration, DatabaseConfig, LoggingConfig, WebConfig
 from backend.exception import ArcException
+from backend.environment import ComfyEnvironmentProvider
 import backend.repository.repository as repository
 from backend.repository.tables import (ApplicationSettings, ModelLocationSetting,
                                        ModelTypeSetting)
@@ -86,6 +88,45 @@ def test_new_database_starts_in_setup_mode_without_scan(tmp_path, monkeypatch):
     assert repository.repo_status()['ready'] is True
     with repository._engine.connect() as connection:
         assert MigrationContext.configure(connection).get_current_revision() == '000000000001'
+
+
+def test_comfy_model_types_are_created_only_when_user_saves_mappings(tmp_path, monkeypatch):
+    models = tmp_path / 'models'
+    checkpoints = models / 'checkpoints'
+    checkpoints.mkdir(parents=True)
+    loras = models / 'loras'
+    loras.mkdir()
+    provider = ComfyEnvironmentProvider(SimpleNamespace(
+        models_dir=str(models),
+        folder_names_and_paths={
+            'checkpoints': ([str(checkpoints)], {'.safetensors'}),
+            'loras': ([str(loras)], {'.safetensors'}),
+        },
+    ))
+    config = repository_config(tmp_path / 'database.db', tmp_path / 'database.log')
+    monkeypatch.setattr(repository, 'get_config', lambda: config)
+    monkeypatch.setattr(repository, 'get_environment_provider', lambda: provider)
+    repository.start_repo()
+
+    assert repository.get_repository_configuration()['model_types'] == []
+    with Session(repository._engine) as session:
+        assert session.exec(select(ModelLocationSetting)).all() == []
+
+    candidates = repository.propose_model_mappings(
+        str(models), str(tmp_path / 'archive'), ['.safetensors'])
+    assert {item['name'] for item in candidates} == {'checkpoints', 'loras'}
+    assert repository.get_repository_configuration()['model_types'] == []
+    selected = next(item for item in candidates if item['name'] == 'checkpoints')
+    selected['display_name'] = 'My checkpoints'
+    result = repository.update_model_configuration({'model_types': [selected]})
+
+    assert [item['name'] for item in result['model_types']] == ['checkpoints']
+    assert result['model_types'][0]['display_name'] == 'My checkpoints'
+    assert config.model_folders['checkpoints'] == {
+        (checkpoints, tmp_path / 'archive' / 'checkpoints')}
+    repository.load_repository_configuration(config)
+    assert [item['name'] for item in repository.get_repository_configuration()['model_types']] == [
+        'checkpoints']
 
 
 def test_sql_log_handler_preserves_unicode(tmp_path, monkeypatch):

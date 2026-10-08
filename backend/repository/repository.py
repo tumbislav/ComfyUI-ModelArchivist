@@ -150,6 +150,9 @@ def load_repository_configuration(config: Configuration) -> None:
                 location.active = location.working_dir in discovered_paths
                 session.add(location)
             for discovered in discovered_models:
+                type_setting = type_settings.get(discovered.model_type)
+                if type_setting is None:
+                    continue
                 location = stored_models.get(str(discovered.working_dir))
                 if location is None:
                     location = ModelLocationSetting(
@@ -159,13 +162,6 @@ def load_repository_configuration(config: Configuration) -> None:
                 else:
                     location.model_type = discovered.model_type
                     location.active = True
-                type_setting = type_settings.get(discovered.model_type)
-                if type_setting is None:
-                    type_setting = ModelTypeSetting(
-                        name=discovered.model_type, display_name=discovered.model_type,
-                        extensions=list(discovered.extensions))
-                    session.add(type_setting)
-                    type_settings[discovered.model_type] = type_setting
                 config.model_type_labels[discovered.model_type] = type_setting.display_name
                 config.model_extensions_by_type[discovered.model_type] = list(
                     discovered.extensions)
@@ -410,19 +406,38 @@ def update_repository_configuration(data: dict) -> dict:
                     working_dir=_normalized_location(location['working_dir']),
                     archive_dir=_normalized_location(location['archive_dir'], 'archive')))
         else:
+            discovered_models = {str(item.working_dir): item
+                                 for item in get_environment_provider().model_locations()}
             stored_types = {row.name: row for row in session.exec(
                 select(ModelTypeSetting)).all()}
             stored_models = {row.working_dir: row for row in session.exec(
                 select(ModelLocationSetting).where(ModelLocationSetting.source == 'comfyui')).all()}
             for item in model_types:
                 type_row = stored_types.get(item['name'])
-                if type_row is not None:
-                    type_row.display_name = item['display_name'].strip()
-                    session.add(type_row)
+                if type_row is None:
+                    matching = [location for location in discovered_models.values()
+                                if location.model_type == item['name']]
+                    if not matching:
+                        raise ValueError(f'model type is not supplied by ComfyUI: {item["name"]}')
+                    type_row = ModelTypeSetting(
+                        name=item['name'], display_name=item['display_name'].strip(),
+                        extensions=sorted({extension for location in matching
+                                           for extension in location.extensions}))
+                    stored_types[item['name']] = type_row
+                type_row.display_name = item['display_name'].strip()
+                session.add(type_row)
+                session.flush()
                 for location in item.get('locations', []):
                     working = _normalized_location(location['working_dir'])
+                    discovered = discovered_models.get(working)
+                    if discovered is None or discovered.model_type != item['name']:
+                        raise ValueError(f'working folder is not supplied by ComfyUI: {working}')
                     row = stored_models.get(working)
-                    if row is None or not row.active:
+                    if row is None:
+                        row = ModelLocationSetting(
+                            model_type=item['name'], source='comfyui', working_dir=working)
+                        stored_models[working] = row
+                    if not row.active:
                         raise ValueError(f'working folder is not supplied by ComfyUI: {working}')
                     row.archive_dir = (_normalized_location(location['archive_dir'], 'archive')
                                        if location.get('archive_dir') else None)
