@@ -15,7 +15,7 @@ from enum import StrEnum
 from pathlib import Path
 from backend.filesystem_policy import FilesystemPolicy, FilesystemPolicyError, get_policy, set_policy
 
-DEFAULT_MODEL_EXTENSIONS = ['.safetensors', '.ckpt', '.pt', '.pth', '.bin', '.gguf']
+DEFAULT_MODEL_EXTENSIONS = ['.sft', '.safetensors', '.gguf', '.pt', '.pth', '.ckpt', '.bin']
 
 class ConfigError(StrEnum):
     CONFIG_NOT_FOUND = 'Configuration file not found'

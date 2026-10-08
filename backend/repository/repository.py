@@ -165,8 +165,6 @@ def load_repository_configuration(config: Configuration) -> None:
                     location.model_type = discovered.model_type
                     location.active = True
                 config.model_type_labels[discovered.model_type] = type_setting.display_name
-                config.model_extensions_by_type[discovered.model_type] = list(
-                    discovered.extensions)
                 if location.archive_dir:
                     config.add_model_locations(discovered.model_type,
                                                discovered.working_dir,
@@ -452,11 +450,11 @@ def update_repository_configuration(data: dict) -> dict:
                     if not matching:
                         raise ValueError(f'model type is not supplied by ComfyUI: {item["name"]}')
                     type_row = ModelTypeSetting(
-                        name=item['name'], display_name=item['display_name'].strip(),
-                        extensions=sorted({extension for location in matching
-                                           for extension in location.extensions}))
+                        name=item['name'], display_name=item['display_name'].strip())
                     stored_types[item['name']] = type_row
                 type_row.display_name = item['display_name'].strip()
+                type_row.extensions = sorted({f'.{value.lower().lstrip(".")}'
+                                              for value in item['extensions']})
                 session.add(type_row)
                 session.flush()
                 for location in item.get('locations', []):
@@ -544,7 +542,12 @@ def propose_model_mappings(working_root_value: str, archive_root_value: str,
                         'locations': [{'working_dir': str(child),
                                        'archive_dir': str(checked_path(archive_root / child.name, 'archive'))}]}
         else:
-            for item in get_environment_provider().model_locations():
+            discovered_models = get_environment_provider().model_locations()
+            initial_extensions: dict[str, set[str]] = {}
+            for item in discovered_models:
+                initial_extensions.setdefault(item.model_type, set()).update(item.extensions)
+
+            for item in discovered_models:
                 try:
                     relative = item.working_dir.relative_to(working_root)
                 except ValueError:
@@ -559,7 +562,9 @@ def propose_model_mappings(working_root_value: str, archive_root_value: str,
                 candidate = candidates.setdefault(item.model_type, {
                     'name': item.model_type,
                     'display_name': current['display_name'] if current else item.model_type,
-                    'extensions': list(current['extensions'] if current else item.extensions),
+                    'extensions': (list(current['extensions']) if current else
+                                   sorted(initial_extensions[item.model_type]) or
+                                   list(DEFAULT_MODEL_EXTENSIONS)),
                     'locations': []})
                 candidate['locations'].append({
                     'working_dir': str(item.working_dir),

@@ -815,7 +815,7 @@
         "comfyui_version": "ComfyUI embedded version",
         "standalone_version": "Standalone version",
         "show_all": "Show all",
-        "comfyui_model_help": "Working folders and extensions are supplied by ComfyUI.",
+        "comfyui_model_help": "Working folders are supplied by ComfyUI. Extensions are initialized from ComfyUI and can be edited and saved in Archivist.",
         "standalone_model_help": "Each model type has one working/archive location pair.",
         "pref_startup_error": "Cannot save the startup preference in browser storage",
         "pref_tab_error": "Cannot save the tab preference in browser storage",

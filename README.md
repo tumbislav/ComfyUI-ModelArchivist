@@ -58,10 +58,13 @@ working/archive pair for each model type and one pair for workflows. ComfyUI's
 `extra_model_paths.yaml` mechanism is deliberately not supported in standalone mode.
 
 When installed as a ComfyUI custom node, Archivist discovers model working directories
-and accepted extensions through ComfyUI's live `folder_paths` registry, including extra
+and initial extensions through ComfyUI's live `folder_paths` registry, including extra
 model paths, and discovers workflows below the ComfyUI user directory. Those working
-paths remain owned by ComfyUI; Archivist stores only their archive mappings and its own
-display settings. Model type settings start empty; users create them by adding and
+paths remain owned by ComfyUI; Archivist stores their archive mappings, editable
+extension lists, and display settings. Empty ComfyUI extension lists default to
+`.sft`, `.safetensors`, `.gguf`, `.pt`, `.pth`, `.ckpt`, and `.bin`. Saved extensions
+are owned by Archivist and remain authoritative after restarting.
+Model type settings start empty; users create them by adding and
 saving mappings for discovered ComfyUI folders. Discovery alone does not create model
 type entries. A ComfyUI action-bar button opens `/model-archivist/` on the ComfyUI
 origin. ComfyUI proxies that path to Archivist's internal FastAPI server, so browser

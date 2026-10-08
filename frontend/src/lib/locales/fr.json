@@ -815,7 +815,7 @@
         "comfyui_version": "Version intégrée à ComfyUI",
         "standalone_version": "Version autonome",
         "show_all": "Tout afficher",
-        "comfyui_model_help": "Les dossiers de travail et les extensions sont fournis par ComfyUI.",
+        "comfyui_model_help": "Les dossiers de travail sont fournis par ComfyUI. Les extensions sont initialisées depuis ComfyUI et peuvent être modifiées et enregistrées dans Archivist.",
         "standalone_model_help": "Chaque type de modèle possède une paire d’emplacements : travail et archive.",
         "pref_startup_error": "Impossible d’enregistrer la préférence de démarrage dans le stockage du navigateur",
         "pref_tab_error": "Impossible d’enregistrer la préférence d’onglet dans le stockage du navigateur",

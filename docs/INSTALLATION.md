@@ -41,8 +41,10 @@ After restart, use the Model Archivist button in ComfyUI's action bar. It opens
 the application under `/model-archivist/` on the same address as ComfyUI. Model
 Archivist does not add execution nodes to the workflow editor.
 
-In ComfyUI mode, model types, working folders, and accepted file extensions come
-from ComfyUI's live configuration, including `extra_model_paths.yaml`. Model
+In ComfyUI mode, model types, working folders, and initial file extensions come
+from ComfyUI's live configuration, including `extra_model_paths.yaml`. Extensions
+are editable and saved by Archivist. If ComfyUI supplies none for a type, its initial
+list is `.sft`, `.safetensors`, `.gguf`, `.pt`, `.pth`, `.ckpt`, and `.bin`. Model
 Archivist stores its database and log in:
 
 ```text
@@ -177,8 +179,8 @@ mappings have been saved.
 
 1. Open **Settings**.
 2. Under **Models**, pair every working model location with an archive location.
-   In ComfyUI mode, the working locations and extensions are supplied by ComfyUI
-   and cannot be changed in Model Archivist.
+   In ComfyUI mode, the working locations are supplied by ComfyUI and cannot be
+   changed in Model Archivist. Review and edit the initialized extension lists as needed.
 3. Under **Workflows**, choose the archive folder. In standalone mode, also choose
    the working folder.
 4. Add any **User types** you want to manage. This step is optional.

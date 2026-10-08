@@ -91,7 +91,9 @@ def test_new_database_starts_in_setup_mode_without_scan(tmp_path, monkeypatch):
         assert MigrationContext.configure(connection).get_current_revision() == '000000000002'
 
 
-def test_comfy_model_types_are_created_only_when_user_saves_mappings(tmp_path, monkeypatch):
+@pytest.mark.parametrize('registered_extensions', [{'.safetensors'}, set()])
+def test_comfy_model_types_are_created_only_when_user_saves_mappings(
+        tmp_path, monkeypatch, registered_extensions):
     models = tmp_path / 'models'
     checkpoints = models / 'checkpoints'
     checkpoints.mkdir(parents=True)
@@ -100,7 +102,7 @@ def test_comfy_model_types_are_created_only_when_user_saves_mappings(tmp_path, m
     provider = ComfyEnvironmentProvider(SimpleNamespace(
         models_dir=str(models),
         folder_names_and_paths={
-            'checkpoints': ([str(checkpoints)], {'.safetensors'}),
+            'checkpoints': ([str(checkpoints)], registered_extensions),
             'loras': ([str(loras)], {'.safetensors'}),
         },
     ))
@@ -118,16 +120,34 @@ def test_comfy_model_types_are_created_only_when_user_saves_mappings(tmp_path, m
     assert {item['name'] for item in candidates} == {'checkpoints', 'loras'}
     assert repository.get_repository_configuration()['model_types'] == []
     selected = next(item for item in candidates if item['name'] == 'checkpoints')
+    assert selected['extensions'] == (['.safetensors'] if registered_extensions else
+                                     ['.sft', '.safetensors', '.gguf', '.pt', '.pth', '.ckpt', '.bin'])
     selected['display_name'] = 'My checkpoints'
+    selected['extensions'] = ['GGUF', '.sft']
     result = repository.update_model_configuration({'model_types': [selected]})
 
     assert [item['name'] for item in result['model_types']] == ['checkpoints']
     assert result['model_types'][0]['display_name'] == 'My checkpoints'
+    assert result['model_types'][0]['extensions'] == ['.gguf', '.sft']
+    assert config.model_extensions_by_type['checkpoints'] == ['.gguf', '.sft']
     assert config.model_folders['checkpoints'] == {
         (checkpoints, tmp_path / 'archive' / 'checkpoints')}
     repository.load_repository_configuration(config)
+    assert config.model_extensions_by_type['checkpoints'] == ['.gguf', '.sft']
     assert [item['name'] for item in repository.get_repository_configuration()['model_types']] == [
         'checkpoints']
+    # Adding another location must preserve Archivist's saved extensions.
+    extra = models / 'extra-checkpoints'
+    extra.mkdir()
+    provider.folder_paths.folder_names_and_paths['checkpoints'][0].append(str(extra))
+    additional = repository.propose_model_mappings(
+        str(models), str(tmp_path / 'archive'), ['.safetensors'])
+    assert next(item for item in additional if item['name'] == 'checkpoints')['extensions'] == [
+        '.gguf', '.sft']
+    selected['extensions'] = ['.pt']
+    updated = repository.update_model_configuration({'model_types': [selected]})
+    assert updated['model_types'][0]['extensions'] == ['.pt']
+    assert config.model_extensions_by_type['checkpoints'] == ['.pt']
 
 
 def test_sql_log_handler_preserves_unicode(tmp_path, monkeypatch):

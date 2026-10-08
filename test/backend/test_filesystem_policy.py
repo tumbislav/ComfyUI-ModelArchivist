@@ -80,6 +80,23 @@ def test_comfy_mapping_preview_reports_excluded_folder_inside_selected_root(poli
     assert error.value.code == 'filesystem_excluded'
 
 
+def test_comfy_mapping_preview_merges_initial_extensions_for_shared_type(policy, monkeypatch):
+    working, archive = policy.working_roots[0], policy.archive_roots[0]
+    locations = [
+        DiscoveredModelLocation('LLM', working / 'LLM', ()),
+        DiscoveredModelLocation('LLM', working / 'other-LLM', ('.gguf',)),
+    ]
+    monkeypatch.setattr(repository, '_config', SimpleNamespace(mode='comfyui'))
+    monkeypatch.setattr(repository, 'get_environment_provider',
+                        lambda: SimpleNamespace(model_locations=lambda: locations))
+    monkeypatch.setattr(repository, 'get_repository_configuration', lambda: {'model_types': []})
+
+    candidates = repository.propose_model_mappings(str(working), str(archive), ['.safetensors'])
+    assert len(candidates) == 1
+    assert candidates[0]['extensions'] == ['.gguf']
+    assert len(candidates[0]['locations']) == 2
+
+
 @pytest.mark.parametrize('value', ['relative/path', '~', '../escape'])
 def test_only_literal_absolute_paths(policy, value):
     with pytest.raises(fs.FilesystemPolicyError) as error:

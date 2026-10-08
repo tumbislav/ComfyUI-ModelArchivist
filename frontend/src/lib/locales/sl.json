@@ -815,7 +815,7 @@
         "comfyui_version": "Različica, vgrajena v ComfyUI",
         "standalone_version": "Samostojna različica",
         "show_all": "Prikaži vse",
-        "comfyui_model_help": "Delovne mape in končnice določa ComfyUI.",
+        "comfyui_model_help": "Delovne mape določa ComfyUI. Končnice se sprva prevzamejo iz ComfyUI, nato jih lahko uredite in shranite v Archivistu.",
         "standalone_model_help": "Vsak tip modela ima en par delovne in arhivske lokacije.",
         "pref_startup_error": "Nastavitve zagona ni mogoče shraniti v shrambo brskalnika",
         "pref_tab_error": "Nastavitve zavihka ni mogoče shraniti v shrambo brskalnika",

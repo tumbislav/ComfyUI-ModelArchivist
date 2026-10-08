@@ -815,7 +815,7 @@
         "comfyui_version": "Versión integrada en ComfyUI",
         "standalone_version": "Versión independiente",
         "show_all": "Mostrar todo",
-        "comfyui_model_help": "ComfyUI proporciona las carpetas de trabajo y las extensiones.",
+        "comfyui_model_help": "ComfyUI proporciona las carpetas de trabajo. Las extensiones se inicializan desde ComfyUI y se pueden editar y guardar en Archivist.",
         "standalone_model_help": "Cada tipo de modelo tiene un par de ubicaciones: trabajo y archivo.",
         "pref_startup_error": "No se puede guardar la preferencia de inicio en el almacenamiento del navegador",
         "pref_tab_error": "No se puede guardar la preferencia de pestañas en el almacenamiento del navegador",

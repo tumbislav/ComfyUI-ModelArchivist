@@ -147,7 +147,6 @@
                     <label class="dialog-label">
                         {locale.t('ui.model_settings.extensions')}
                         <input class="text-input" value={type.extensions.join(', ')}
-                               disabled={settings.mode === 'comfyui'}
                                oninput={event => type.extensions = event.currentTarget.value
                                    .split(',').map(value => value.trim()).filter(Boolean)} />
                     </label>
