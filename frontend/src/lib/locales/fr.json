@@ -308,6 +308,7 @@
             "cannot_discover_model_mappings": "Impossible de détecter les correspondances des modèles"
         },
         "repository_summary": {
+            "retry": "Réessayer",
             "repository_summary": "Résumé du dépôt",
             "close_repository_summary": "Fermer le résumé du dépôt",
             "repository": "Dépôt",

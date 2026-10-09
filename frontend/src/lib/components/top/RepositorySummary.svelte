@@ -7,7 +7,7 @@
 <script lang="ts">
     import { locale } from '$lib/locale.svelte';
 
-    import { onMount } from 'svelte';
+    import { onMount, untrack } from 'svelte';
     import closeIcon from '$icons/actions/close8.png';
     import refreshIcon from '$icons/actions/refresh16.png';
     import { apiFetch, getUrl, parseResponse, serverUnresponsive } from '$lib/api';
@@ -25,7 +25,12 @@
 
     let { onClose }: { onClose: () => void } = $props();
     let summary = $state<Summary | null>(null); let error = $state<string | null>(null); let submitting = $state<ScanScope | null>(null);
-    let operation = $derived(summary?.operation ?? null);
+    let operation = $derived(statusMonitor.operation ?? summary?.operation ?? null);
+    let mounted = $state(false);
+    let refreshing = $state(false);
+    let refreshPending = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let observedOperation = '';
     let busy = $derived(submitting !== null || operation?.state === 'pending' || operation?.state === 'running');
     const sections = [
         { key: 'models', title: locale.t('ui.repository_summary.models'), individual: true },
@@ -42,37 +47,63 @@
             || operation.progress.scope === scope;
     }
 
-    onMount(() => {
-        let cancelled = false;
-        let timer: ReturnType<typeof setTimeout>; async function refresh(): Promise<void> {
-            try {
-                const response = await apiFetch(getUrl('/repository-summary'));
-                const result = await parseResponse<Summary>(response, value => value, 'repositorySummary');
+    async function refresh(): Promise<void> {
+        if (!mounted) return;
+        if (refreshing) {
+            refreshPending = true;
+            return;
+        }
+        if (timer !== null) clearTimeout(timer);
+        timer = null;
+        refreshing = true;
+        try {
+            const response = await apiFetch(getUrl('/repository-summary'));
+            const result = await parseResponse<Summary>(response, value => value, 'repositorySummary');
 
-                if (!cancelled && submitting === null) {
-                    if (result.ok) {
-                        summary = result.data;
-                        error = null;
-                    } else {
-                        error = result.message ?? locale.t('ui.repository_summary.cannot_load_repository_summary');
+            if (mounted && submitting === null) {
+                if (result.ok) {
+                    summary = result.data;
+                    error = null;
+                    const discovered = result.data.operation;
+                    if (discovered && statusMonitor.operation?.id !== discovered.id) {
+                        statusMonitor.track(discovered);
                     }
-                }
-            } catch (cause) {
-                if (!cancelled) {
-                    error = cause instanceof Error ? cause.message : locale.t('ui.repository_summary.cannot_load_repository_summary');
+                } else {
+                    error = result.message ?? locale.t('ui.repository_summary.cannot_load_repository_summary');
                 }
             }
-
-            if (!cancelled) {
-                timer = setTimeout(() => void refresh(), 500);
+        } catch (cause) {
+            if (mounted) {
+                error = cause instanceof Error ? cause.message : locale.t('ui.repository_summary.cannot_load_repository_summary');
+            }
+        } finally {
+            refreshing = false;
+            if (mounted && (refreshPending || busy)) {
+                const delay = refreshPending ? 0 : 500;
+                refreshPending = false;
+                timer = setTimeout(() => void refresh(), delay);
             }
         }
+    }
 
+    $effect(() => {
+        const id = statusMonitor.operation?.id;
+        const state = statusMonitor.operation?.state;
+        const key = `${id ?? ''}:${state ?? ''}`;
+        if (mounted && key !== observedOperation) {
+            observedOperation = key;
+            untrack(() => void refresh());
+        }
+    });
+
+    onMount(() => {
+        observedOperation = `${statusMonitor.operation?.id ?? ''}:${statusMonitor.operation?.state ?? ''}`;
+        mounted = true;
         void refresh();
 
         return () => {
-            cancelled = true;
-            clearTimeout(timer);
+            mounted = false;
+            if (timer !== null) clearTimeout(timer);
         };
     });
 
@@ -112,9 +143,16 @@
 
     {#if $serverUnresponsive}
         <p class="bold-text" role="alert">{locale.t('ui.repository_summary.the_server_is_not_responding')}</p>
+        <button class="button-with-text" disabled={refreshing} onclick={() => refresh()}>
+            <img class="action-icon-small" alt="" src={refreshIcon} />
+            <span>{locale.t('ui.repository_summary.retry')}</span>
+        </button>
     {:else}
         {#if error}
             <p class="error-details" role="alert">{error}</p>
+            <button class="button-with-text" disabled={refreshing} onclick={() => refresh()}>
+                <span>{locale.t('ui.repository_summary.retry')}</span>
+            </button>
         {/if}
 
         <div class="repository-sections">

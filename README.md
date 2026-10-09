@@ -37,15 +37,18 @@ repositories do not request startup scans.
 The Repository button shows “Wait...” until startup completes. All frontend API
 requests have a 3000 ms timeout, including their response bodies. A timeout or lost
 connection changes the button to “Server...”; its dialog reports that the server is
-not responding. Background polling continues and restores normal status when the
-server responds again.
+not responding. Opening its dialog or clicking Retry checks connectivity again.
+After startup, the server is assumed available until a request fails. Repository
+status polling runs only while a long-running operation is being tracked and stops
+after its final result is retrieved.
 
 The Repository dialog shows counts by location for models, workflows, user-defined
 objects, and collections. Working, archive, and synchronized counts are disjoint;
 mixed or mismatched locations remain included in the total. Errors count objects with
 errors, and collections with errors among their transitive members. Collections have
 statistics only. The other sections can refresh independently, with statistics updated
-every 500 ms while the dialog is open. Only one long-running operation can run at once.
+when the dialog opens, every 500 ms during operations, and once after completion.
+The idle dialog does not poll. Only one long-running operation can run at once.
 
 Selective scans use `/scan?scope=models`, `scope=workflows`, or `scope=user_objects`.
 An optional `type_id` selects a model type by name or a user type by ID, ready for

@@ -23,8 +23,8 @@
  * ----------------------------------------------- */
 
 h1 {
-    font-size: var(--large-font-size);
-    color: var(--text-color);
+    font-size: var(--title-font-size);
+    color: var(--text-title);
     font-weight: 600;
 }
 

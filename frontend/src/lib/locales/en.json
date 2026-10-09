@@ -308,6 +308,7 @@
             "cannot_discover_model_mappings": "Cannot discover model mappings"
         },
         "repository_summary": {
+            "retry": "Retry",
             "repository_summary": "Repository summary",
             "close_repository_summary": "Close repository summary",
             "repository": "Repository",

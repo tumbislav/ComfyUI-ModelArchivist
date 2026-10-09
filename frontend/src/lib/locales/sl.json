@@ -308,6 +308,7 @@
             "cannot_discover_model_mappings": "Preslikav map modelov ni mogoče odkriti"
         },
         "repository_summary": {
+            "retry": "Poskusi znova",
             "repository_summary": "Povzetek repozitorija",
             "close_repository_summary": "Zapri povzetek repozitorija",
             "repository": "Repozitorij",

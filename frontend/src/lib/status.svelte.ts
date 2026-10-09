@@ -22,7 +22,6 @@ export type RepositoryStatus = {
 };
 
 const ACTIVE_INTERVAL = 400;
-const IDLE_INTERVAL = 4000;
 
 class StatusMonitor {
     counts = $state<RepositoryCounts>({models: 0, workflows: 0, user_objects: 0,
@@ -67,18 +66,29 @@ class StatusMonitor {
     private async refresh(): Promise<void> {
         if (this.refreshing) return;
         this.refreshing = true;
+        const trackedId = this.trackedId;
         try {
             const response = await apiFetch(getUrl('/repository-status'));
             const status = await parseResponse<RepositoryStatus>(response, value => value,
                                                                   'repositoryStatus');
             if (status.ok) {
                 this.counts = status.data.counts;
+                if (this.trackedId !== trackedId) return;
                 let operation = status.data.operation;
-                if (operation === null && this.trackedId !== null) {
-                    const tracked = await apiFetch(getUrl(`/operations/${this.trackedId}`));
+                if (trackedId !== null) {
+                    const tracked = await apiFetch(getUrl(`/operations/${trackedId}`));
                     const result = await parseResponse<Operation>(tracked, value => value,
                                                                    'trackedOperation');
-                    if (result.ok) operation = result.data;
+                    if (this.trackedId !== trackedId) return;
+                    if (!result.ok) {
+                        this.error = result.message ?? locale.t('errors.retrieve_operation');
+                        if (result.status === 404) {
+                            this.operation = null;
+                            this.trackedId = null;
+                        }
+                        return;
+                    }
+                    operation = result.data;
                 }
                 this.operation = operation;
                 this.error = null;
@@ -97,14 +107,17 @@ class StatusMonitor {
             this.refreshing = false;
             const active = this.operation !== null &&
                 (this.operation.state === 'pending' || this.operation.state === 'running');
-            this.schedule(active ? ACTIVE_INTERVAL : IDLE_INTERVAL);
+            if (active || this.trackedId !== null) this.schedule(ACTIVE_INTERVAL);
         }
     }
 
     private schedule(delay: number): void {
         if (this.users === 0) return;
         if (this.timer !== null) clearTimeout(this.timer);
-        this.timer = setTimeout(() => void this.refresh(), delay);
+        this.timer = setTimeout(() => {
+            this.timer = null;
+            void this.refresh();
+        }, delay);
     }
 }
 

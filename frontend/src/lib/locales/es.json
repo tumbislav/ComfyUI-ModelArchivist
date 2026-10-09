@@ -308,6 +308,7 @@
             "cannot_discover_model_mappings": "No se pueden detectar las asignaciones de modelos"
         },
         "repository_summary": {
+            "retry": "Reintentar",
             "repository_summary": "Resumen del repositorio",
             "close_repository_summary": "Cerrar resumen del repositorio",
             "repository": "Repositorio",
