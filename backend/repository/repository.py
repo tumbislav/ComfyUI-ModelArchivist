@@ -157,13 +157,9 @@ def load_repository_configuration(config: Configuration) -> None:
                     continue
                 location = stored_models.get(str(discovered.working_dir))
                 if location is None:
-                    location = ModelLocationSetting(
-                        model_type=discovered.model_type, source='comfyui',
-                        working_dir=str(discovered.working_dir), active=True)
-                    session.add(location)
-                else:
-                    location.model_type = discovered.model_type
-                    location.active = True
+                    continue
+                location.model_type = discovered.model_type
+                location.active = True
                 config.model_type_labels[discovered.model_type] = type_setting.display_name
                 if location.archive_dir:
                     config.add_model_locations(discovered.model_type,
@@ -368,18 +364,32 @@ def _normalized_location(value: str, role: str = 'working') -> str:
     return str(checked_path(value, role))
 
 
-def update_repository_configuration(data: dict) -> dict:
+def update_repository_configuration(data: dict, *, scope: str = 'all') -> dict:
     """Validate and persist repository locations and behavioral options."""
     model_types = data.get('model_types', [])
     workflow_locations = data.get('workflow_locations', [])
-    if _config.mode == 'standalone' and any(
+    update_models = scope != 'workflows'
+    update_workflows = scope != 'models'
+    models_to_update = model_types if update_models else []
+    workflows_to_update = workflow_locations if update_workflows else []
+    if _config.mode == 'standalone' and update_models and any(
             len(item.get('locations', [])) > 1 for item in model_types):
         raise ValueError('standalone mode permits one working/archive pair per model type')
-    if _config.mode == 'standalone' and len(workflow_locations) > 1:
+    if _config.mode == 'standalone' and update_workflows and len(workflow_locations) > 1:
         raise ValueError('standalone mode permits one workflow working/archive pair')
 
     seen: set[str] = set()
-    for item in model_types:
+    unchanged_locations = []
+    if not update_workflows:
+        unchanged_locations.extend(workflow_locations)
+    if not update_models:
+        unchanged_locations.extend(location for item in model_types
+                                   for location in item.get('locations', []))
+    for location in unchanged_locations:
+        for key in ('working_dir', 'archive_dir'):
+            if location.get(key):
+                seen.add(str(Path(location[key]).absolute()))
+    for item in models_to_update:
         if not item.get('name', '').strip() or not item.get('display_name', '').strip():
             raise ValueError('model type names cannot be empty')
         extensions = item.get('extensions', [])
@@ -394,7 +404,7 @@ def update_repository_configuration(data: dict) -> dict:
                 if normalized in seen:
                     raise ValueError(f'folder is reused by more than one location: {normalized}')
                 seen.add(normalized)
-    for location in workflow_locations:
+    for location in workflows_to_update:
         for key in ('working_dir', 'archive_dir'):
             value = location.get(key)
             if key == 'archive_dir' and not value and _config.mode == 'comfyui':
@@ -413,14 +423,16 @@ def update_repository_configuration(data: dict) -> dict:
         session.add(settings)
 
         if _config.mode == 'standalone':
-            for row in session.exec(select(ModelLocationSetting)).all():
-                session.delete(row)
-            for row in session.exec(select(WorkflowLocationSetting)).all():
-                session.delete(row)
-            for row in session.exec(select(ModelTypeSetting)).all():
-                session.delete(row)
+            if update_models:
+                for row in session.exec(select(ModelLocationSetting)).all():
+                    session.delete(row)
+                for row in session.exec(select(ModelTypeSetting)).all():
+                    session.delete(row)
+            if update_workflows:
+                for row in session.exec(select(WorkflowLocationSetting)).all():
+                    session.delete(row)
             session.flush()
-            for item in model_types:
+            for item in models_to_update:
                 session.add(ModelTypeSetting(
                     name=item['name'].strip(), display_name=item['display_name'].strip(),
                     extensions=sorted({f'.{value.lower().lstrip(".")}'
@@ -430,7 +442,7 @@ def update_repository_configuration(data: dict) -> dict:
                         model_type=item['name'].strip(), source='standalone',
                         working_dir=_normalized_location(location['working_dir']),
                         archive_dir=_normalized_location(location['archive_dir'], 'archive')))
-            for location in workflow_locations:
+            for location in workflows_to_update:
                 session.add(WorkflowLocationSetting(
                     source='standalone',
                     working_dir=_normalized_location(location['working_dir']),
@@ -442,7 +454,7 @@ def update_repository_configuration(data: dict) -> dict:
                 select(ModelTypeSetting)).all()}
             stored_models = {row.working_dir: row for row in session.exec(
                 select(ModelLocationSetting).where(ModelLocationSetting.source == 'comfyui')).all()}
-            for item in model_types:
+            for item in models_to_update:
                 type_row = stored_types.get(item['name'])
                 if type_row is None:
                     matching = [location for location in discovered_models.values()
@@ -475,7 +487,7 @@ def update_repository_configuration(data: dict) -> dict:
             stored_workflows = {row.working_dir: row for row in session.exec(
                 select(WorkflowLocationSetting).where(
                     WorkflowLocationSetting.source == 'comfyui')).all()}
-            for location in workflow_locations:
+            for location in workflows_to_update:
                 working = _normalized_location(location['working_dir'])
                 row = stored_workflows.get(working)
                 if row is None or not row.active:
@@ -501,7 +513,7 @@ def update_model_configuration(data: dict) -> dict:
     """Update only model settings while preserving workflow settings and options."""
     current = get_repository_configuration()
     current['model_types'] = data.get('model_types', [])
-    return update_repository_configuration(current)
+    return update_repository_configuration(current, scope='models')
 
 
 def model_mapping_roots() -> list[str]:
@@ -553,6 +565,8 @@ def propose_model_mappings(working_root_value: str, archive_root_value: str,
                 except ValueError:
                     continue
                 checked_path(item.working_dir, 'working')
+                if not item.working_dir.is_dir():
+                    continue
                 current = existing_by_name.get(item.model_type)
                 stored = next((location for location in current['locations']
                                if Path(location['working_dir']).absolute()
@@ -578,7 +592,7 @@ def update_workflow_configuration(data: dict) -> dict:
     """Update only workflow settings while preserving model settings and options."""
     current = get_repository_configuration()
     current['workflow_locations'] = data.get('workflow_locations', [])
-    return update_repository_configuration(current)
+    return update_repository_configuration(current, scope='workflows')
 
 
 def repository_summary() -> dict:

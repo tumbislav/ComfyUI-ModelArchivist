@@ -18,7 +18,7 @@ from backend.exception import ArcException
 from backend.environment import ComfyEnvironmentProvider
 import backend.repository.repository as repository
 from backend.repository.tables import (ApplicationSettings, ModelLocationSetting,
-                                       ModelTypeSetting)
+                                       ModelTypeSetting, WorkflowLocationSetting)
 
 
 def repository_config(db_file: Path, log_file: Path) -> Configuration:
@@ -144,10 +144,65 @@ def test_comfy_model_types_are_created_only_when_user_saves_mappings(
         str(models), str(tmp_path / 'archive'), ['.safetensors'])
     assert next(item for item in additional if item['name'] == 'checkpoints')['extensions'] == [
         '.gguf', '.sft']
+    updated_locations = repository.get_repository_configuration()['model_types'][0]['locations']
+    assert len(updated_locations) == 1
+    assert updated_locations[0]['working_dir'] == str(checkpoints)
     selected['extensions'] = ['.pt']
     updated = repository.update_model_configuration({'model_types': [selected]})
     assert updated['model_types'][0]['extensions'] == ['.pt']
     assert config.model_extensions_by_type['checkpoints'] == ['.pt']
+    repository.load_repository_configuration(config)
+    assert len(repository.get_repository_configuration()['model_types'][0]['locations']) == 1
+
+
+@pytest.mark.parametrize('mode', ['standalone', 'comfyui'])
+@pytest.mark.parametrize('scope', ['models', 'workflows'])
+def test_tab_save_does_not_validate_or_rewrite_unrelated_blocked_locations(
+        tmp_path, monkeypatch, mode, scope):
+    import backend.filesystem_policy as fs
+    models = tmp_path / 'models'
+    workflows = tmp_path / 'user' / 'workflows'
+    archive = tmp_path / 'archive'
+    for path in (models, workflows, archive / 'models', archive / 'workflows'):
+        path.mkdir(parents=True)
+    config = repository_config(tmp_path / 'database.db', tmp_path / 'database.log')
+    permitted = models if scope == 'models' else workflows
+    policy = fs.FilesystemPolicy((permitted,), (archive,), ())
+    config.filesystem = policy
+    monkeypatch.setattr(fs, '_policy', policy)
+    monkeypatch.setattr(repository, 'get_config', lambda: config)
+    if mode == 'comfyui':
+        provider = ComfyEnvironmentProvider(SimpleNamespace(
+            models_dir=str(models),
+            folder_names_and_paths={'checkpoints': ([str(models)], {'.gguf'})},
+            get_user_directory=lambda: str(workflows.parent),
+        ))
+        monkeypatch.setattr(repository, 'get_environment_provider', lambda: provider)
+    repository.start_repo()
+    with Session(repository._engine) as session:
+        session.add(ModelTypeSetting(name='checkpoints', display_name='Checkpoints', extensions=['.gguf']))
+        session.add(ModelLocationSetting(model_type='checkpoints', source=mode,
+                                         working_dir=str(models), archive_dir=str(archive / 'models')))
+        workflow = session.exec(select(WorkflowLocationSetting)).first()
+        if workflow is None:
+            workflow = WorkflowLocationSetting(source=mode, working_dir=str(workflows))
+        workflow.archive_dir = str(archive / 'workflows')
+        session.add(workflow)
+        session.commit()
+    repository.load_repository_configuration(config)
+    original = repository.get_repository_configuration()
+    if scope == 'models':
+        types = original['model_types']
+        types[0]['display_name'] = 'Updated'
+        result = repository.update_model_configuration({'model_types': types})
+        assert result['model_types'][0]['display_name'] == 'Updated'
+        assert result['workflow_locations'] == original['workflow_locations']
+    else:
+        locations = [dict(original['workflow_locations'][0], archive_dir=str(archive / 'new-workflows'))]
+        result = repository.update_workflow_configuration({'workflow_locations': locations})
+        assert result['workflow_locations'][0]['archive_dir'] == str(archive / 'new-workflows')
+        assert result['model_types'] == original['model_types']
+    assert config.read_only is True
 
 
 def test_sql_log_handler_preserves_unicode(tmp_path, monkeypatch):

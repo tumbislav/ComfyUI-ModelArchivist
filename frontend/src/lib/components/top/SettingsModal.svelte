@@ -348,6 +348,19 @@
         settings?.model_types.unshift({name: '', display_name: '', extensions: [],
             locations: [{working_dir: '', archive_dir: ''}], _new: true});
     }
+
+    function canDiscardLocation(type: ModelTypeSetting, location: RepositoryLocation): boolean {
+        const original = savedModels.find(saved => saved.name === modelOriginalNames.get(type));
+        return !original?.locations.some(saved =>
+            saved.working_dir.toLowerCase() === location.working_dir.toLowerCase());
+    }
+
+    function discardLocation(type: ModelTypeSetting, index: number): void {
+        type.locations.splice(index, 1);
+        if (type._new && type.locations.length === 0 && settings) {
+            settings.model_types.splice(settings.model_types.indexOf(type), 1);
+        }
+    }
     async function addModelMappings(): Promise<void> {
         if (!settings || mappingDiscoveryBusy) return;
         error = null;
@@ -411,33 +424,6 @@
         </button>
     </header>
 
-    {#if settings?.filesystem}
-        <details class="dialog-section-blank filesystem-policy">
-            <summary>{locale.t('filesystem.permissions')}</summary>
-            <p>{locale.t('filesystem.instructions', { path: settings.filesystem_config_file ?? 'config.toml' })}</p>
-            {#each ['working_roots', 'archive_roots', 'exclusions'] as key}
-                <p><strong>{locale.t(`filesystem.${key}`)}</strong></p>
-                <ul>
-                    {#each settings.filesystem[key as keyof typeof settings.filesystem] as path}
-                        <li><code>{path}</code></li>
-                    {:else}
-                        <li>{locale.t('filesystem.none')}</li>
-                    {/each}
-                </ul>
-            {/each}
-        </details>
-    {/if}
-    {#if settings?.filesystem_issues?.length}
-        <div class="dialog-section-blank filesystem-policy error-message" role="alert">
-            <p>{locale.t('filesystem.blocked')}</p>
-            <ul>
-                {#each settings.filesystem_issues as issue}
-                    <li>{locale.error(issue)}</li>
-                {/each}
-            </ul>
-        </div>
-    {/if}
-
     <SettingsLayout
         {activeTab}
         dirty={{
@@ -478,6 +464,8 @@
                     onSave={scan => runSave('models', scan)}
                     onSaveType={(type, scan) => runSave('models', scan, type)}
                     onRemoveType={index => settings?.model_types.splice(index, 1)}
+                    {canDiscardLocation}
+                    onDiscardLocation={discardLocation}
                     onError={message => error = message} />
             {:else if tab === 'workflows'}
                 <WorkflowSettings

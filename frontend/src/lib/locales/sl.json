@@ -441,6 +441,8 @@
             "working_folder": "Delovna mapa",
             "archive_folder": "Arhivska mapa",
             "remove_type": "Odstrani",
+            "discard_type": "Zavrzi tip",
+            "discard_mapping": "Zavrzi preslikavo",
             "save_2": "Shrani"
         },
         "general_settings": {

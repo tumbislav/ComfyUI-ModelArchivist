@@ -441,6 +441,8 @@
             "working_folder": "Working folder",
             "archive_folder": "Archive folder",
             "remove_type": "Remove",
+            "discard_type": "Discard type",
+            "discard_mapping": "Discard mapping",
             "save_2": "Save"
         },
         "general_settings": {

@@ -66,7 +66,11 @@ extension lists, and display settings. Empty ComfyUI extension lists default to
 are owned by Archivist and remain authoritative after restarting.
 Model type settings start empty; users create them by adding and
 saving mappings for discovered ComfyUI folders. Discovery alone does not create model
-type entries. A ComfyUI action-bar button opens `/model-archivist/` on the ComfyUI
+type entries. Mapping proposals include only registered folders that exist on disk.
+Users can discard proposed types or individual unsaved mappings before saving;
+startup does not create omitted model mappings. Model and workflow saves validate
+and update only their own settings, preserving the other tab's stored mappings.
+A ComfyUI action-bar button opens `/model-archivist/` on the ComfyUI
 origin. ComfyUI proxies that path to Archivist's internal FastAPI server, so browser
 traffic uses the same host and port as ComfyUI. No ComfyUI execution nodes are registered.
 Mutable embedded runtime data is kept outside the installed custom-node directory, in

@@ -441,6 +441,8 @@
             "working_folder": "Carpeta de trabajo",
             "archive_folder": "Carpeta de archivo",
             "remove_type": "Quitar",
+            "discard_type": "Descartar tipo",
+            "discard_mapping": "Descartar asignación",
             "save_2": "Guardar"
         },
         "general_settings": {

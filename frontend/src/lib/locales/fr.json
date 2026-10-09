@@ -441,6 +441,8 @@
             "working_folder": "Dossier de travail",
             "archive_folder": "Dossier d’archive",
             "remove_type": "Retirer",
+            "discard_type": "Abandonner le type",
+            "discard_mapping": "Abandonner la correspondance",
             "save_2": "Enregistrer"
         },
         "general_settings": {

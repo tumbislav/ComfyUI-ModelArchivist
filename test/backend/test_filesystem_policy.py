@@ -46,6 +46,7 @@ def test_role_boundaries_missing_targets_and_prefix_siblings(policy):
 def test_comfy_mapping_preview_ignores_unpermitted_folders_outside_selected_root(
         policy, monkeypatch, outside_first):
     working, archive = policy.working_roots[0], policy.archive_roots[0]
+    (working / 'checkpoints').mkdir()
     locations = [
         DiscoveredModelLocation('checkpoints', working / 'checkpoints', ('.safetensors',)),
         DiscoveredModelLocation('luts', working.parent / 'custom_nodes' / 'luts', ('.cube',)),
@@ -82,6 +83,8 @@ def test_comfy_mapping_preview_reports_excluded_folder_inside_selected_root(poli
 
 def test_comfy_mapping_preview_merges_initial_extensions_for_shared_type(policy, monkeypatch):
     working, archive = policy.working_roots[0], policy.archive_roots[0]
+    (working / 'LLM').mkdir()
+    (working / 'other-LLM').mkdir()
     locations = [
         DiscoveredModelLocation('LLM', working / 'LLM', ()),
         DiscoveredModelLocation('LLM', working / 'other-LLM', ('.gguf',)),
@@ -95,6 +98,21 @@ def test_comfy_mapping_preview_merges_initial_extensions_for_shared_type(policy,
     assert len(candidates) == 1
     assert candidates[0]['extensions'] == ['.gguf']
     assert len(candidates[0]['locations']) == 2
+
+
+def test_comfy_mapping_preview_skips_missing_folders_and_files(policy, monkeypatch):
+    working, archive = policy.working_roots[0], policy.archive_roots[0]
+    (working / 'existing').mkdir()
+    (working / 'file').write_bytes(b'not a directory')
+    locations = [DiscoveredModelLocation(name, working / name, ('.gguf',))
+                 for name in ('existing', 'missing', 'file')]
+    monkeypatch.setattr(repository, '_config', SimpleNamespace(mode='comfyui'))
+    monkeypatch.setattr(repository, 'get_environment_provider',
+                        lambda: SimpleNamespace(model_locations=lambda: locations))
+    monkeypatch.setattr(repository, 'get_repository_configuration', lambda: {'model_types': []})
+
+    candidates = repository.propose_model_mappings(str(working), str(archive), ['.gguf'])
+    assert [item['name'] for item in candidates] == ['existing']
 
 
 @pytest.mark.parametrize('value', ['relative/path', '~', '../escape'])

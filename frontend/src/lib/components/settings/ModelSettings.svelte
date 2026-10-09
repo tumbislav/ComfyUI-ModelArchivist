@@ -36,6 +36,8 @@
         onSave,
         onSaveType,
         onRemoveType,
+        canDiscardLocation,
+        onDiscardLocation,
         onError
     }: {
         settings: RepositorySettings | null;
@@ -54,6 +56,8 @@
         onSave: (scan: boolean) => void;
         onSaveType: (type: ModelTypeSetting, scan: boolean) => void;
         onRemoveType: (index: number) => void;
+        canDiscardLocation: (type: ModelTypeSetting, location: ModelTypeSetting['locations'][number]) => boolean;
+        onDiscardLocation: (type: ModelTypeSetting, index: number) => void;
         onError: (message: string) => void;
     } = $props();
 </script>
@@ -151,7 +155,7 @@
                                    .split(',').map(value => value.trim()).filter(Boolean)} />
                     </label>
 
-                    {#each type.locations as location}
+                    {#each type.locations as location, locationIndex}
                         <label class="dialog-label">
                             {locale.t('ui.model_settings.working_folder')}
                             <PathInput bind:value={location.working_dir} role="working"
@@ -162,14 +166,24 @@
                             {locale.t('ui.model_settings.archive_folder')}
                             <PathInput bind:value={location.archive_dir} role="archive" onError={onError} />
                         </label>
+                        {#if canDiscardLocation(type, location)}
+                            <div class="model-mapping-actions">
+                                <button class="button-with-text danger"
+                                        onclick={() => onDiscardLocation(type, locationIndex)}>
+                                    <img class="action-icon" alt="" src={removeIcon} />
+                                    <span class="button-label">{locale.t('ui.model_settings.discard_mapping')}</span>
+                                </button>
+                            </div>
+                        {/if}
                     {/each}
                 </div>
 
                 <div class="spaced-horizontally model-type-actions settings-actions">
-                    {#if settings.mode === 'standalone'}
+                    {#if settings.mode === 'standalone' || type._new}
                         <button class="button-with-text danger" onclick={() => onRemoveType(typeIndex)}>
                             <img class="action-icon" alt="" src={removeIcon} />
-                            <span class="button-label">{locale.t('ui.model_settings.remove_type')}</span>
+                            <span class="button-label">{locale.t(type._new
+                                ? 'ui.model_settings.discard_type' : 'ui.model_settings.remove_type')}</span>
                         </button>
                     {/if}
                     <button class="button-with-text" disabled={!isDirty(type)}
