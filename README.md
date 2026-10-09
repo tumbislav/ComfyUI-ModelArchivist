@@ -24,8 +24,10 @@ The file `config.toml` is typically located in the root folder. It contains only
 bootstrap settings required before the repository database can be opened: the SQLite
 database path, web server settings, logging settings, and disk-owned filesystem permissions. Repository behavior, model
 types, accepted extensions, and working/archive location mappings are stored in SQLite.
-A new database starts in setup mode and is not scanned until the required mappings have
-been saved.
+A new database starts in setup mode and is not scanned until at least one complete
+model, workflow, or user-defined type mapping has been saved. Each category is optional.
+Scans visit only configured mappings, and cleanup preserves records outside the scan's
+configured targets. Unmapped ComfyUI discoveries do not affect filesystem readiness.
 
 The backend initializes without scanning. General settings contains “Always run a full
 scan at startup”, enabled by default and saved in this browser's local storage. When
@@ -56,7 +58,7 @@ individual-type actions in Settings. A JSON body with `type_ids` selects a batch
 model or user types. Scanning and cleanup are both restricted to the
 selected scope; other types and their records are preserved.
 
-In standalone mode, Archivist manages the working locations and permits exactly one
+In standalone mode, Archivist manages the working locations and permits at most one
 working/archive pair for each model type and one pair for workflows. ComfyUI's
 `extra_model_paths.yaml` mechanism is deliberately not supported in standalone mode.
 

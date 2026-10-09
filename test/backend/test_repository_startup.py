@@ -11,6 +11,7 @@ import tomllib
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
+from fastapi import HTTPException
 from sqlmodel import SQLModel, Session, create_engine, select
 
 from backend.config import Configuration, DatabaseConfig, LoggingConfig, WebConfig
@@ -220,6 +221,63 @@ def test_sql_log_handler_preserves_unicode(tmp_path, monkeypatch):
     handler.flush()
     assert 'Model \u8272\u60c5\u5927\u5e2b \U0001f7e1 invalid: \\ud800' in Path(
         config.log_file).read_text(encoding='utf-8')
+
+
+@pytest.mark.parametrize('category', ['models', 'workflows', 'user_objects'])
+def test_single_category_repository_is_ready_and_ignores_unconfigured_comfy_paths(
+        tmp_path, monkeypatch, category):
+    import backend.filesystem_policy as fs
+    from backend.server.routers import admin
+    working = tmp_path / 'working'
+    archive = tmp_path / 'archive'
+    working.mkdir()
+    archive.mkdir()
+    workflow_root = working / 'user' / 'workflows' if category == 'workflows' else tmp_path / 'unpermitted-user' / 'workflows'
+    provider = ComfyEnvironmentProvider(SimpleNamespace(
+        models_dir=str(working),
+        folder_names_and_paths={'checkpoints': ([str(working / 'checkpoints')], {'.gguf'})},
+        get_user_directory=lambda: str(workflow_root.parent),
+    ))
+    (working / 'checkpoints').mkdir()
+    config = repository_config(tmp_path / 'database.db', tmp_path / 'database.log')
+    config.filesystem = fs.FilesystemPolicy((working,), (archive,), ())
+    monkeypatch.setattr(fs, '_policy', config.filesystem)
+    monkeypatch.setattr(repository, 'get_config', lambda: config)
+    monkeypatch.setattr(repository, 'get_environment_provider', lambda: provider)
+    repository.start_repo()
+    assert config.setup_required and not config.read_only
+    if category == 'models':
+        candidates = repository.propose_model_mappings(str(working), str(archive), ['.gguf'])
+        repository.update_model_configuration({'model_types': candidates})
+    elif category == 'workflows':
+        repository.update_workflow_configuration({'workflow_locations': [{
+            'working_dir': str(workflow_root), 'archive_dir': str(archive / 'workflows')}]})
+    else:
+        created_type = repository.create_user_type({
+            'name': 'Documents', 'short_name': 'Docs', 'object_class': 'file',
+            'extensions': ['.txt'], 'working_dir': str(working / 'documents'),
+            'archive_dir': str(archive / 'documents'), 'icon': 'document',
+            'size_limit': 1024 * 1024, 'small': True,
+        })
+    assert not config.setup_required
+    assert not config.read_only
+    repository.load_repository_configuration(config)
+    assert repository.get_repository_configuration()['setup_complete'] is True
+    assert not config.setup_required and not config.read_only
+    monkeypatch.setattr(admin, 'get_config', lambda: config)
+    monkeypatch.setattr(admin, 'user_types_for_scan', repository.user_types_for_scan)
+    monkeypatch.setattr(admin, 'submit_scan', lambda *args: {'id': 'scan'})
+    assert admin.start_scan()['id'] == 'scan'
+    if category == 'user_objects':
+        with pytest.raises(HTTPException) as error:
+            admin.start_scan(scope='models')
+        assert error.value.detail['code'] == 'scan_no_targets'
+        preview = repository.preview_user_type_deletion(created_type['id'])
+        repository.delete_user_type(created_type['id'], preview['confirmation_id'])
+        assert config.setup_required
+        assert not config.read_only
+        repository.load_repository_configuration(config)
+        assert config.setup_required
 
 
 def test_configured_database_loads_paths_without_starting_scan(tmp_path, monkeypatch):

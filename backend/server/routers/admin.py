@@ -43,7 +43,14 @@ def start_scan(rehash: bool = False, startup: bool = False,
     global _startup_scan_id
     config = get_config()
     if config.read_only:
-        raise HTTPException(403, 'Application is read-only')
+        issues = getattr(config, 'filesystem_issues', [])
+        reason = issues[0]['message'] if issues else 'Check configured model and workflow folder access.'
+        raise HTTPException(403, detail={
+            'code': 'filesystem_read_only',
+            'message': f'Scanning is unavailable while the repository is read-only. {reason}',
+            'params': {},
+            'issues': issues,
+        })
     if config.setup_required:
         raise HTTPException(409, detail={
             'code': 'setup_required',
@@ -65,6 +72,19 @@ def start_scan(rehash: bool = False, startup: bool = False,
         raise HTTPException(422, detail={
             'code': 'invalid_scan_scope', 'message': 'Invalid scan scope or type',
             'params': {'scope': scope, 'type_id': type_id},
+        })
+    model_targets = {name for name, locations in config.model_folders.items() if locations}
+    user_targets = {item['id'] for item in user_types_for_scan()} if scope in ('all', 'user_objects') else set()
+    if selected is not None:
+        model_targets.intersection_update(selected)
+        user_targets.intersection_update(selected)
+    has_targets = ((scope in ('all', 'models') and bool(model_targets))
+                   or (scope in ('all', 'workflows') and bool(getattr(config, 'workflow_folders', [])))
+                   or (scope in ('all', 'user_objects') and bool(user_targets)))
+    if not has_targets:
+        raise HTTPException(409, detail={
+            'code': 'scan_no_targets', 'message': 'No configured locations are available for this scan.',
+            'params': {'scope': scope},
         })
     try:
         if startup:

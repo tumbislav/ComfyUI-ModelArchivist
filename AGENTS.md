@@ -36,7 +36,9 @@ options, model definitions, and working/archive mappings belong in SQLite.
 - ComfyUI mode discovers working model locations and extensions from `folder_paths`.
   Working paths supplied by ComfyUI are not editable by Archivist. Each discovered
   working path may have an Archivist-managed archive mapping.
-- A new database starts in setup mode and must not scan before required mappings exist.
+- A new database starts in setup mode and must not scan before at least one complete
+  model, workflow, or user-type mapping exists. Each category is optional. Unmapped
+  discoveries must not affect readiness; scan cleanup is limited to configured targets.
 - ComfyUI mode stores its SQLite database and log in the ComfyUI user root's
   `_archivist` directory. Standalone mode honors the bootstrap paths in `config.toml`.
 - Filesystem inaccessibility makes the application read-only and prevents scanning or

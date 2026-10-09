@@ -48,7 +48,7 @@ def test_single_model_save_preserves_other_types(unlocked, monkeypatch):
 @pytest.mark.parametrize('scope', ['models', 'user_objects'])
 def test_batch_scan_is_one_dispatch_with_deduplicated_targets(monkeypatch, scope):
     monkeypatch.setattr(admin, 'get_config', lambda: SimpleNamespace(
-        read_only=False, setup_required=False, model_folders={'first': [], 'second': []}))
+        read_only=False, setup_required=False, model_folders={'first': [('w1', 'a1')], 'second': [('w2', 'a2')]}))
     monkeypatch.setattr(admin, 'user_types_for_scan', lambda: [{'id': 'first'}, {'id': 'second'}])
     calls = []
     monkeypatch.setattr(admin, 'submit_scan', lambda *args: calls.append(args) or {'id': 'one'})
@@ -64,6 +64,21 @@ def test_batch_scan_is_one_dispatch_with_deduplicated_targets(monkeypatch, scope
 def test_empty_batch_cannot_accidentally_become_full_scan():
     with pytest.raises(ValidationError):
         admin.ScanTargets(type_ids=[])
+
+
+def test_read_only_scan_reports_filesystem_reason_instead_of_access_failure(monkeypatch):
+    issue = {'code': 'filesystem_outside_roots', 'message': 'Workflow folder is outside working roots.',
+             'params': {'path': 'workflows'}}
+    monkeypatch.setattr(admin, 'get_config', lambda: SimpleNamespace(
+        read_only=True, filesystem_issues=[issue]))
+    monkeypatch.setattr(admin, 'submit_scan', lambda *args: pytest.fail('must not scan while read-only'))
+
+    with pytest.raises(HTTPException) as error:
+        admin.start_scan()
+    assert error.value.status_code == 403
+    assert error.value.detail['code'] == 'filesystem_read_only'
+    assert issue['message'] in error.value.detail['message']
+    assert error.value.detail['issues'] == [issue]
 
 
 @pytest.mark.parametrize('active_scanner', [False, True])

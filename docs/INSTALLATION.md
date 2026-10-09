@@ -174,11 +174,13 @@ ComfyUI-owned working locations remain non-editable.
 
 ## Complete the first-run setup
 
-A new database starts in setup mode and does not scan until the required folder
-mappings have been saved.
+A new database starts in setup mode and does not scan until at least one complete
+model, workflow, or user-type folder mapping has been saved. Each category is optional,
+and a user-type-only repository is fully supported. Scans and cleanup include only
+configured targets. Unmapped ComfyUI folders do not block repository operations.
 
 1. Open **Settings**.
-2. Under **Models**, pair every working model location with an archive location.
+2. Under **Models**, pair the working model locations you want to manage with archive locations.
    In ComfyUI mode, the working locations are supplied by ComfyUI and cannot be
    changed in Model Archivist. Review and edit the initialized extension lists as needed.
 3. Under **Workflows**, choose the archive folder. In standalone mode, also choose

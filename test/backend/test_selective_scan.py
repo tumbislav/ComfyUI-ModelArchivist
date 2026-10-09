@@ -100,6 +100,14 @@ def test_scanner_only_launches_selected_workers(monkeypatch, scope, type_id, exp
     assert scanner.progress()['type_id'] == type_id
 
 
+def test_all_cleanup_preserves_targets_not_in_scan_selection(database):
+    repo.scan_cleanup('new', model_types=['first'], user_type_ids=[], workflows_scanned=False)
+    with Session(database) as session:
+        assert set(session.exec(select(Model.id)).all()) == {'second'}
+        assert set(session.exec(select(UserDefinedObject.id)).all()) == {'first', 'second'}
+        assert set(session.exec(select(Workflow.id)).all()) == {'workflow'}
+
+
 def test_summary_counts_disjoint_locations_and_nested_collection_errors(database):
     with Session(database) as session:
         model = session.get(Model, 'first')

@@ -144,6 +144,9 @@ class Scanner:
     config: Configuration | None = None
     scope: str = 'all'
     type_id: str | list[str] | None = None
+    selected_model_types: list[str] = field(default_factory=list)
+    selected_user_type_ids: list[str] = field(default_factory=list)
+    selected_workflows: bool = False
     logger: logging.Logger = field(default_factory=lambda: logging.getLogger('archivist.files'))
 
     def start(self, rehash: bool = False, scope: str = 'all',
@@ -165,15 +168,19 @@ class Scanner:
             if scope not in ('all', 'models') or (type_id is not None and name not in selected_types):
                 continue
             for active, archive in locations:
+                if name not in self.selected_model_types:
+                    self.selected_model_types.append(name)
                 threads.append(Thread(target=self.find_models, args=(name, active, archive, rehash)))
 
         if scope in ('all', 'workflows') and self.config.workflow_folders:
+            self.selected_workflows = True
             threads.append(Thread(target=self.find_workflows, args=(self.config.workflow_folders,)))
 
         user_types = repo.user_types_for_scan() if scope in ('all', 'user_objects') else []
         if type_id is not None:
             user_types = [item for item in user_types if item['id'] in selected_types]
         if user_types:
+            self.selected_user_type_ids = [item['id'] for item in user_types]
             threads.append(Thread(target=self.find_user_objects, args=(user_types,)))
 
         threads.append(Thread(target=self.cleanup, args=tuple()))
@@ -235,7 +242,10 @@ class Scanner:
         self.logger.debug('starting cleanup')
         with repo.lock:
             if not self.errors:
-                repo.scan_cleanup(self.timestamp, self.scope, self.type_id)
+                repo.scan_cleanup(self.timestamp, self.scope, self.type_id,
+                                  model_types=self.selected_model_types,
+                                  user_type_ids=self.selected_user_type_ids,
+                                  workflows_scanned=self.selected_workflows)
         with self.lock:
             self.end_time = datetime.datetime.now(tz=datetime.timezone.utc)
             self.finished = True

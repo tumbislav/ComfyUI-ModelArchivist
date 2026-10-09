@@ -21,6 +21,7 @@
         sections: Record<string, Counts>;
         operation: Operation | null;
         can_scan: boolean;
+        configured_scopes: Record<string, boolean>;
     };
 
     let { onClose }: { onClose: () => void } = $props();
@@ -177,7 +178,7 @@
 
                         {#if section.key !== 'collections'}
                             <button class="button-with-text" type="button"
-                                    disabled={busy || !summary.can_scan}
+                                    disabled={busy || !summary.can_scan || !summary.configured_scopes[section.key]}
                                     aria-label={locale.t('messages.refresh_section', {section: section.title})}
                                     onclick={() => scan(section.key as ScanScope)}>
                                 <img class="action-icon-small" alt="" src={refreshIcon} />

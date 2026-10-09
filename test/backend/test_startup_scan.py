@@ -17,6 +17,7 @@ from backend.dispatcher import OperationBusyError
 @pytest.fixture
 def scan_requests(monkeypatch):
     config = SimpleNamespace(read_only=False, setup_required=False,
+                             model_folders={'checkpoints': [('working', 'archive')]},
                              options=SimpleNamespace(always_recalc_hashes=True))
     requests = []
 
@@ -25,6 +26,7 @@ def scan_requests(monkeypatch):
         return {'id': 'startup', 'state': 'pending'}
 
     monkeypatch.setattr(admin, 'get_config', lambda: config)
+    monkeypatch.setattr(admin, 'user_types_for_scan', lambda: [])
     monkeypatch.setattr(admin, 'submit_scan', submit)
     monkeypatch.setattr(admin, '_startup_scan_id', None)
     monkeypatch.setattr(admin.dispatcher, 'get',

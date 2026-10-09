@@ -121,7 +121,6 @@ def load_repository_configuration(config: Configuration) -> None:
             update_json_metadata=settings.update_json_metadata,
             ignore_unknown_types=settings.ignore_unknown_types,
             always_recalc_hashes=settings.always_recalc_hashes)
-        config.setup_required = not settings.setup_complete
         config.model_extension_allowlist = settings.model_extension_allowlist
 
         type_settings = {item.name: item for item in session.exec(
@@ -193,13 +192,11 @@ def load_repository_configuration(config: Configuration) -> None:
         for item in user_types:
             config._check_folder(Path(item.working_dir), 'model_working_accessible')
             config._check_folder(Path(item.archive_dir), 'model_archive_accessible')
-    roots = [path for paths in config.unmapped_model_folders.values() for path in paths]
-    roots.extend(config.unmapped_workflow_folders)
-    for path in roots:
-        try:
-            config.filesystem.check(path, 'working')
-        except FilesystemPolicyError as error:
-            config.filesystem_issues.append(error.detail())
+        settings = session.get(ApplicationSettings, 1)
+        settings.setup_complete = bool(config.model_folders or config.workflow_folders or user_types)
+        config.setup_required = not settings.setup_complete
+        session.add(settings)
+        session.commit()
 
 
 def start_repo():
@@ -496,12 +493,6 @@ def update_repository_configuration(data: dict, *, scope: str = 'all') -> dict:
                                    if location.get('archive_dir') else None)
                 session.add(row)
 
-        mapped_models = all(location.get('archive_dir') for item in model_types
-                            for location in item.get('locations', []))
-        has_models = any(item.get('locations') for item in model_types)
-        mapped_workflows = bool(workflow_locations) and all(
-            location.get('archive_dir') for location in workflow_locations)
-        settings.setup_complete = bool(has_models and mapped_models and mapped_workflows)
         session.add(settings)
         session.commit()
 
@@ -756,10 +747,15 @@ def save_scanned_workflow(workflow: Workflow, tag_names: list[str]) -> None:
             session.commit()
 
 def scan_cleanup(scan_timestamp: str, scope: str = 'all',
-                 type_id: str | list[str] | None = None):
+                 type_id: str | list[str] | None = None, *,
+                 model_types: list[str] | None = None,
+                 user_type_ids: list[str] | None = None,
+                 workflows_scanned: bool = True):
     selected_types = [type_id] if isinstance(type_id, str) else type_id
     with Session(_engine) as session:
         model_query = select(Model).where(Model.touched != scan_timestamp)
+        if model_types is not None:
+            model_query = model_query.where(Model.type.in_(model_types))
         if type_id is not None:
             model_query = model_query.where(Model.type.in_(selected_types))
         models = session.exec(model_query) if scope in ('all', 'models') else []
@@ -767,11 +763,13 @@ def scan_cleanup(scan_timestamp: str, scope: str = 'all',
             _logger.debug(f'deleting model {model.internal_name}')
             session.delete(model)
         workflows = session.exec(select(Workflow).where(
-            Workflow.touched != scan_timestamp)) if scope in ('all', 'workflows') else []
+            Workflow.touched != scan_timestamp)) if workflows_scanned and scope in ('all', 'workflows') else []
         for workflow in workflows:
             _logger.debug(f'deleting workflow {workflow.internal_name}')
             session.delete(workflow)
         user_query = select(UserDefinedObject).where(UserDefinedObject.touched != scan_timestamp)
+        if user_type_ids is not None:
+            user_query = user_query.where(UserDefinedObject.type_id.in_(user_type_ids))
         if type_id is not None:
             user_query = user_query.where(UserDefinedObject.type_id.in_(selected_types))
         user_objects = session.exec(user_query) if scope in ('all', 'user_objects') else []
@@ -1896,6 +1894,8 @@ def create_user_type(data: dict) -> dict:
         session.add(item)
         session.commit()
         session.refresh(item)
+        if isinstance(_config, Configuration):
+            load_repository_configuration(_config)
         return item.representation()
 
 
@@ -1929,6 +1929,8 @@ def update_user_type(id: str, data: dict) -> dict:
         session.add(item)
         session.commit()
         session.refresh(item)
+        if isinstance(_config, Configuration):
+            load_repository_configuration(_config)
         return item.representation()
 
 
@@ -2489,6 +2491,8 @@ def delete_user_type(id: str, confirmation_id: str) -> dict:
                 session.delete(collection)
         session.delete(item)
         session.commit()
+        if isinstance(_config, Configuration):
+            load_repository_configuration(_config)
         return impact
 
 
