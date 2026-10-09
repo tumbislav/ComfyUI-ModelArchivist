@@ -116,6 +116,8 @@ path restrictions.
 The `[filesystem]` section of `config.toml` defines permitted working roots,
 permitted archive roots, and exclusions. It is initialized on first startup and
 can be reviewed and saved once in the first-run dialog, with one root per line.
+Before saving, Archivist checks directory access and warns about unavailable roots.
+Users can edit those paths or continue anyway when the storage will be available later.
 Saving applies the roots immediately and closes this UI permission permanently.
 Later changes require editing the file and restarting. Existing installations do
 not gain this first-run permission during upgrades. See [filesystem setup](docs/INSTALLATION.md#filesystem-permissions) for

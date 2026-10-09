@@ -168,3 +168,164 @@ dialog {
     min-width: 0;
     flex: 1;
 }
+
+
+/* FirstRunModal */
+
+.first-run-dialog {
+    box-sizing: border-box;
+    min-width: min(640px, calc(100vw - 2 * var(--gap-mid)));
+    width: 640px;
+    max-width: calc(100vw - 2 * var(--gap-mid));
+    max-height: calc(100dvh - 2 * var(--gap-mid));
+    overflow-y: auto;
+}
+
+.first-run-dialog .dialog-label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-small);
+    margin-top: var(--gap-mid);
+}
+
+.first-run-dialog textarea {
+    box-sizing: border-box;
+    width: 100%;
+    resize: vertical;
+}
+
+.first-run-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: var(--gap-mid);
+}
+
+
+/* DirectoryPicker */
+
+.directory-picker {
+    width: 54rem;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow: auto;
+}
+
+.directory-picker::backdrop {
+    background: rgb(0 0 0 / 35%);
+}
+
+.picker-location {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-block: 0.6rem;
+}
+
+.directory-picker output {
+    overflow-wrap: anywhere;
+    min-width: 0;
+}
+
+.picker-panels {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    height: 20rem;
+    border: var(--solid-border);
+}
+
+.picker-tree, .picker-folders {
+    overflow: auto;
+    padding: 0.4rem;
+    min-width: 0;
+}
+
+.picker-tree {
+    border-right: var(--solid-border);
+}
+
+.directory-picker [role="treeitem"] {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+    min-height: 2rem;
+}
+
+.directory-picker [role="treeitem"][aria-selected="true"] {
+    background: var(--bg-accent);
+}
+
+.directory-picker [role="treeitem"]:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: -2px;
+}
+
+.directory-picker [role="treeitem"] button {
+    flex-shrink: 0;
+    width: 1.5rem;
+    padding: 0;
+}
+
+.picker-folder {
+    display: block;
+    width: 100%;
+    text-align: start;
+    overflow-wrap: anywhere;
+    margin-bottom: 0.3rem;
+}
+
+.picker-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    margin-top: 0.8rem;
+}
+
+@media (max-width: 600px) {
+    .picker-panels {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr;
+        height: 45vh;
+    }
+
+    .picker-tree {
+        border-right: 0;
+        border-bottom: var(--solid-border);
+    }
+}
+
+.first-run-introduction {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--gap-mid);
+}
+
+.first-run-logo {
+    flex: 0 0 200px;
+    object-fit: contain;
+}
+
+.first-run-text {
+    min-width: 0;
+}
+
+.first-run-text h1 {
+    margin-top: 0;
+}
+
+.first-run-warnings {
+    margin-top: var(--gap-mid);
+    padding: var(--gap-small);
+    border: var(--solid-border);
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+    .first-run-introduction {
+        flex-direction: column;
+    }
+
+    .first-run-logo {
+        flex-basis: auto;
+    }
+}

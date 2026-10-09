@@ -6,10 +6,11 @@
 
 <script lang="ts">
     import settingsIcon from '$icons/nav/settings24.png';
+    import welcomeLogo from '$lib/assets/images/logo/Welcome-logo.png';
 
     import { locale } from '$lib/locale.svelte';
     import { modalControl } from '$lib/modal-control';
-    import { getRepositorySettings, saveInitialFilesystemRoots } from '$lib/settings';
+    import { getRepositorySettings, saveInitialFilesystemRoots, type FilesystemIssue } from '$lib/settings';
     import { onMount } from 'svelte';
 
     let { onContinue }: { onContinue: () => void } = $props();
@@ -18,6 +19,12 @@
     let loading = $state(true);
     let saving = $state(false);
     let error = $state<string | null>(null);
+    let warnings = $state<FilesystemIssue[]>([]);
+    let warnedRoots = $state('');
+
+    const roots = (value: string) => value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    let rootValues = $derived(JSON.stringify([roots(workingRoots), roots(archiveRoots)]));
+    let showWarnings = $derived(warnings.length > 0 && warnedRoots === rootValues);
 
     onMount(async () => {
         try {
@@ -35,14 +42,21 @@
     });
 
     async function continueSetup(): Promise<void> {
-        if (loading || saving) return;
+        if (loading || saving) {
+            return;
+        }
         saving = true;
         error = null;
-        const roots = (value: string) => value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
         try {
-            const result = await saveInitialFilesystemRoots(roots(workingRoots), roots(archiveRoots));
+            const result = await saveInitialFilesystemRoots(
+                roots(workingRoots), roots(archiveRoots), showWarnings);
             if (!result.ok) {
                 error = result.message ?? locale.t('ui.first_run.save_failed');
+                return;
+            }
+            if (result.data.warnings?.length) {
+                warnings = result.data.warnings;
+                warnedRoots = rootValues;
                 return;
             }
             onContinue();
@@ -58,11 +72,17 @@
         use:modalControl
         aria-labelledby="first-run-title"
         oncancel={event => event.preventDefault()}>
-    <h1 id="first-run-title">{locale.t('ui.first_run.welcome')}</h1>
+    <div class="first-run-introduction">
+        <img class="first-run-logo" src={welcomeLogo} width="200" height="300" alt="" />
 
-    <p>{locale.t('ui.first_run.setup_explanation')}</p>
+        <div class="first-run-text">
+            <h1 id="first-run-title">{locale.t('ui.first_run.welcome')}</h1>
 
-    <p>{locale.t('ui.first_run.roots_instructions')}</p>
+            <p>{locale.t('ui.first_run.setup_explanation')}</p>
+
+            <p>{locale.t('ui.first_run.roots_instructions')}</p>
+        </div>
+    </div>
 
     <label class="dialog-label">
         {locale.t('filesystem.working_roots')}
@@ -80,39 +100,18 @@
         <p class="error-message" role="alert">{error}</p>
     {/if}
 
+    {#if showWarnings}
+        <div class="first-run-warnings" role="alert">
+            {#each warnings as warning}
+                <p>{locale.t('ui.first_run.inaccessible_directory', warning.params)}</p>
+            {/each}
+        </div>
+    {/if}
+
     <div class="first-run-actions">
         <button class="button-with-text" type="button" disabled={loading || saving} onclick={continueSetup}>
             <img class="action-icon" alt="" src={settingsIcon} />
-            <span>{locale.t('ui.first_run.open_settings')}</span>
+            <span>{locale.t(showWarnings ? 'ui.first_run.continue_anyway' : 'ui.first_run.open_settings')}</span>
         </button>
     </div>
 </dialog>
-
-<style>
-    .first-run-dialog {
-        box-sizing: border-box;
-        min-width: 0;
-        width: min(32rem, calc(100vw - 2 * var(--gap-medium)));
-        max-height: calc(100dvh - 2 * var(--gap-medium));
-        overflow-y: auto;
-    }
-
-    .first-run-dialog .dialog-label {
-        display: flex;
-        flex-direction: column;
-        gap: var(--gap-small);
-        margin-top: var(--gap-mid);
-    }
-
-    .first-run-dialog textarea {
-        box-sizing: border-box;
-        width: 100%;
-        resize: vertical;
-    }
-
-    .first-run-actions {
-        display: flex;
-        justify-content: flex-end;
-        margin-top: var(--gap-mid);
-    }
-</style>

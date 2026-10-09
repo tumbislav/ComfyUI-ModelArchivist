@@ -330,7 +330,8 @@ def filesystem_setup_available() -> bool:
         return settings is not None and not settings.filesystem_setup_complete
 
 
-def initialize_filesystem_roots(working_roots: list[str], archive_roots: list[str]) -> dict:
+def initialize_filesystem_roots(working_roots: list[str], archive_roots: list[str],
+                                accept_inaccessible: bool = False) -> dict:
     """Accept filesystem permissions once, before proceeding to repository setup."""
     with Session(_engine) as session:
         settings = session.get(ApplicationSettings, 1)
@@ -341,6 +342,29 @@ def initialize_filesystem_roots(working_roots: list[str], archive_roots: list[st
             'working_roots': working_roots, 'archive_roots': archive_roots,
             'exclusions': list(map(str, _config.filesystem.exclusions)),
         })
+        warnings = []
+        for path in dict.fromkeys(policy.working_roots + policy.archive_roots):
+            try:
+                policy.check(path)
+                with os.scandir(path) as entries:
+                    next(entries, None)
+                accessible = os.access(path, os.R_OK | os.W_OK | os.X_OK)
+            except OSError:
+                accessible = False
+            except FilesystemPolicyError as error:
+                if error.code != 'filesystem_unverifiable':
+                    raise
+                accessible = False
+            if not accessible:
+                warnings.append({
+                    'code': 'filesystem_root_inaccessible',
+                    'message': f'Directory {path} is not accessible. This is not a problem '
+                        'if you know that it will be there when you need it. '
+                        'But you may want to edit this.',
+                    'params': {'path': str(path)},
+                })
+        if warnings and not accept_inaccessible:
+            return {'warnings': warnings}
         save_filesystem_policy(_config, policy)
         settings.filesystem_setup_complete = True
         session.add(settings)

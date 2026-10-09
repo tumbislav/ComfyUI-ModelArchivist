@@ -35,13 +35,15 @@ class OptionsInput(BaseModel):
 class FilesystemRootsInput(BaseModel):
     working_roots: list[str]
     archive_roots: list[str]
+    accept_inaccessible: bool = False
 
 
 @router.put('/config/initial-filesystem-roots')
 async def initialize_filesystem_roots(data: FilesystemRootsInput) -> dict:
     try:
         with dispatcher.configuration_change():
-            return repo.initialize_filesystem_roots(data.working_roots, data.archive_roots)
+            return repo.initialize_filesystem_roots(
+                data.working_roots, data.archive_roots, data.accept_inaccessible)
     except repo.FilesystemSetupClosedError as error:
         raise HTTPException(403, detail={
             'code': 'filesystem_setup_closed', 'message': str(error), 'params': {}}) from error

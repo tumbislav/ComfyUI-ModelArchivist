@@ -88,7 +88,9 @@
             "open_settings": "Open settings",
             "roots_instructions": "Enter one permitted root per line. These roots can be edited here only during first-run setup. Later changes require editing config.toml and restarting Archivist.",
             "load_failed": "Cannot load filesystem roots.",
-            "save_failed": "Cannot save filesystem roots."
+            "save_failed": "Cannot save filesystem roots.",
+            "continue_anyway": "Continue anyway",
+            "inaccessible_directory": "Directory {path} is not accessible. This is not a problem if you know that it will be there when you need it. But you may want to edit this."
         },
         "workflow_table": {
             "does_the_workflow_have_tags": "Does the workflow have tags?",

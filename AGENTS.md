@@ -76,9 +76,13 @@ readability, with blank lines between logical blocks. Avoid compressing nested m
 or multiple statements onto one line. Use `TagEditor.svelte` and `ModelDetails.svelte`
 as formatting examples for subsequent changes.
 
-Reusable design rules belong in `frontend/src/lib/styles/`; avoid duplicating the same
-visual contract in multiple Svelte components. Component-local CSS is appropriate only
-for genuinely private layout. Preserve keyboard access, labels, focus behavior, modal
+All CSS belongs in `frontend/src/lib/styles/`, including private component layouts.
+Do not add or retain `<style>` blocks in Svelte components. Consolidate rules into
+existing files such as `panels.css`, `controls.css`, `text.css`, and `dialogs.css`;
+use a component-dedicated CSS file there when warranted and import it from `app.css`.
+Scope component-specific selectors with a component class. Inline styles are allowed
+only for values computed at runtime, such as dialog positions or tree indentation.
+Avoid duplicating the same visual contract. Preserve keyboard access, labels, focus behavior, modal
 boundaries, and narrow-screen wrapping when changing controls.
 
 Place contextual help buttons at the top-right of the section they explain. Help for an
@@ -121,6 +125,13 @@ npm run check
 
 Also run `git diff --check`. Add focused regression tests for behavioral changes rather
 than relying only on the full suite.
+
+## Agent filesystem access
+
+If a task requires filesystem access beyond the active project policy, tell the user
+the exact paths, whether read or write access is needed, and why. Wait for the user to
+update the project filesystem policy before proceeding with work that needs that
+access. Do not request one-time access grants or attempt workarounds.
 
 ## Generated and user-owned files
 
