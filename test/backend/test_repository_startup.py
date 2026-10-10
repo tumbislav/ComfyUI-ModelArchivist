@@ -162,7 +162,7 @@ def test_tab_save_does_not_validate_or_rewrite_unrelated_blocked_locations(
         tmp_path, monkeypatch, mode, scope):
     import backend.filesystem_policy as fs
     models = tmp_path / 'models'
-    workflows = tmp_path / 'user' / 'workflows'
+    workflows = tmp_path / 'user' / 'default' / 'workflows'
     archive = tmp_path / 'archive'
     for path in (models, workflows, archive / 'models', archive / 'workflows'):
         path.mkdir(parents=True)
@@ -176,7 +176,7 @@ def test_tab_save_does_not_validate_or_rewrite_unrelated_blocked_locations(
         provider = ComfyEnvironmentProvider(SimpleNamespace(
             models_dir=str(models),
             folder_names_and_paths={'checkpoints': ([str(models)], {'.gguf'})},
-            get_user_directory=lambda: str(workflows.parent),
+            get_user_directory=lambda: str(workflows.parent.parent),
         ))
         monkeypatch.setattr(repository, 'get_environment_provider', lambda: provider)
     repository.start_repo()
@@ -223,6 +223,38 @@ def test_sql_log_handler_preserves_unicode(tmp_path, monkeypatch):
         config.log_file).read_text(encoding='utf-8')
 
 
+def test_comfy_workflow_override_survives_reload_and_respects_policy(tmp_path, monkeypatch):
+    import backend.filesystem_policy as fs
+    working = tmp_path / 'working'
+    archive = tmp_path / 'archive'
+    working.mkdir()
+    archive.mkdir()
+    config = repository_config(tmp_path / 'database.db', tmp_path / 'database.log')
+    config.mode = 'comfyui'
+    config.filesystem = fs.FilesystemPolicy((working,), (archive,), ())
+    monkeypatch.setattr(fs, '_policy', config.filesystem)
+    monkeypatch.setattr(repository, 'get_config', lambda: config)
+    provider = ComfyEnvironmentProvider(SimpleNamespace(
+        models_dir=str(working), folder_names_and_paths={},
+        get_user_directory=lambda: str(working / 'user')))
+    monkeypatch.setattr(repository, 'get_environment_provider', lambda: provider)
+    repository.start_repo()
+    suggested = repository.get_repository_configuration('alice')['workflow_locations']
+    assert suggested[0]['working_dir'] == str(working / 'user' / 'alice' / 'workflows')
+    custom = working / 'custom-workflows'
+    custom.mkdir()
+    result = repository.update_workflow_configuration({'workflow_locations': [{
+        'working_dir': str(custom), 'archive_dir': str(archive)}]})
+    assert result['workflow_locations'][0]['source'] == 'user'
+    repository.load_repository_configuration(config)
+    assert config.workflow_folders == [(custom, archive)]
+    assert repository.get_repository_configuration('bob')['workflow_locations'][0]['working_dir'] == str(custom)
+    with pytest.raises(fs.FilesystemPolicyError):
+        repository.update_workflow_configuration({'workflow_locations': [{
+            'working_dir': str(tmp_path / 'outside'), 'archive_dir': str(archive)}]})
+    assert repository.get_repository_configuration()['workflow_locations'][0]['working_dir'] == str(custom)
+
+
 @pytest.mark.parametrize('category', ['models', 'workflows', 'user_objects'])
 def test_single_category_repository_is_ready_and_ignores_unconfigured_comfy_paths(
         tmp_path, monkeypatch, category):
@@ -232,11 +264,11 @@ def test_single_category_repository_is_ready_and_ignores_unconfigured_comfy_path
     archive = tmp_path / 'archive'
     working.mkdir()
     archive.mkdir()
-    workflow_root = working / 'user' / 'workflows' if category == 'workflows' else tmp_path / 'unpermitted-user' / 'workflows'
+    workflow_root = working / 'user' / 'default' / 'workflows' if category == 'workflows' else tmp_path / 'unpermitted-user' / 'default' / 'workflows'
     provider = ComfyEnvironmentProvider(SimpleNamespace(
         models_dir=str(working),
         folder_names_and_paths={'checkpoints': ([str(working / 'checkpoints')], {'.gguf'})},
-        get_user_directory=lambda: str(workflow_root.parent),
+        get_user_directory=lambda: str(workflow_root.parent.parent),
     ))
     (working / 'checkpoints').mkdir()
     config = repository_config(tmp_path / 'database.db', tmp_path / 'database.log')

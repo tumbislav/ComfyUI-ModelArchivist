@@ -60,9 +60,23 @@ def test_comfy_environment_reads_registered_model_and_workflow_locations():
     assert provider.default_working_roots() == [
         Path('models').absolute(), Path('extra/checkpoints').absolute()]
     assert provider.workflow_locations() == [
-        (Path('comfy-user') / 'workflows').absolute()]
+        (Path('comfy-user') / 'default' / 'workflows').absolute()]
     assert provider.runtime_data_directory() == (
         Path('comfy-user') / '_archivist').absolute()
+
+
+def test_comfy_workflows_use_selected_public_profile():
+    calls = []
+    folders = FolderPathsStub()
+    folders.get_public_user_directory = lambda profile: (
+        calls.append(profile) or str(Path('comfy-user') / profile))
+    provider = ComfyEnvironmentProvider(folders)
+    assert provider.workflow_locations('alice') == [
+        (Path('comfy-user') / 'alice' / 'workflows').absolute()]
+    assert calls == ['alice']
+    for invalid in ('../alice', '__system', 'C:\\alice', ''):
+        with pytest.raises(ValueError):
+            provider.workflow_locations(invalid)
 
 
 def test_comfy_environment_collapses_duplicate_model_locations(caplog):

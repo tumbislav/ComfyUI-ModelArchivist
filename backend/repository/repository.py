@@ -168,7 +168,14 @@ def load_repository_configuration(config: Configuration) -> None:
                     config.unmapped_model_folders.setdefault(
                         discovered.model_type, []).append(discovered.working_dir)
 
-            discovered_workflows = provider.workflow_locations()
+            managed_workflows = [location for location in workflow_locations
+                                 if location.source == 'user' and location.active]
+            for location in managed_workflows:
+                if location.archive_dir:
+                    config.add_workflow_locations(Path(location.working_dir), Path(location.archive_dir))
+                else:
+                    config.unmapped_workflow_folders.append(Path(location.working_dir))
+            discovered_workflows = [] if managed_workflows else provider.workflow_locations()
             discovered_workflow_paths = {str(path) for path in discovered_workflows}
             stored_workflows = {location.working_dir: location for location in workflow_locations
                                 if location.source == 'comfyui'}
@@ -273,13 +280,18 @@ def update_model_extensions(extensions: list[str]) -> dict:
     return get_repository_configuration()
 
 
-def get_repository_configuration() -> dict:
+def get_repository_configuration(profile: str | None = None) -> dict:
     """Return the persistent settings together with environment-derived locations."""
     with Session(_engine) as session:
         settings = session.get(ApplicationSettings, 1) or ApplicationSettings()
         model_types = session.exec(select(ModelTypeSetting)).all()
         locations = session.exec(select(ModelLocationSetting)).all()
-        workflows = session.exec(select(WorkflowLocationSetting)).all()
+        workflows = session.exec(select(WorkflowLocationSetting).where(
+            WorkflowLocationSetting.active == True)).all()
+        if profile and _config.mode == 'comfyui' and not any(
+                item.source == 'user' or item.archive_dir for item in workflows):
+            workflows = [WorkflowLocationSetting(source='comfyui', working_dir=str(path))
+                         for path in get_environment_provider().workflow_locations(profile)]
         by_type: dict[str, list[dict]] = {}
         for location in locations:
             by_type.setdefault(location.model_type, []).append({
@@ -513,17 +525,15 @@ def update_repository_configuration(data: dict, *, scope: str = 'all') -> dict:
                     row.archive_dir = (_normalized_location(location['archive_dir'], 'archive')
                                        if location.get('archive_dir') else None)
                     session.add(row)
-            stored_workflows = {row.working_dir: row for row in session.exec(
-                select(WorkflowLocationSetting).where(
-                    WorkflowLocationSetting.source == 'comfyui')).all()}
-            for location in workflows_to_update:
-                working = _normalized_location(location['working_dir'])
-                row = stored_workflows.get(working)
-                if row is None or not row.active:
-                    raise ValueError(f'workflow folder is not supplied by ComfyUI: {working}')
-                row.archive_dir = (_normalized_location(location['archive_dir'], 'archive')
-                                   if location.get('archive_dir') else None)
-                session.add(row)
+            if update_workflows:
+                for row in session.exec(select(WorkflowLocationSetting)).all():
+                    session.delete(row)
+                session.flush()
+                for location in workflows_to_update:
+                    session.add(WorkflowLocationSetting(
+                        source='user', working_dir=_normalized_location(location['working_dir']),
+                        archive_dir=(_normalized_location(location['archive_dir'], 'archive')
+                                     if location.get('archive_dir') else None)))
 
         session.add(settings)
         session.commit()

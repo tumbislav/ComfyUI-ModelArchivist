@@ -34,7 +34,7 @@ class EnvironmentProvider(Protocol):
     mode: str
 
     def model_locations(self) -> list[DiscoveredModelLocation]: ...
-    def workflow_locations(self) -> list[Path]: ...
+    def workflow_locations(self, profile: str = 'default') -> list[Path]: ...
     def runtime_data_directory(self) -> Path | None: ...
     def default_working_roots(self) -> list[Path]: ...
 
@@ -48,7 +48,7 @@ class StandaloneEnvironmentProvider:
     def model_locations(self) -> list[DiscoveredModelLocation]:
         return []
 
-    def workflow_locations(self) -> list[Path]:
+    def workflow_locations(self, profile: str = 'default') -> list[Path]:
         return []
 
     def runtime_data_directory(self) -> Path | None:
@@ -122,11 +122,19 @@ class ComfyEnvironmentProvider:
                         working_dir, canonical_type, existing.model_type)
         return list(discovered.values())
 
-    def workflow_locations(self) -> list[Path]:
+    def workflow_locations(self, profile: str = 'default') -> list[Path]:
         get_user_directory = getattr(self.folder_paths, 'get_user_directory', None)
         if not callable(get_user_directory):
             return []
-        return [(Path(get_user_directory()) / 'workflows').absolute()]
+        if not profile or profile.startswith('__') or profile in {'.', '..'} or any(
+                character in profile for character in '/\\:'):
+            raise ValueError('Invalid ComfyUI profile directory.')
+        get_profile_directory = getattr(self.folder_paths, 'get_public_user_directory', None)
+        directory = (get_profile_directory(profile) if callable(get_profile_directory)
+                     else Path(get_user_directory()) / profile)
+        if directory is None:
+            return []
+        return [(Path(directory) / 'workflows').absolute()]
 
     def runtime_data_directory(self) -> Path | None:
         get_user_directory = getattr(self.folder_paths, 'get_user_directory', None)

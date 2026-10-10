@@ -34,8 +34,10 @@ options, model definitions, and working/archive mappings belong in SQLite.
 - Standalone mode does not use ComfyUI's `extra_model_paths` mechanism. It permits one
   working/archive pair per model type and one workflow pair.
 - ComfyUI mode discovers working model locations and extensions from `folder_paths`.
-  Working paths supplied by ComfyUI are not editable by Archivist. Each discovered
+  Working model paths supplied by ComfyUI are not editable by Archivist. Each discovered
   working path may have an Archivist-managed archive mapping.
+- Workflow folders default to ComfyUI's selected public profile directory but remain
+  editable within the filesystem policy. Saved workflow mappings belong to Archivist.
 - A new database starts in setup mode and must not scan before at least one complete
   model, workflow, or user-type mapping exists. Each category is optional. Unmapped
   discoveries must not affect readiness; scan cleanup is limited to configured targets.

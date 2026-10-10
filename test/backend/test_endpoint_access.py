@@ -224,6 +224,7 @@ def test_proxy_access_boundary_header_isolation_and_explicit_routes():
             async def authorize(request):
                 if request.headers.get('Comfy-User') == 'denied':
                     raise AccessDenied('host_user_denied', 'Host rejected this user.')
+                return 'default'
 
             proxy = create_proxy_handler(str(internal.make_url('')).rstrip('/'), 'server-only', authorize)
             public = web.Application()
@@ -239,6 +240,7 @@ def test_proxy_access_boundary_header_isolation_and_explicit_routes():
                 response = await client.get(API_PREFIX + '/health?scope=models', headers={
                     REQUEST_HEADER: '1', INTERNAL_HEADER: 'forged', SESSION_HEADER: 'browser-secret',
                     'Comfy-User': 'default', 'Authorization': 'Bearer host-secret',
+                    'X-Archivist-Profile': 'forged',
                     'Cookie': 'host=session', 'X-Forwarded-For': '127.0.0.1',
                     'Connection': 'X-Remove', 'X-Remove': 'discard',
                 })
@@ -247,6 +249,7 @@ def test_proxy_access_boundary_header_isolation_and_explicit_routes():
                 assert 'server-only' not in await response.text()
                 headers = {key.lower(): value for key, value in received[-1].items()}
                 assert headers[INTERNAL_HEADER.lower()] == 'server-only'
+                assert headers['x-archivist-profile'] == 'default'
                 for name in ('authorization', 'cookie', 'comfy-user', 'x-forwarded-for',
                              'x-remove', SESSION_HEADER.lower()):
                     assert name not in headers

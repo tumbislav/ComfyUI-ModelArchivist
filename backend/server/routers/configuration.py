@@ -4,7 +4,7 @@
 # purpose: REST access to repository settings and one-time filesystem setup
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from backend.config import get_config
@@ -137,8 +137,8 @@ async def get_model_types() -> list[dict[str, str]]:
 
 
 @router.get('/config/repository')
-async def get_repository_configuration() -> dict:
-    return repo.get_repository_configuration()
+async def get_repository_configuration(request: Request) -> dict:
+    return repo.get_repository_configuration(request.headers.get('X-Archivist-Profile'))
 
 
 @router.put('/config/repository')

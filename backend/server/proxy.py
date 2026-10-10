@@ -16,7 +16,8 @@ _HOP_HEADERS = frozenset({
     'connection', 'content-length', 'keep-alive', 'proxy-authenticate',
     'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade'
 })
-_PRIVATE_HEADERS = frozenset({INTERNAL_HEADER.lower(), SESSION_HEADER.lower()})
+PROFILE_HEADER = 'X-Archivist-Profile'
+_PRIVATE_HEADERS = frozenset({INTERNAL_HEADER.lower(), SESSION_HEADER.lower(), PROFILE_HEADER.lower()})
 
 
 def forwarded_headers(headers, *, request: bool) -> dict[str, str]:
@@ -30,7 +31,7 @@ def forwarded_headers(headers, *, request: bool) -> dict[str, str]:
 
 
 def create_proxy_handler(internal_url: str, secret: str,
-                         authorize: Callable[[web.Request], Awaitable[None]]):
+                         authorize: Callable[[web.Request], Awaitable[str | None]]):
     """The host adapter runs on the original request, before credentials are stripped."""
     async def proxy(request: web.Request) -> web.Response:
         # ComfyUI also creates /api-prefixed aliases. Only the canonical public
@@ -42,15 +43,18 @@ def create_proxy_handler(internal_url: str, secret: str,
             # aiohttp adds HEAD for GET routes. Reject it here because ComfyUI's
             # route-copying implementation cannot accept allow_head=False.
             raise web.HTTPMethodNotAllowed('HEAD', ['GET'])
+        profile = None
         try:
             if is_api:
                 check_browser_request(request.headers, request.scheme, request.host)
-            await authorize(request)
+                profile = await authorize(request)
         except AccessDenied as error:
             return web.json_response({'detail': error.detail()}, status=error.status)
 
         headers = forwarded_headers(request.headers, request=True)
         headers[INTERNAL_HEADER] = secret
+        if profile:
+            headers[PROFILE_HEADER] = profile
         try:
             async with ClientSession(auto_decompress=False) as session:
                 async with session.request(

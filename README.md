@@ -68,8 +68,10 @@ working/archive pair for each model type and one pair for workflows. ComfyUI's
 
 When installed as a ComfyUI custom node, Archivist discovers model working directories
 and initial extensions through ComfyUI's live `folder_paths` registry, including extra
-model paths, and discovers workflows below the ComfyUI user directory. Those working
-paths remain owned by ComfyUI; Archivist stores their archive mappings, editable
+model paths. Workflow suggestions use `user/<selected profile>/workflows`, with
+`default` as the startup fallback. Workflow working and archive folders are editable
+within the filesystem permissions; saved mappings remain authoritative after restart.
+Model working paths remain owned by ComfyUI; Archivist stores their archive mappings, editable
 extension lists, and display settings. Empty ComfyUI extension lists default to
 `.sft`, `.safetensors`, `.gguf`, `.pt`, `.pth`, `.ckpt`, and `.bin`. Saved extensions
 are owned by Archivist and remain authoritative after restarting.

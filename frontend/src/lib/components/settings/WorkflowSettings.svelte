@@ -57,7 +57,6 @@
                 <label class="dialog-label">
                     {locale.t('ui.workflow_settings.working_folder')}
                     <PathInput bind:value={location.working_dir} role="working"
-                               disabled={settings.mode === 'comfyui'}
                                onError={onError} />
                 </label>
                 <label class="dialog-label">

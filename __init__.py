@@ -52,6 +52,7 @@ try:
             raise AccessDenied('host_user_denied', 'ComfyUI did not accept this user.') from None
         if not user:
             raise AccessDenied('host_user_denied', 'ComfyUI did not accept this user.')
+        return user
 
     def _start_archivist() -> None:
         environment = ComfyEnvironmentProvider(folder_paths)

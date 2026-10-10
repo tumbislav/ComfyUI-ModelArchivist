@@ -180,8 +180,9 @@ configured targets. Unmapped ComfyUI folders do not block repository operations.
 2. Under **Models**, pair the working model locations you want to manage with archive locations.
    In ComfyUI mode, the working locations are supplied by ComfyUI and cannot be
    changed in Model Archivist. Review and edit the initialized extension lists as needed.
-3. Under **Workflows**, choose the archive folder. In standalone mode, also choose
-   the working folder.
+3. Under **Workflows**, choose the working and archive folders. In ComfyUI mode,
+   the suggested working folder is `user/<selected profile>/workflows`; you can
+   change it to any folder permitted by the filesystem policy.
 4. Add any **User types** you want to manage. This step is optional.
 5. Save the settings and run a scan.
 
