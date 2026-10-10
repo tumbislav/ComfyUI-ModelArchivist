@@ -6,6 +6,7 @@
 
 import logging
 import asyncio
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -177,6 +178,49 @@ def test_bulk_base_model_update_can_clear_value(model_repository):
     assert result['models'][0]['base_model_abbreviation'] == ''
     metadata = working / 'nested' / 'model.archivist.json'
     assert '"base_model": ""' in metadata.read_text(encoding='utf-8')
+
+
+@pytest.mark.parametrize('preview', ['', None, '.', 'https://example.com/preview.png'])
+@pytest.mark.parametrize('old_base', ['', 'Unknown'])
+def test_bulk_base_model_edit_preserves_preview_without_renaming(model_repository, preview, old_base):
+    engine, working, _ = model_repository
+    add_working_model(engine, working)
+    with Session(engine) as session:
+        model = session.get(Model, MODEL_ID)
+        model.base_model = old_base
+        session.add(model)
+        session.commit()
+    path = working / 'nested' / 'model.archivist.json'
+    metadata = {'preview_url': preview, 'file_path': ''}
+    path.write_text(json.dumps(metadata), encoding='utf-8')
+
+    result = repository.update_model_base_models([MODEL_ID], 'Qwen')
+
+    assert result['models'][0]['base_model'] == 'Qwen'
+    updated = json.loads(path.read_text(encoding='utf-8'))
+    assert updated['preview_url'] == preview
+    assert updated['file_path'] == ''
+    assert updated['base_model'] == 'Qwen'
+    assert (working / 'nested' / 'model.safetensors').exists()
+
+
+@pytest.mark.parametrize('preview,expected', [('', ''), (None, None), ('.', '.'),
+    ('https://example.com/preview.png', 'https://example.com/preview.png'),
+    ('model.preview.png', 'renamed.preview.png')])
+def test_model_rename_handles_optional_preview_paths(model_repository, preview, expected):
+    engine, working, _ = model_repository
+    add_working_model(engine, working)
+    path = working / 'nested' / 'model.archivist.json'
+    path.write_text(json.dumps({'preview_url': preview, 'file_path': ''}), encoding='utf-8')
+    changed = repository.get_model(MODEL_ID)
+    changed['file_name'] = 'renamed'
+
+    repository.update_model(changed)
+
+    updated = json.loads((working / 'nested' / 'renamed.archivist.json').read_text(encoding='utf-8'))
+    assert updated['preview_url'] == expected
+    assert updated['file_path'] == ''
+    assert (working / 'nested' / 'renamed.safetensors').exists()
 
 
 def test_bulk_base_model_read_only_guard_runs_before_model_access(monkeypatch):

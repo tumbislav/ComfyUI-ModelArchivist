@@ -6,6 +6,7 @@
 
 import logging
 from pathlib import Path
+from urllib.parse import urlsplit
 from backend.filesystem_policy import checked_path, check_component_sets
 from backend.repository.tables import Model, ComponentType
 import json
@@ -40,10 +41,17 @@ def update_model(model: Model, name: str, internal_name: str, tags: list[str],
             metadata['model_name'] = internal_name
             metadata['file_name'] = name
             metadata['base_model'] = base_model
-            if 'file_path' in metadata:
-                metadata['file_path'] = renamed_file(Path(metadata['file_path']), name).replace('\\', '/')
-            if 'preview_url' in metadata:
-                metadata['preview_url'] = renamed_file(Path(metadata['preview_url']), name).replace('\\', '/')
+            if rename_files:
+                for key in ('file_path', 'preview_url'):
+                    value = metadata.get(key)
+                    if not isinstance(value, str) or not value.strip():
+                        continue
+                    # Drive letters are local paths; URL schemes are not filenames.
+                    if len(urlsplit(value).scheme) > 1:
+                        continue
+                    path = Path(value)
+                    if path.name:
+                        metadata[key] = renamed_file(path, name).replace('\\', '/')
             checked_path(file_path).write_text(json.dumps(metadata, ensure_ascii=True), encoding='utf-8')
         if rename_files:
             checked_path(file_path).rename(checked_path(renamed_file(file_path, name)))
