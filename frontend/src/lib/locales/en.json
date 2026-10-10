@@ -20,11 +20,11 @@
     "filesystem": {
         "permissions": "Filesystem permissions",
         "instructions": "Paths refer to this server. Edit {path} on disk and restart Archivist to change permissions. Use absolute paths; links are not permitted.",
-        "working_roots": "Permitted working roots",
-        "archive_roots": "Permitted archive roots",
+        "working_roots": "Working root directories",
+        "archive_roots": "Archive root directories",
         "exclusions": "Excluded paths and all descendants",
         "none": "None",
-        "blocked": "The repository is read-only because configured locations are blocked. Existing mappings have been preserved."
+        "blocked": "The repository is read-only because configured locations are not accessible. Existing mappings have been preserved."
     },
     "settings": {
         "title": "Settings",
@@ -84,13 +84,13 @@
         },
         "first_run": {
             "welcome": "Welcome to Model Archivist",
-            "setup_explanation": "Before continuing, set up the working and archive locations that Model Archivist will manage.",
+            "setup_explanation": "Before continuing, set up the directories that the I will manage.",
             "open_settings": "Open settings",
-            "roots_instructions": "Enter one permitted root per line. These roots can be edited here only during first-run setup. Later changes require editing config.toml and restarting Archivist.",
+            "roots_instructions": "I will be able to work inside the directories that you enter below, one per line. Everything else will be invisible to me. You only have to do this the first time, although you can change it later if you wish.</p><p>For the working directories, you should probably have something like ComfyUI/models and ComfyUI/user/<your username>/workflows, plus any other folders with working files that you want to manage. For the archive, it depends on where you want to keep it.",
             "load_failed": "Cannot load filesystem roots.",
             "save_failed": "Cannot save filesystem roots.",
             "continue_anyway": "Continue anyway",
-            "inaccessible_directory": "Directory {path} is not accessible. This is not a problem if you know that it will be there when you need it. But you may want to edit this."
+            "inaccessible_directory": "Directory {path} is not accessible. This is ok if you know that it will be there when you need it."
         },
         "workflow_table": {
             "does_the_workflow_have_tags": "Does the workflow have tags?",
