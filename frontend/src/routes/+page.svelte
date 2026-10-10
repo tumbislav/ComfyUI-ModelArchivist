@@ -73,7 +73,7 @@ onMount(() => {
                             scanId = null;
                         }
                     } else if (operation.data.state === 'failed') {
-                        startupError = operation.data.error?.message ?? locale.t('ui.page.startup_scan_failed');
+                        // Scan diagnostics are shown in the Repository dialog.
                         scanId = null;
                     } else if (operation.data.state === 'succeeded') {
                         scanId = null;

@@ -261,6 +261,7 @@ $effect(() => {
     <div class="option-set">
         <div class="nav-split" role="group" aria-label={locale.t('ui.archivist_header.repository')}>
             <button class="nav-button nav-split-main repository-status" type="button"
+                    class:repository-scan-errors={statusMonitor.hasScanErrors}
                     disabled={!serverReady && !$serverUnresponsive}
                     aria-haspopup="dialog" onclick={() => repositoryOpen = true}>
                 {#if scanBusy}

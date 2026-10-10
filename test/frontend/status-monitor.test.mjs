@@ -175,3 +175,32 @@ test('an operation submitted during initial status fetch is not lost', async () 
     assert.equal(client.status.operation.state, 'succeeded');
     assert.equal(client.timers.size, 0);
 });
+
+test('scan diagnostics remain in their sections and a clean selective scan clears only its section', async () => {
+    let final = { ...operation('failed'), progress: {scope: 'all', scan_issues: [
+        {scope: 'models', code: 'model_error', message: 'Bad model', params: {path: 'model'}},
+        {scope: 'workflows', code: 'workflow_error', message: 'Bad workflow', params: {}}
+    ]} };
+    const client = monitor(path => ({ok: true, data: path.startsWith('/operations/')
+        ? final : {counts: {}, operation: null}}));
+    client.status.start();
+    await settle();
+    client.status.track(operation('running'));
+    await client.tick();
+    assert.equal(client.status.hasScanErrors, true);
+    assert.equal(client.status.scanErrors.models[0].code, 'model_error');
+    assert.equal(client.status.scanErrors.workflows[0].code, 'workflow_error');
+    assert.equal(client.status.scanErrors.user_objects.length, 0);
+
+    final = {...operation('succeeded'), id: 'scan-2', progress: {scope: 'models', scan_issues: []}};
+    client.status.track({...final, state: 'pending'});
+    await client.tick();
+    assert.equal(client.status.scanErrors.models.length, 0);
+    assert.equal(client.status.scanErrors.workflows.length, 1);
+    assert.equal(client.status.hasScanErrors, true);
+
+    final = {...operation('succeeded'), id: 'scan-3', progress: {scope: 'all', scan_issues: []}};
+    client.status.track({...final, state: 'pending'});
+    await client.tick();
+    assert.equal(client.status.hasScanErrors, false);
+});

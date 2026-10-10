@@ -90,6 +90,16 @@ def test_dispatcher_marks_rejected_repository_result_failed(
     assert result['error']['type'] == 'operation_rejected'
 
 
+def test_scan_error_summary_does_not_stringify_structured_diagnostics(monkeypatch):
+    monkeypatch.setattr(dispatcher_module, '_get_scanner', lambda: None)
+    dispatcher = OperationDispatcher()
+    issues = [{'code': 'scan_incomplete', 'message': 'Unreadable file', 'params': {'path': 'model'}}]
+    submitted = dispatcher.submit('scan', lambda report: {'allowed': False, 'errors': issues})
+    result = await_finished(dispatcher, submitted['id'])
+    assert result['error']['message'] == 'Scan completed with errors.'
+    assert result['result']['errors'] == issues
+
+
 def test_dispatcher_rejects_unknown_operation(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(dispatcher_module, '_get_scanner', lambda: None)
     dispatcher = OperationDispatcher()

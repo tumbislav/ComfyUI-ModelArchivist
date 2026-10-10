@@ -10,7 +10,7 @@ from backend.repository.tables import (Model, Component, ComponentSet, Workflow,
                                        UserObjectError, UserObjectSet)
 
 import logging
-from threading import Thread, Lock, Barrier
+from threading import Thread, Lock, Barrier, local
 from pathlib import Path
 from functools import wraps
 from backend.filesystem_policy import (checked_path, safe_children, safe_tree, safe_walk,
@@ -114,6 +114,10 @@ def read_workflow_candidate(path: Path, root: Path, where: str) -> WorkflowCandi
 def scan_worker(function):
     @wraps(function)
     def run(self, *args, **kwargs):
+        self.worker_context.scope = {
+            'find_models': 'models', 'find_workflows': 'workflows',
+            'find_user_objects': 'user_objects',
+        }[function.__name__]
         try:
             return function(self, *args, **kwargs)
         except FilesystemPolicyError as error:
@@ -139,6 +143,8 @@ class Scanner:
     hashes_calculated: int = 0
     errors: list[str] = field(default_factory=list)
     filesystem_issues: list[dict] = field(default_factory=list)
+    scan_issues: list[dict] = field(default_factory=list)
+    worker_context: local = field(default_factory=local)
     lock: Lock = field(default_factory=Lock)
     barrier: Barrier | None = None
     config: Configuration | None = None
@@ -194,11 +200,11 @@ class Scanner:
     def blocked(self, error: FilesystemPolicyError) -> None:
         with self.lock:
             self.filesystem_issues.append(error.detail())
-        self.report(error=str(error))
+        self.report(error=str(error), issue=error.detail())
         self.logger.warning('%s', error)
 
     def report(self, models: int=0, workflows: int=0, user_objects: int=0,
-               hashes: int=0, error: str=''):
+               hashes: int=0, error: str='', issue: dict | None = None):
         with self.lock:
             self.models_scanned += models
             self.workflows_scanned += workflows
@@ -206,6 +212,8 @@ class Scanner:
             self.hashes_calculated += hashes
             if error != '':
                 self.errors.append(error)
+                detail = issue or {'code': 'scan_incomplete', 'message': error, 'params': {}}
+                self.scan_issues.append({**detail, 'scope': getattr(self.worker_context, 'scope', self.scope)})
 
     def progress(self) -> dict:
         if not self.started:
@@ -220,6 +228,7 @@ class Scanner:
                          'user_objects_scanned': self.user_objects_scanned,
                          'hashes_calculated': self.hashes_calculated,
                          'errors': list(self.errors),
+                         'scan_issues': list(self.scan_issues),
                          'filesystem_issues': list(self.filesystem_issues)}
 
         if self.start_time is not None:
@@ -423,9 +432,13 @@ class Scanner:
                         self.report(models=1)
                     continue
                 if not metadata:
-                    m = f'metadata for model {stem} has {err}, skipping'
-                    self.logger.error(m)
-                    self.report(error=m)
+                    if err or ModelError.AMBIGUOUS_STEM in working_errors | archive_errors:
+                        err = err or 'ambiguous model stem'
+                        m = f'metadata for model {stem} has {err}, skipping'
+                        self.logger.error(m)
+                        self.report(error=m)
+                    else:
+                        self.logger.debug('Skipping component group without a model file: %s', stem)
                     continue
 
                 model = Model(id=metadata['sha256'],

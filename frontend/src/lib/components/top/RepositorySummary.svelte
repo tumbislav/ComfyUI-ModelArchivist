@@ -186,6 +186,14 @@
                             </button>
                         {/if}
 
+                        {#if statusMonitor.scanErrors[section.key]?.length}
+                            <details class="repository-scan-errors">
+                                <summary>{locale.t('ui.repository_summary.scan_errors')}</summary>
+                                {#each statusMonitor.scanErrors[section.key] as issue}
+                                    <div>{issue.code}: {issue.message}, {JSON.stringify(issue.params)}</div>
+                                {/each}
+                            </details>
+                        {/if}
                     </section>
                 {/each}
             {:else}

@@ -185,3 +185,8 @@
     filter: grayscale(0%);
     transition: filter 300ms ease;
 }
+
+.repository-status.repository-scan-errors {
+    outline: 2px solid red;
+    outline-offset: -2px;
+}

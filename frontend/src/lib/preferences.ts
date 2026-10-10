@@ -55,9 +55,9 @@ export function saveTheme(theme: 'light' | 'dark'): void {
 
 export function scanAtStartup(): boolean {
     try {
-        return localStorage.getItem(startupScanKey) !== 'false';
+        return localStorage.getItem(startupScanKey) === 'true';
     } catch {
-        return true;
+        return false;
     }
 }
 

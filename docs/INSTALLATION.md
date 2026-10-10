@@ -213,7 +213,7 @@ without the server-only proxy credential.
 **Settings → General** contains preferences stored in the current browser:
 
 - **Always run a full scan at startup** requests one scan after each backend
-  start. It is enabled by default. If you add several large model files, the scan can 
+  start. It is disabled by default. If you add several large model files, the scan can
   take some time.
 - **Remember last open tab** restores the last main tab.
 - **Remember last used filters** restores table filters and their enabled state.

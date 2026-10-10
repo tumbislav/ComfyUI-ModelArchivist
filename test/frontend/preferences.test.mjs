@@ -29,6 +29,18 @@ function browser(storage = new Map()) {
     return context.exports;
 }
 
+test('startup scanning is opt-in and preserves an explicit saved choice', () => {
+    const storage = new Map();
+    const preferences = browser(storage);
+    assert.equal(preferences.scanAtStartup(), false);
+    for (const enabled of [true, false]) {
+        preferences.saveScanAtStartup(enabled);
+        assert.equal(browser(storage).scanAtStartup(), enabled);
+    }
+    storage.set('archivist.scanAtStartup', 'invalid');
+    assert.equal(browser(storage).scanAtStartup(), false);
+});
+
 test('tab restoration is opt-in and persists all four tabs across reloads', () => {
     const storage = new Map();
     const preferences = browser(storage);
@@ -70,5 +82,6 @@ test('blocked storage leaves navigation and theme usable with defaults', () => {
     assert.equal(preferences.initialTab(), 'models');
     assert.equal(preferences.savedTheme(), 'light');
     assert.doesNotThrow(() => preferences.saveLastTab('collections'));
+    assert.equal(preferences.scanAtStartup(), false);
     assert.doesNotThrow(() => preferences.saveTheme('dark'));
 });

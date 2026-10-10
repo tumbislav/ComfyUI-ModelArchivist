@@ -30,7 +30,7 @@ Scans visit only configured mappings, and cleanup preserves records outside the 
 configured targets. Unmapped ComfyUI discoveries do not affect filesystem readiness.
 
 The backend initializes without scanning. General settings contains “Always run a full
-scan at startup”, enabled by default and saved in this browser's local storage. When
+scan at startup”, disabled by default and saved in this browser's local storage. When
 enabled, opening Archivist requests one startup scan per backend run; refreshing or
 opening another tab does not repeat it. Disabling it opens the existing repository
 immediately. Manual scans remain available from the header. Setup mode and read-only
@@ -39,6 +39,11 @@ repositories do not request startup scans.
 When a scan finishes, the active content tab refreshes its list without reloading
 the page or resetting filters, selections, or editor drafts. Failed scans also
 refresh the list so any objects discovered before the failure become visible.
+Scan errors give the Repository button a red outline. The affected sections in its
+dialog contain expandable “Scan errors” lists with codes, messages, and parameters.
+These diagnostics remain for the current browser session until that section has a
+clean scan. Missing metadata is generated for recognized model files; auxiliary-only
+file groups are skipped without scan errors.
 
 The Repository button shows “Wait...” until startup completes. All frontend API
 requests have a 3000 ms timeout, including their response bodies. A timeout or lost

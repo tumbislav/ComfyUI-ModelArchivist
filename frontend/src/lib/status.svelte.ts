@@ -23,12 +23,18 @@ export type RepositoryStatus = {
 
 const ACTIVE_INTERVAL = 400;
 
+export type ScanIssue = { code: string; message: string; params: Record<string, unknown>; scope?: string };
+
 class StatusMonitor {
     counts = $state<RepositoryCounts>({models: 0, workflows: 0, user_objects: 0,
                                        collections: 0});
     operation = $state<Operation | null>(null);
     error = $state<string | null>(null);
     scanRevision = $state(0);
+    scanErrors = $state<Record<string, ScanIssue[]>>({models: [], workflows: [], user_objects: []});
+    get hasScanErrors(): boolean {
+        return Object.values(this.scanErrors).some(issues => issues.length > 0);
+    }
     private completedScans = new Set<string>();
     private timer: ReturnType<typeof setTimeout> | null = null;
     private users = 0;
@@ -98,6 +104,15 @@ class StatusMonitor {
                     (operation.state === 'succeeded' || operation.state === 'failed')) {
                     if (operation.type === 'scan' && !this.completedScans.has(operation.id)) {
                         this.completedScans.add(operation.id);
+                        const scopes = operation.progress.scope === 'all' || !operation.progress.scope
+                            ? ['models', 'workflows', 'user_objects'] : [String(operation.progress.scope)];
+                        const issues = (operation.progress.scan_issues ?? operation.result?.errors ?? []) as ScanIssue[];
+                        const errors = issues.length > 0 ? issues : operation.state === 'failed'
+                            ? [{code: 'scan_failed', message: operation.error?.message ?? 'Scan failed.', params: {}}]
+                            : [];
+                        for (const scope of scopes) {
+                            this.scanErrors[scope] = errors.filter(issue => !issue.scope || issue.scope === 'all' || issue.scope === scope);
+                        }
                         this.scanRevision += 1;
                     }
                     this.trackedId = null;

@@ -122,7 +122,8 @@ class OperationDispatcher:
                     operation['state'] = 'failed'
                     operation['error'] = {
                         'type': 'operation_rejected',
-                        'message': str(result.get('errors', 'operation was rejected')),
+                        'message': ('Scan completed with errors.' if operation['type'] == 'scan'
+                                    else str(result.get('errors', 'operation was rejected'))),
                     }
                 else:
                     operation['state'] = 'succeeded'
@@ -169,7 +170,7 @@ def submit_scan(rehash: bool = False, scope: str = 'all', type_id: str | list[st
         report(progress)
         result = {'scan_id': scan_id, 'progress': progress}
         if progress.get('errors'):
-            result.update(allowed=False, errors=progress.get('filesystem_issues') or [
+            result.update(allowed=False, errors=progress.get('scan_issues') or progress.get('filesystem_issues') or [
                 {'code': 'scan_incomplete', 'message': message, 'params': {}}
                 for message in progress['errors']])
         return result
