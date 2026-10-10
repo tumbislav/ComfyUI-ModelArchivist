@@ -82,6 +82,7 @@ for (const finalState of ['succeeded', 'failed']) {
         state = finalState;
         await client.tick();
         assert.equal(client.status.operation.state, finalState);
+        assert.equal(client.status.scanRevision, 1);
         assert.equal(client.timers.size, 0);
         assert.equal(client.calls.filter(path => path === '/operations/scan-1').length, 2);
     });
@@ -99,12 +100,56 @@ test('transient failure retains tracked operation until recovery and completion'
     client.status.track(operation('running'));
     await client.tick();
     assert.equal(client.status.operation.state, 'running');
+    assert.equal(client.status.scanRevision, 0);
     assert.equal(client.status.error, 'Unavailable');
     assert.equal(client.timers.size, 1);
     broken = false;
     await client.tick();
     assert.equal(client.status.operation.state, 'succeeded');
+    assert.equal(client.status.scanRevision, 1);
     assert.equal(client.status.error, null);
+    assert.equal(client.timers.size, 0);
+});
+
+test('repeated scan results refresh once while each new completed scan refreshes again', async () => {
+    let id = 'scan-1';
+    const client = monitor(path => ({ ok: true, data: path.startsWith('/operations/')
+        ? { ...operation('succeeded'), id } : { counts: {}, operation: null } }));
+    client.status.start();
+    await settle();
+
+    for (const nextId of ['scan-1', 'scan-1', 'scan-2']) {
+        id = nextId;
+        client.status.track({ ...operation('pending'), id });
+        await client.tick();
+        assert.equal(client.status.scanRevision, id === 'scan-1' ? 1 : 2);
+    }
+});
+
+test('completed non-scan operations do not request a scan refresh', async () => {
+    const move = { ...operation('succeeded'), type: 'model_move' };
+    const client = monitor(path => ({ ok: true, data: path.startsWith('/operations/')
+        ? move : { counts: {}, operation: null } }));
+    client.status.start();
+    await settle();
+    client.status.track({ ...move, state: 'pending' });
+    await client.tick();
+    assert.equal(client.status.scanRevision, 0);
+});
+
+test('a scan discovered through repository status refreshes partial results and retains its error', async () => {
+    let state = 'running';
+    const failure = { type: 'ScanError', message: 'Some folders could not be read' };
+    const client = monitor(() => ({ ok: true, data: {
+        counts: {}, operation: { ...operation(state), error: state === 'failed' ? failure : null }
+    } }));
+    client.status.start();
+    await settle();
+    assert.equal(client.status.scanRevision, 0);
+    state = 'failed';
+    await client.tick();
+    assert.equal(client.status.scanRevision, 1);
+    assert.equal(client.status.operation.error, failure);
     assert.equal(client.timers.size, 0);
 });
 

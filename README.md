@@ -36,6 +36,10 @@ opening another tab does not repeat it. Disabling it opens the existing reposito
 immediately. Manual scans remain available from the header. Setup mode and read-only
 repositories do not request startup scans.
 
+When a scan finishes, the active content tab refreshes its list without reloading
+the page or resetting filters, selections, or editor drafts. Failed scans also
+refresh the list so any objects discovered before the failure become visible.
+
 The Repository button shows “Wait...” until startup completes. All frontend API
 requests have a 3000 ms timeout, including their response bodies. A timeout or lost
 connection changes the button to “Server...”; its dialog reports that the server is

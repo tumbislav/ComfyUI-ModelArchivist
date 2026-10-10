@@ -31,6 +31,16 @@ $effect(() => {
     remapBlocked = navigationLocked;
 });
 
+let observedScanRevision = statusMonitor.scanRevision;
+
+$effect(() => {
+    const revision = statusMonitor.scanRevision;
+    if (revision !== observedScanRevision) {
+        observedScanRevision = revision;
+        untrack(() => void refresh());
+    }
+});
+
 $effect(() => {
     if (tagRevision > 0) {
         untrack(() => {

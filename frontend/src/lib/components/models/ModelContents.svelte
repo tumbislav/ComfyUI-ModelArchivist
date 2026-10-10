@@ -56,6 +56,16 @@ $effect(() => {
     remapBlocked = active_changed || saving_active || operating_active || multiEditorOpen;
 });
 
+let observedScanRevision = statusMonitor.scanRevision;
+
+$effect(() => {
+    const revision = statusMonitor.scanRevision;
+    if (revision !== observedScanRevision) {
+        observedScanRevision = revision;
+        untrack(() => void refreshModels());
+    }
+});
+
 $effect(() => {
     if (tagRevision > 0) {
         untrack(() => {

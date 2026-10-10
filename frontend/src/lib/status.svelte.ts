@@ -28,6 +28,8 @@ class StatusMonitor {
                                        collections: 0});
     operation = $state<Operation | null>(null);
     error = $state<string | null>(null);
+    scanRevision = $state(0);
+    private completedScans = new Set<string>();
     private timer: ReturnType<typeof setTimeout> | null = null;
     private users = 0;
     private refreshing = false;
@@ -94,6 +96,10 @@ class StatusMonitor {
                 this.error = null;
                 if (operation !== null &&
                     (operation.state === 'succeeded' || operation.state === 'failed')) {
+                    if (operation.type === 'scan' && !this.completedScans.has(operation.id)) {
+                        this.completedScans.add(operation.id);
+                        this.scanRevision += 1;
+                    }
                     this.trackedId = null;
                 }
             } else {

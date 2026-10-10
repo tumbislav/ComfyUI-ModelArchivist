@@ -13,6 +13,7 @@ import FilterActions from '$components/controls/FilterActions.svelte';
 import WorkflowTable from '$components/workflows/WorkflowTable.svelte';
 import WorkflowDetails from '$components/workflows/WorkflowDetails.svelte';
 import MultiWorkflowEditor from '$components/workflows/MultiWorkflowEditor.svelte';
+import { statusMonitor } from '$lib/status.svelte';
 import { sidebar_in_out } from '$lib/common';
 import { confirmBox } from '$lib/confirm.svelte';
 import { unsavedChangesBox } from '$lib/unsaved-changes.svelte';
@@ -29,6 +30,16 @@ let { multiEditorOpen=$bindable(false), remapBlocked=$bindable(false), tagRevisi
 
 $effect(() => {
     remapBlocked = changed || saving || operating || multiEditorOpen;
+});
+
+let observedScanRevision = statusMonitor.scanRevision;
+
+$effect(() => {
+    const revision = statusMonitor.scanRevision;
+    if (revision !== observedScanRevision) {
+        observedScanRevision = revision;
+        untrack(() => void refreshWorkflows());
+    }
 });
 
 $effect(() => {

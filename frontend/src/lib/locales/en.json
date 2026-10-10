@@ -87,14 +87,14 @@
             "open_settings": "Continue",
             "help": "Help",
             "roots_instructions": [
-                "Before continuing, set up the directories that I will manage. I will be able to work inside the directories that you enter below, everything else will be invisible to me. You only have to do this the first time. You can make changes later by editing config.toml and restarting Archivist.",
-                "For the working directories, you should probably have something like ComfyUI/models and ComfyUI/user/<your username>/workflows, plus any other folders you want me to manage. For the archive, it depends where you want to keep it.",
+                "Before continuing, set up the directories that I will manage. I will be able to work inside the directories that you enter below. For security reasons, everything else will be invisible to me. You can make changes later by editing config.toml and restarting Archivist - see the help file.",
+                "For the working directories, you should probably set up something like .../ComfyUI/models and .../ComfyUI/user/<your username>/workflows, plus any other folders you want me to manage. For the archive, it depends on the way you want to organize things.",
                 "Once you're done, I'll open the Settings dialog, where you will set up the folder-to-folder mappings."
             ],
             "load_failed": "Cannot load filesystem roots.",
             "save_failed": "Cannot save filesystem roots.",
             "continue_anyway": "Continue anyway",
-            "inaccessible_directory": "Directory {path} is not accessible. This is ok if you know that it will be there when you need it."
+            "inaccessible_directory": "Directory {path} is not accessible. This is ok if you know that it will be there when you need it. But check anyway."
         },
         "workflow_table": {
             "does_the_workflow_have_tags": "Does the workflow have tags?",
