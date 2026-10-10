@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Response
 
 from backend.dispatcher import OperationBusyError, dispatcher
 from backend.exception import ArcException
+from backend.config import get_config
 from backend.repository.tables import DeploymentStatus
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -94,7 +95,22 @@ async def update_model_tags(data: ModelTagUpdate) -> dict:
 
 @router.post('/models/bulk/base-model')
 async def update_model_base_models(data: ModelBaseModelUpdate) -> dict:
-    return repo.update_model_base_models(data.ids, data.base_model)
+    try:
+        return repo.update_model_base_models(data.ids, data.base_model)
+    except ArcException as error:
+        if error.code == ArcException.Code.READ_ONLY:
+            issues = getattr(get_config(), 'filesystem_issues', [])
+            reasons = ' '.join(dict.fromkeys(issue['message'] for issue in issues))
+            message = 'The application is read-only. Model updates are disabled.'
+            if reasons:
+                message += f' {reasons}'
+            raise HTTPException(403, detail={
+                'code': 'application_read_only', 'message': message, 'params': {},
+                'issues': issues,
+            }) from error
+        raise HTTPException(404 if error.code == ArcException.Code.UNKNOWN_MODEL else 400,
+                            detail={'code': error.code.name.lower(),
+                                    'message': error.message, 'params': {}}) from error
 
 
 @router.post('/models/bulk/synchronize')

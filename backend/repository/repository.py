@@ -945,6 +945,8 @@ def list_base_models() -> list[str]:
 
 def update_model_base_models(ids: list[str], base_model: object) -> dict:
     """Set one base-model value on several models, including their sidecars."""
+    if _config.read_only:
+        raise ArcException(ArcException.Code.READ_ONLY, 'Model updates are disabled')
     normalized = normalize_base_model(base_model)
     results = []
     for model_id in dict.fromkeys(ids):

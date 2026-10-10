@@ -5,6 +5,7 @@
 # ---------------------------------------------------------------------------
 
 import logging
+import asyncio
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -176,6 +177,52 @@ def test_bulk_base_model_update_can_clear_value(model_repository):
     assert result['models'][0]['base_model_abbreviation'] == ''
     metadata = working / 'nested' / 'model.archivist.json'
     assert '"base_model": ""' in metadata.read_text(encoding='utf-8')
+
+
+def test_bulk_base_model_read_only_guard_runs_before_model_access(monkeypatch):
+    monkeypatch.setattr(repository, '_config', SimpleNamespace(read_only=True))
+    monkeypatch.setattr(repository, 'get_model',
+                        lambda *args: pytest.fail('must reject before model access'))
+    with pytest.raises(repository.ArcException) as caught:
+        repository.update_model_base_models([MODEL_ID], 'Flux')
+    assert caught.value.code == repository.ArcException.Code.READ_ONLY
+
+
+def test_bulk_base_model_read_only_is_reported_with_filesystem_reason(monkeypatch):
+    from fastapi import HTTPException
+    from backend.server.routers import models as router
+    issue = {'code': 'filesystem_unverifiable', 'message': 'Cannot access archive folder Z:/archive.',
+             'params': {'path': 'Z:/archive'}}
+    config = SimpleNamespace(read_only=True, filesystem_issues=[issue])
+    monkeypatch.setattr(repository, '_config', config)
+    monkeypatch.setattr(router, 'get_config', lambda: config)
+    monkeypatch.setattr(repository, 'get_model',
+                        lambda *args: pytest.fail('read-only batch must not read or update models'))
+
+    with pytest.raises(HTTPException) as caught:
+        asyncio.run(router.update_model_base_models(
+            router.ModelBaseModelUpdate(ids=[MODEL_ID], base_model='Flux')))
+
+    assert caught.value.status_code == 403
+    assert caught.value.detail['code'] == 'application_read_only'
+    assert issue['message'] in caught.value.detail['message']
+    assert caught.value.detail['issues'] == [issue]
+
+
+def test_bulk_base_model_unknown_model_is_a_structured_not_found(monkeypatch):
+    from fastapi import HTTPException
+    from backend.exception import ArcException
+    from backend.server.routers import models as router
+
+    def reject(*args):
+        raise ArcException(ArcException.Code.UNKNOWN_MODEL, 'Model does not exist')
+
+    monkeypatch.setattr(repository, 'update_model_base_models', reject)
+    with pytest.raises(HTTPException) as caught:
+        asyncio.run(router.update_model_base_models(
+            router.ModelBaseModelUpdate(ids=[MODEL_ID], base_model='Flux')))
+    assert caught.value.status_code == 404
+    assert caught.value.detail['code'] == 'unknown_model'
 
 
 def test_list_base_models_is_distinct_case_insensitively_and_omits_blank(model_repository):
