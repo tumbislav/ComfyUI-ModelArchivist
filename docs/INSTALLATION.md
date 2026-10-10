@@ -103,15 +103,15 @@ SQLite database.
 On the first start without a `[filesystem]` section, Archivist appends one to the
 configuration file it loaded, preserving the other settings and comments:
 
-- Standalone: both working and archive roots default to the operating-system
+- Standalone: working roots default to the operating-system
   user's home directory (`%USERPROFILE%` on Windows, `$HOME` on Unix).
 - ComfyUI: working roots default to ComfyUI's `models` directory and registered
-  extra model paths; archive roots default to that operating-system user's home
-  directory. Model-save paths injected below ComfyUI's output directory are excluded.
+  extra model paths. Model-save paths injected below ComfyUI's output directory are excluded.
   Two or more distinct extra model folders with the same immediate parent grant
   that parent instead. This consolidation runs once and never climbs further up
   the directory tree; an extra folder without a sibling keeps its own root.
-- Exclusions initially contain no paths.
+- Archive roots and exclusions initially contain no paths. Enter at least one
+  working root and one archive root before completing first-run setup.
 
 Initialization happens only when the entire section is absent.
 A new repository's first-run screen presents working and archive

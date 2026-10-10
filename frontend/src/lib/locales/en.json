@@ -84,9 +84,15 @@
         },
         "first_run": {
             "welcome": "Welcome to Model Archivist",
-            "setup_explanation": "Before continuing, set up the directories that the I will manage.",
             "open_settings": "Open settings",
-            "roots_instructions": "I will be able to work inside the directories that you enter below, one per line. Everything else will be invisible to me. You only have to do this the first time, although you can change it later if you wish. For the working directories, you should probably have something like ComfyUI/models and ComfyUI/user/<your username>/workflows, plus any other folders with working files that you want to manage. For the archive, it depends on where you want to keep it.",
+            "help": "Help",
+            "roots_instructions": [
+                "Before continuing, set up the directories that I will manage. I will be able to work inside the directories that you enter below, everything else will be invisible to me.",
+                "You only have to do this the first time. You can make changes later by editing config.toml and restarting Archivist.",
+                "For the working directories, you should probably have something like ComfyUI/models and ComfyUI/user/<your username>/workflows, plus any other folders with working files that you want to manage.",
+                "For the archive, it depends on where you want to keep it. Enter at least one directory in each list.",
+                "Once you've configured the top-level directories, I'll open the Settings dialog for you, where you should define the exact mappings for each model type and for workflows, plus any other file or folder types you want me to manage."
+            ],
             "load_failed": "Cannot load filesystem roots.",
             "save_failed": "Cannot save filesystem roots.",
             "continue_anyway": "Continue anyway",
@@ -726,6 +732,7 @@
         }
     },
     "errors": {
+        "filesystem_roots_required": "Enter at least one working root and one archive root.",
         "request_cancelled": "Request cancelled",
         "server_unresponsive": "The server is not responding",
         "retrieve_operation": "Cannot retrieve operation",

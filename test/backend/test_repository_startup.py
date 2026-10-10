@@ -356,6 +356,25 @@ def test_filesystem_setup_saves_once_and_remains_locked_after_reload(tmp_path, m
     assert config.cfg_file.read_text(encoding='utf-8') == contents
 
 
+@pytest.mark.parametrize('working_roots,archive_roots', [([], []), (['working'], []),
+                                                     ([], ['archive']), (['  '], ['archive'])])
+def test_filesystem_setup_requires_both_root_lists(tmp_path, monkeypatch, working_roots, archive_roots):
+    config = repository_config(tmp_path / 'database.db', tmp_path / 'database.log')
+    config.cfg_file.write_text(
+        '[filesystem]\nworking_roots=[]\narchive_roots=[]\nexclusions=[]\n', encoding='utf-8')
+    monkeypatch.setattr(repository, 'get_config', lambda: config)
+    import backend.filesystem_policy as fs
+    monkeypatch.setattr(fs, '_policy', config.filesystem)
+    repository.start_repo()
+    before = config.cfg_file.read_bytes()
+
+    with pytest.raises(repository.FilesystemRootsRequiredError):
+        repository.initialize_filesystem_roots(working_roots, archive_roots, accept_inaccessible=True)
+
+    assert config.cfg_file.read_bytes() == before
+    assert repository.filesystem_setup_available()
+
+
 @pytest.mark.parametrize('access_failure', [None, 'listing', 'permissions', 'verification'])
 def test_filesystem_setup_checks_existing_directory_access(tmp_path, monkeypatch, access_failure):
     config = repository_config(tmp_path / 'database.db', tmp_path / 'database.log')
@@ -380,7 +399,7 @@ def test_filesystem_setup_checks_existing_directory_access(tmp_path, monkeypatch
             raise fs.FilesystemPolicyError('filesystem_unverifiable', path)
 
         monkeypatch.setattr(fs.FilesystemPolicy, 'check', deny_verification)
-    result = repository.initialize_filesystem_roots([str(working)], [])
+    result = repository.initialize_filesystem_roots([str(working)], [str(working)])
     if access_failure:
         assert result['warnings'][0]['params']['path'] == str(working)
         assert repository.filesystem_setup_available()

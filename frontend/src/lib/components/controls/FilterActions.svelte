@@ -9,7 +9,7 @@
 
     import filterIcon from '$icons/actions/filter16.png';
     import filterOffIcon from '$icons/actions/filter-off16.png';
-    import openIcon from '$icons/actions/open16.png';
+    import openIcon from '$icons/actions/edit16.png';
     import { filterStates, filterSummary, toggleFilters, type FilterTab } from '$lib/column-filters';
 
     let { tab, selectedCount = 0, onOpenMulti }: {

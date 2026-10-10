@@ -330,6 +330,10 @@ def filesystem_setup_available() -> bool:
         return settings is not None and not settings.filesystem_setup_complete
 
 
+class FilesystemRootsRequiredError(ValueError):
+    """Both filesystem roles require at least one root during initial setup."""
+
+
 def initialize_filesystem_roots(working_roots: list[str], archive_roots: list[str],
                                 accept_inaccessible: bool = False) -> dict:
     """Accept filesystem permissions once, before proceeding to repository setup."""
@@ -338,6 +342,10 @@ def initialize_filesystem_roots(working_roots: list[str], archive_roots: list[st
         if settings is None or settings.filesystem_setup_complete:
             raise FilesystemSetupClosedError(
                 'Filesystem roots can only be saved during first-run setup.')
+        if not working_roots or not archive_roots or any(
+                not path.strip() for path in working_roots + archive_roots):
+            raise FilesystemRootsRequiredError(
+                'Enter at least one working root and one archive root.')
         policy = FilesystemPolicy.from_dict({
             'working_roots': working_roots, 'archive_roots': archive_roots,
             'exclusions': list(map(str, _config.filesystem.exclusions)),

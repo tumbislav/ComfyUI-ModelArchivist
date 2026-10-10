@@ -47,6 +47,9 @@ async def initialize_filesystem_roots(data: FilesystemRootsInput) -> dict:
     except repo.FilesystemSetupClosedError as error:
         raise HTTPException(403, detail={
             'code': 'filesystem_setup_closed', 'message': str(error), 'params': {}}) from error
+    except repo.FilesystemRootsRequiredError as error:
+        raise HTTPException(400, detail={
+            'code': 'filesystem_roots_required', 'message': str(error), 'params': {}}) from error
     except OperationBusyError as error:
         raise HTTPException(409, detail={
             'code': 'operation_busy', 'message': str(error), 'params': {}}) from error

@@ -98,6 +98,15 @@ class LocaleState {
         return interpolate(value, parameters);
     }
 
+    paragraphs(key: string): string[] {
+        const selected = catalogValue(catalogs[this.language] ?? {}, key);
+        const fallback = catalogValue(english, key);
+        const isParagraphs = (value: unknown): value is string[] =>
+            Array.isArray(value) && value.every(item => typeof item === 'string');
+
+        return isParagraphs(selected) ? selected : isParagraphs(fallback) ? fallback : [];
+    }
+
     error(issue: string | { code?: string; message?: string;
                             params?: Record<string, string | number> }): string {
         const code = typeof issue === 'string' ? issue : issue.code;

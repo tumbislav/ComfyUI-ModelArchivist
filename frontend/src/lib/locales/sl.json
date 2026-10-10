@@ -84,9 +84,11 @@
         },
         "first_run": {
             "welcome": "Dobrodošli v Model Archivist",
-            "setup_explanation": "Pred nadaljevanjem nastavite delovne in arhivske lokacije, ki jih bo upravljal Model Archivist.",
             "open_settings": "Odpri nastavitve",
-            "roots_instructions": "V vsako vrstico vnesite eno dovoljeno korensko mapo. Tukaj jih lahko urejate samo ob prvi nastavitvi. Poznejše spremembe zahtevajo urejanje config.toml in ponovni zagon Archivista.",
+            "roots_instructions": [
+                "Pred nadaljevanjem nastavite delovne in arhivske lokacije, ki jih bo upravljal Model Archivist.",
+                "V vsako vrstico vnesite eno dovoljeno korensko mapo. Tukaj jih lahko urejate samo ob prvi nastavitvi. Poznejše spremembe zahtevajo urejanje config.toml in ponovni zagon Archivista."
+            ],
             "load_failed": "Korenskih map ni mogoče naložiti.",
             "save_failed": "Korenskih map ni mogoče shraniti."
         },

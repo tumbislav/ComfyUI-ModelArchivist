@@ -361,7 +361,7 @@ def test_initialization_written_once_with_mode_defaults(tmp_path, monkeypatch, m
     config = load_config(path, mode)
     assert config.filesystem.working_roots == ((home,) if mode == 'standalone'
                                                else (models, extra))
-    assert config.filesystem.archive_roots == (home,)
+    assert config.filesystem.archive_roots == ()
     contents = path.read_text(encoding='utf-8')
     assert contents.startswith('# Keep this comment.')
     assert tomllib.loads(contents)['filesystem'] == config.filesystem.to_dict()

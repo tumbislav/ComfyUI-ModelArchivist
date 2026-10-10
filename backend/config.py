@@ -311,7 +311,7 @@ def load_config(cfg_file: Path | None = None, mode: str = 'standalone') -> Confi
             working = ([home] if mode == 'standalone' else
                        [str(path) for path in
                         get_environment_provider().default_working_roots()])
-            values['filesystem'] = {'working_roots': working, 'archive_roots': [home], 'exclusions': []}
+            values['filesystem'] = {'working_roots': working, 'archive_roots': [], 'exclusions': []}
             policy = FilesystemPolicy.from_dict(values['filesystem'])
             addition = '\n\n# After first-run setup, edit filesystem permissions here and restart.\n[filesystem]\n'
             addition += ''.join(f'{key} = {json.dumps(value, ensure_ascii=False)}\n'

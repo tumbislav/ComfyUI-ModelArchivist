@@ -5,7 +5,8 @@
  ! -------------------------------------------------------------------------- -->
 
 <script lang="ts">
-    import settingsIcon from '$icons/nav/settings24.png';
+    import settingsIcon from '$icons/actions/settings16.png';
+    import helpIcon from '$icons/actions/help16.png';
     import welcomeLogo from '$lib/assets/images/logo/Welcome-logo.png';
 
     import { locale } from '$lib/locale.svelte';
@@ -45,6 +46,10 @@
         if (loading || saving) {
             return;
         }
+        if (roots(workingRoots).length === 0 || roots(archiveRoots).length === 0) {
+            error = locale.t('errors.filesystem_roots_required');
+            return;
+        }
         saving = true;
         error = null;
         try {
@@ -78,9 +83,11 @@
         <div class="first-run-text">
             <h1 id="first-run-title">{locale.t('ui.first_run.welcome')}</h1>
 
-            <p>{locale.t('ui.first_run.setup_explanation')}</p>
-
-            <p>{locale.t('ui.first_run.roots_instructions')}</p>
+            <div class="multi-paragraph">
+                {#each locale.paragraphs('ui.first_run.roots_instructions') as paragraph}
+                    <p>{paragraph}</p>
+                {/each}
+            </div>
         </div>
     </div>
 
@@ -109,6 +116,13 @@
     {/if}
 
     <div class="first-run-actions">
+        <button class="button-with-text" type="button"
+                onclick={() => window.open(
+                    'https://github.com/tumbislav/ComfyUI-ModelArchivist/blob/master/docs/HELP.md',
+                    '_blank', 'noopener,noreferrer')}>
+            <img class="action-icon" alt="" src={helpIcon} />
+            <span>{locale.t('ui.first_run.help')}</span>
+        </button>
         <button class="button-with-text" type="button" disabled={loading || saving} onclick={continueSetup}>
             <img class="action-icon" alt="" src={settingsIcon} />
             <span>{locale.t(showWarnings ? 'ui.first_run.continue_anyway' : 'ui.first_run.open_settings')}</span>

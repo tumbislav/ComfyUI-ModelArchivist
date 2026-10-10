@@ -182,6 +182,10 @@ dialog {
     overflow-y: auto;
 }
 
+.first-run-dialog:focus-visible {
+    outline: 0;
+}
+
 .first-run-dialog .dialog-label {
     display: flex;
     flex-direction: column;
@@ -199,6 +203,7 @@ dialog {
     display: flex;
     justify-content: flex-end;
     margin-top: var(--gap-mid);
+    gap: var(--gap-mid);
 }
 
 
