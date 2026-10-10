@@ -98,18 +98,15 @@ installed application directory. Model types, extensions, repository behavior,
 and working/archive mappings are configured in the application and stored in its
 SQLite database.
 
-## Filesystem permissions
+## First run and filesystem permissions
 
-On the first start without a `[filesystem]` section, Archivist appends one to the
+On first run without a `[filesystem]` section, Archivist appends one to the
 configuration file it loaded, preserving the other settings and comments:
 
 - Standalone: working roots default to the operating-system
   user's home directory (`%USERPROFILE%` on Windows, `$HOME` on Unix).
-- ComfyUI: working roots default to ComfyUI's `models` directory and registered
-  extra model paths. Model-save paths injected below ComfyUI's output directory are excluded.
-  Two or more distinct extra model folders with the same immediate parent grant
-  that parent instead. This consolidation runs once and never climbs further up
-  the directory tree; an extra folder without a sibling keeps its own root.
+- ComfyUI: working roots default to ComfyUI's `models` directory and any additional roots registered
+  in `extra_model_paths.yaml`.
 - Archive roots and exclusions initially contain no paths. Enter at least one
   working root and one archive root before completing first-run setup.
 
@@ -215,7 +212,8 @@ without the server-only proxy credential.
 **Settings → General** contains preferences stored in the current browser:
 
 - **Always run a full scan at startup** requests one scan after each backend
-  start. It is enabled by default.
+  start. It is enabled by default. If you add several large model files, the scan can 
+  take some time.
 - **Remember last open tab** restores the last main tab.
 - **Remember last used filters** restores table filters and their enabled state.
 

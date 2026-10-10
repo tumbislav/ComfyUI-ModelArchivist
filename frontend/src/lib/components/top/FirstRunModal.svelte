@@ -118,7 +118,7 @@
     <div class="first-run-actions">
         <button class="button-with-text" type="button"
                 onclick={() => window.open(
-                    'https://github.com/tumbislav/ComfyUI-ModelArchivist/blob/master/docs/HELP.md',
+                    'https://github.com/tumbislav/ComfyUI-ModelArchivist/blob/master/docs/INSTALLATION.md',
                     '_blank', 'noopener,noreferrer')}>
             <img class="action-icon" alt="" src={helpIcon} />
             <span>{locale.t('ui.first_run.help')}</span>

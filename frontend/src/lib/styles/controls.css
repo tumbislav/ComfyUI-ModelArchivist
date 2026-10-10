@@ -41,6 +41,10 @@ button:disabled {
     pointer-events: none;
 }
 
+button:focus-visible {
+    outline: 0;
+}
+
 /* Normal buttons
  * ----------------------------------------------- */
 
