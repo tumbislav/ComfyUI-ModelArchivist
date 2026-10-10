@@ -86,7 +86,7 @@
             "welcome": "Welcome to Model Archivist",
             "setup_explanation": "Before continuing, set up the directories that the I will manage.",
             "open_settings": "Open settings",
-            "roots_instructions": "I will be able to work inside the directories that you enter below, one per line. Everything else will be invisible to me. You only have to do this the first time, although you can change it later if you wish.</p><p>For the working directories, you should probably have something like ComfyUI/models and ComfyUI/user/<your username>/workflows, plus any other folders with working files that you want to manage. For the archive, it depends on where you want to keep it.",
+            "roots_instructions": "I will be able to work inside the directories that you enter below, one per line. Everything else will be invisible to me. You only have to do this the first time, although you can change it later if you wish. For the working directories, you should probably have something like ComfyUI/models and ComfyUI/user/<your username>/workflows, plus any other folders with working files that you want to manage. For the archive, it depends on where you want to keep it.",
             "load_failed": "Cannot load filesystem roots.",
             "save_failed": "Cannot save filesystem roots.",
             "continue_anyway": "Continue anyway",

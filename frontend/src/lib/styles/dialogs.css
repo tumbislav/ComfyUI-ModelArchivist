@@ -178,6 +178,7 @@ dialog {
     width: 640px;
     max-width: calc(100vw - 2 * var(--gap-mid));
     max-height: calc(100dvh - 2 * var(--gap-mid));
+    padding: var(--gap-large);
     overflow-y: auto;
 }
 
