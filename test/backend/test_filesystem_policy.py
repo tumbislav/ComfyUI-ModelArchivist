@@ -356,14 +356,22 @@ def test_initialization_written_once_with_mode_defaults(tmp_path, monkeypatch, m
     extra = tmp_path / 'shared-models'
     monkeypatch.setattr(Path, 'home', lambda: home)
     monkeypatch.setattr(environment, 'get_environment_provider', lambda:
-                        SimpleNamespace(default_working_roots=lambda: [models, extra]))
+                        SimpleNamespace(default_working_roots=lambda: [models, extra],
+                                        default_archive_roots=lambda: [models.parent / 'archive']))
     path = bootstrap_file(tmp_path)
+    before = path.read_text(encoding='utf-8')
     config = load_config(path, mode)
-    assert config.filesystem.working_roots == ((home,) if mode == 'standalone'
+    assert config.filesystem.working_roots == (() if mode == 'standalone'
                                                else (models, extra))
-    assert config.filesystem.archive_roots == ()
+    assert config.filesystem.archive_roots == (() if mode == 'standalone'
+                                               else (models.parent / 'archive',))
     contents = path.read_text(encoding='utf-8')
-    assert contents.startswith('# Keep this comment.')
+    assert contents.startswith(before)
+    addition = contents[len(before):]
+    assert '#' not in addition
+    if mode == 'standalone':
+        assert addition.strip() == ('[filesystem]\nworking_roots = []\n'
+                                    'archive_roots = []\nexclusions = []')
     assert tomllib.loads(contents)['filesystem'] == config.filesystem.to_dict()
     load_config(path, mode)
     assert path.read_text(encoding='utf-8') == contents

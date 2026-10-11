@@ -55,11 +55,12 @@ run a Comfy workflow. This isn't a problem, re-scanning your folders is quick an
 Model Archivist can be set up in one of two ways: as a standalone application or as a ComfyUI 
 extension. See [Installation and setup](INSTALLATION.md) for instructions how to do one or the other.
 
-On first run, Archivist doesn't yet know where you want to put your archive. If you're running it
-from ComfyUI, it knows where Comfy expects its models and workflows to be, but if it's standalone, it
-doesn't even know that. So you're going to see a friendly splash screen that will give you a starting
-hint on how to set things ups. This won't open again, unless you do something drastic like deleting the
-database.
+On first run, the splash screen shows the filesystem roots configured by the backend.
+In ComfyUI mode, the archive root defaults to `<ComfyUI directory>/archive`; standalone
+mode leaves it unset. The root lists are read-only. To change them, edit the
+`[filesystem]` section in `config.toml` and restart. Continue opens Settings, where
+you configure folder mappings within those roots. The splash screen stays dismissed
+after you continue.
 
 ## How to use it
 

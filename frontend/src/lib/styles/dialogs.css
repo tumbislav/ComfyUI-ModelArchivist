@@ -193,10 +193,13 @@ dialog {
     margin-top: var(--gap-mid);
 }
 
-.first-run-dialog textarea {
+.first-run-dialog .first-run-roots {
     box-sizing: border-box;
     width: 100%;
-    resize: vertical;
+    height: 7.5em;
+    overflow: auto;
+    white-space: pre;
+    user-select: text;
 }
 
 .first-run-actions {
@@ -317,13 +320,6 @@ dialog {
 
 .first-run-text h1 {
     margin-top: 0;
-}
-
-.first-run-warnings {
-    margin-top: var(--gap-mid);
-    padding: var(--gap-small);
-    border: var(--solid-border);
-    overflow-wrap: anywhere;
 }
 
 @media (max-width: 480px) {

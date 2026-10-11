@@ -2,7 +2,7 @@
     "picker": {
         "working": "Choose a working folder",
         "archive": "Choose an archive folder",
-        "help": "Folders are on the server. Choose a permitted directory; saving settings is a separate step.",
+        "help": "Select a directory. Saving settings is a separate step.",
         "up": "Up",
         "choose": "Choose a folder",
         "roots": "Permitted roots",
@@ -19,7 +19,7 @@
     },
     "filesystem": {
         "permissions": "Filesystem permissions",
-        "instructions": "Paths refer to this server. Edit {path} on disk and restart Archivist to change permissions. Use absolute paths; links are not permitted.",
+        "instructions": "Edit {path} on disk and restart Archivist to change permissions. Use absolute paths only, links are not followed.",
         "working_roots": "Working root directories",
         "archive_roots": "Archive root directories",
         "exclusions": "Excluded paths and all descendants",
@@ -86,13 +86,20 @@
             "welcome": "Welcome to Model Archivist",
             "open_settings": "Continue",
             "help": "Help",
-            "roots_instructions": [
-                "Before continuing, set up the directories that I will manage. I will be able to work inside the directories that you enter below. For security reasons, everything else will be invisible to me. You can make changes later by editing config.toml and restarting Archivist - see the help file.",
-                "For the working directories, you should probably set up something like .../ComfyUI/models and .../ComfyUI/user/<your username>/workflows, plus any other folders you want me to manage. For the archive, it depends on the way you want to organize things.",
-                "Once you're done, I'll open the Settings dialog, where you will set up the folder-to-folder mappings."
+            "roots_instructions_standalone": [
+                "Before continuing, set up the directories that I will manage. For security reasons, everything outside of those will be invisible to me.",
+                "To change the directory roots, edit the [filesystem] section in config.toml. See the help file for more.",
+                "For the working directories, you should set up the top folders where you keep your models and your workflows, plus anything else you want me to manage. For the archive, it depends on the way you want to organize things.",
+                "Once you're done, restart everything and open the Settings dialog where you will set up the folder-to-folder mappings."
+            ],
+            "roots_instructions_comfyui": [
+                "Before continuing, set up the directories that I will manage. At the moment, for security reasons, I can only see inside the directories below. If that's ok, click Continue.",
+                "To change the directory roots, edit the [filesystem] section in config.toml. See the help file for more.",
+                "For the working directories, you should probably set up something like .../ComfyUI/models and .../ComfyUI/user/<your username>/workflows, plus anything else you want me to manage. For the archive, it depends on the way you want to organize things.",
+                "Once you're done, restart everything and open the Settings dialog, where you will set up the folder-to-folder mappings."
             ],
             "load_failed": "Cannot load filesystem roots.",
-            "save_failed": "Cannot save filesystem roots.",
+            "acknowledge_failed": "Cannot acknowledge first-run setup.",
             "continue_anyway": "Continue anyway",
             "inaccessible_directory": "Directory {path} is not accessible. This is ok if you know that it will be there when you need it. But check anyway."
         },

@@ -33,9 +33,7 @@ from backend.repository.tables import (Model, Workflow, Collection, Component, C
 from backend.exception import ArcException
 from backend.base_models import normalize_base_model
 from backend.tags import edited_tags
-from backend.config import (Configuration, OptionsConfig, get_config, DEFAULT_MODEL_EXTENSIONS,
-                            save_filesystem_policy)
-from backend.filesystem_policy import FilesystemPolicy
+from backend.config import (Configuration, OptionsConfig, get_config, DEFAULT_MODEL_EXTENSIONS)
 from backend.environment import get_environment_provider
 from backend.repository.migrations import update_database_schema
 import backend.files.model_files as model_files
@@ -332,64 +330,19 @@ def get_repository_configuration(profile: str | None = None) -> dict:
         }
 
 
-class FilesystemSetupClosedError(PermissionError):
-    """The one-time filesystem permission editor has already been closed."""
-
-
 def filesystem_setup_available() -> bool:
     with Session(_engine) as session:
         settings = session.get(ApplicationSettings, 1)
         return settings is not None and not settings.filesystem_setup_complete
 
 
-class FilesystemRootsRequiredError(ValueError):
-    """Both filesystem roles require at least one root during initial setup."""
-
-
-def initialize_filesystem_roots(working_roots: list[str], archive_roots: list[str],
-                                accept_inaccessible: bool = False) -> dict:
-    """Accept filesystem permissions once, before proceeding to repository setup."""
+def acknowledge_first_run() -> dict:
+    """Dismiss the first-run screen without changing disk-owned permissions."""
     with Session(_engine) as session:
         settings = session.get(ApplicationSettings, 1)
-        if settings is None or settings.filesystem_setup_complete:
-            raise FilesystemSetupClosedError(
-                'Filesystem roots can only be saved during first-run setup.')
-        if not working_roots or not archive_roots or any(
-                not path.strip() for path in working_roots + archive_roots):
-            raise FilesystemRootsRequiredError(
-                'Enter at least one working root and one archive root.')
-        policy = FilesystemPolicy.from_dict({
-            'working_roots': working_roots, 'archive_roots': archive_roots,
-            'exclusions': list(map(str, _config.filesystem.exclusions)),
-        })
-        warnings = []
-        for path in dict.fromkeys(policy.working_roots + policy.archive_roots):
-            try:
-                policy.check(path)
-                with os.scandir(path) as entries:
-                    next(entries, None)
-                accessible = os.access(path, os.R_OK | os.W_OK | os.X_OK)
-            except OSError:
-                accessible = False
-            except FilesystemPolicyError as error:
-                if error.code != 'filesystem_unverifiable':
-                    raise
-                accessible = False
-            if not accessible:
-                warnings.append({
-                    'code': 'filesystem_root_inaccessible',
-                    'message': f'Directory {path} is not accessible. This is not a problem '
-                        'if you know that it will be there when you need it. '
-                        'But you may want to edit this.',
-                    'params': {'path': str(path)},
-                })
-        if warnings and not accept_inaccessible:
-            return {'warnings': warnings}
-        save_filesystem_policy(_config, policy)
         settings.filesystem_setup_complete = True
         session.add(settings)
         session.commit()
-    load_repository_configuration(_config)
     return get_repository_configuration()
 
 

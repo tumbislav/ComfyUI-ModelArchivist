@@ -6,7 +6,6 @@
 
 from pathlib import Path
 from types import SimpleNamespace
-import tomllib
 
 import pytest
 from alembic.autogenerate import compare_metadata
@@ -347,50 +346,7 @@ def test_schema_update_is_idempotent(tmp_path):
     engine.dispose()
 
 
-def test_filesystem_setup_saves_once_and_remains_locked_after_reload(tmp_path, monkeypatch):
-    config = repository_config(tmp_path / 'database.db', tmp_path / 'database.log')
-    config.cfg_file.write_text(
-        '# Keep bootstrap comment\n[database]\ndatabase_file="unchanged.db"\n'
-        '[filesystem]\nworking_roots=[]\narchive_roots=[]\nexclusions=[]\n'
-        '[other]\nvalue="keep"\n', encoding='utf-8')
-    monkeypatch.setattr(repository, 'get_config', lambda: config)
-    import backend.filesystem_policy as fs
-    monkeypatch.setattr(fs, '_policy', config.filesystem)
-    repository.start_repo()
-    assert repository.filesystem_setup_available()
-    before = config.cfg_file.read_bytes()
-    with pytest.raises(fs.FilesystemPolicyError):
-        repository.initialize_filesystem_roots(['relative'], [str(tmp_path / 'archive')])
-    assert config.cfg_file.read_bytes() == before
-    assert repository.filesystem_setup_available()
-
-    working = str(tmp_path / 'models')
-    archive = str(tmp_path / 'external' / 'archive')
-    result = repository.initialize_filesystem_roots([working], [archive])
-    assert [issue['params']['path'] for issue in result['warnings']] == [working, archive]
-    assert all(issue['code'] == 'filesystem_root_inaccessible' for issue in result['warnings'])
-    assert config.cfg_file.read_bytes() == before
-    assert repository.filesystem_setup_available()
-
-    result = repository.initialize_filesystem_roots([working], [archive], accept_inaccessible=True)
-    assert result['filesystem_setup_available'] is False
-    assert fs.checked_path(Path(archive) / 'checkpoints', 'archive') == Path(archive) / 'checkpoints'
-    contents = config.cfg_file.read_text(encoding='utf-8')
-    assert contents.startswith('# Keep bootstrap comment')
-    values = tomllib.loads(contents)
-    assert values['database'] == {'database_file': 'unchanged.db'}
-    assert values['other'] == {'value': 'keep'}
-    assert values['filesystem']['working_roots'] == [working]
-    assert values['filesystem']['archive_roots'] == [archive]
-    repository.load_repository_configuration(config)
-    with pytest.raises(PermissionError):
-        repository.initialize_filesystem_roots([], [])
-    assert config.cfg_file.read_text(encoding='utf-8') == contents
-
-
-@pytest.mark.parametrize('working_roots,archive_roots', [([], []), (['working'], []),
-                                                     ([], ['archive']), (['  '], ['archive'])])
-def test_filesystem_setup_requires_both_root_lists(tmp_path, monkeypatch, working_roots, archive_roots):
+def test_first_run_acknowledgment_preserves_config_and_policy(tmp_path, monkeypatch):
     config = repository_config(tmp_path / 'database.db', tmp_path / 'database.log')
     config.cfg_file.write_text(
         '[filesystem]\nworking_roots=[]\narchive_roots=[]\nexclusions=[]\n', encoding='utf-8')
@@ -399,44 +355,19 @@ def test_filesystem_setup_requires_both_root_lists(tmp_path, monkeypatch, workin
     monkeypatch.setattr(fs, '_policy', config.filesystem)
     repository.start_repo()
     before = config.cfg_file.read_bytes()
-
-    with pytest.raises(repository.FilesystemRootsRequiredError):
-        repository.initialize_filesystem_roots(working_roots, archive_roots, accept_inaccessible=True)
-
-    assert config.cfg_file.read_bytes() == before
+    policy = fs.get_policy()
     assert repository.filesystem_setup_available()
 
-
-@pytest.mark.parametrize('access_failure', [None, 'listing', 'permissions', 'verification'])
-def test_filesystem_setup_checks_existing_directory_access(tmp_path, monkeypatch, access_failure):
-    config = repository_config(tmp_path / 'database.db', tmp_path / 'database.log')
-    config.cfg_file.write_text(
-        '[filesystem]\nworking_roots=[]\narchive_roots=[]\nexclusions=[]\n',
-        encoding='utf-8')
-    monkeypatch.setattr(repository, 'get_config', lambda: config)
-    import backend.filesystem_policy as fs
-    monkeypatch.setattr(fs, '_policy', config.filesystem)
-    repository.start_repo()
-    working = tmp_path / 'models'
-    working.mkdir()
-    if access_failure == 'listing':
-        def deny_listing(path):
-            raise PermissionError('access denied')
-
-        monkeypatch.setattr(repository.os, 'scandir', deny_listing)
-    elif access_failure == 'permissions':
-        monkeypatch.setattr(repository.os, 'access', lambda *args: False)
-    elif access_failure == 'verification':
-        def deny_verification(self, path):
-            raise fs.FilesystemPolicyError('filesystem_unverifiable', path)
-
-        monkeypatch.setattr(fs.FilesystemPolicy, 'check', deny_verification)
-    result = repository.initialize_filesystem_roots([str(working)], [str(working)])
-    if access_failure:
-        assert result['warnings'][0]['params']['path'] == str(working)
-        assert repository.filesystem_setup_available()
-    else:
-        assert result['filesystem_setup_available'] is False
+    result = repository.acknowledge_first_run()
+    assert result['filesystem_setup_available'] is False
+    assert config.cfg_file.read_bytes() == before
+    assert fs.get_policy() is policy
+    assert config.filesystem is policy
+    assert not result['setup_complete']
+    repository.load_repository_configuration(config)
+    assert not repository.filesystem_setup_available()
+    repository.acknowledge_first_run()
+    assert config.cfg_file.read_bytes() == before
 
 
 def test_filesystem_setup_migration_locks_existing_installations(tmp_path):

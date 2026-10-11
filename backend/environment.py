@@ -37,13 +37,17 @@ class EnvironmentProvider(Protocol):
     def workflow_locations(self, profile: str = 'default') -> list[Path]: ...
     def runtime_data_directory(self) -> Path | None: ...
     def default_working_roots(self) -> list[Path]: ...
+    def default_archive_roots(self) -> list[Path]: ...
 
 
 class StandaloneEnvironmentProvider:
     mode = 'standalone'
 
     def default_working_roots(self) -> list[Path]:
-        return [Path.home().absolute()]
+        return []
+
+    def default_archive_roots(self) -> list[Path]:
+        return []
 
     def model_locations(self) -> list[DiscoveredModelLocation]:
         return []
@@ -80,6 +84,9 @@ class ComfyEnvironmentProvider:
             roots = [root for root in roots if not _contains(path, root)]
             roots.append(path)
         return roots
+
+    def default_archive_roots(self) -> list[Path]:
+        return [(Path(self.folder_paths.base_path) / 'archive').absolute()]
 
     def model_locations(self) -> list[DiscoveredModelLocation]:
         discovered: dict[str, DiscoveredModelLocation] = {}

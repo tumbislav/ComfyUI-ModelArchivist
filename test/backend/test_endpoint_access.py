@@ -325,3 +325,21 @@ def test_comfy_entrypoint_preserves_host_checks_and_registers_only_reviewed_rout
                 assert (await client.get('/api' + path)).status == 404
 
     asyncio.run(scenario())
+
+
+def test_root_mutation_endpoint_is_removed(monkeypatch):
+    from inspect import signature
+    from backend.server.routers import configuration
+
+    routes = registered_http_routes(configuration.router.routes)
+    assert ('PUT', '/config/initial-filesystem-roots') not in routes
+    assert ('PUT', API_PREFIX + '/config/initial-filesystem-roots') not in set(api_routes())
+    assert ('POST', '/config/acknowledge-first-run') in routes
+    assert not signature(configuration.acknowledge_first_run).parameters
+    calls = []
+    monkeypatch.setattr(configuration.repo, 'acknowledge_first_run',
+                        lambda: calls.append(True) or {'filesystem_setup_available': False})
+    with pytest.raises(StopIteration) as result:
+        configuration.acknowledge_first_run().send(None)
+    assert result.value.value == {'filesystem_setup_available': False}
+    assert calls == [True]

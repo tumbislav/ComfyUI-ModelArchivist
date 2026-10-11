@@ -13,6 +13,7 @@ from backend.environment import ComfyEnvironmentProvider, StandaloneEnvironmentP
 
 
 class FolderPathsStub:
+    base_path = 'ComfyUI'
     models_dir = 'models'
     folder_names_and_paths = {
         'checkpoints': (['models/checkpoints', Path('extra/checkpoints'),
@@ -47,6 +48,8 @@ def test_standalone_environment_has_no_discovered_locations():
     assert provider.model_locations() == []
     assert provider.workflow_locations() == []
     assert provider.runtime_data_directory() is None
+    assert provider.default_working_roots() == []
+    assert provider.default_archive_roots() == []
 
 
 def test_comfy_environment_reads_registered_model_and_workflow_locations():
@@ -54,6 +57,7 @@ def test_comfy_environment_reads_registered_model_and_workflow_locations():
     models = provider.model_locations()
 
     assert provider.mode == 'comfyui'
+    assert provider.default_archive_roots() == [(Path('ComfyUI') / 'archive').absolute()]
     assert len(models) == 2
     assert {item.model_type for item in models} == {'checkpoints'}
     assert all(item.extensions == ('.ckpt', '.safetensors') for item in models)

@@ -17,6 +17,17 @@ level = "DEBUG"
 sql_level = "WARNING"
 file = "{$app}/model-archivist.log"
 
-# On first startup, Archivist appends [filesystem] permissions for this machine.
-# Edit those absolute working/archive roots and exclusions on disk, then restart.
-# See docs/INSTALLATION.md#filesystem-permissions.
+# The [filesystem] section controls which directories and their subdirectories will be
+# visible to the Archivist. This section must be set up before anything will work.
+# Use this example as a guide.
+#
+# [filesystem]
+# working_roots = [
+#   "/the_directory/where_i_keep/my_models",
+#   "/the_directory/where_i_keep/my_workflows",
+#   "/the_directory/where_i_keep/other_stuff",
+#   "C:\\or\\a\\Windows\\location"]
+# archive_roots = [
+#   "/the_archive/where_i_keep/everything"]
+# exclusions = [
+#   "/the_directory/where_i_keep/other_stuff/that_is_sensitive"]

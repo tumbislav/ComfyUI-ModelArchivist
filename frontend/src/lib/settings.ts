@@ -59,11 +59,8 @@ async function request<T>(path: string, method = 'GET', body?: unknown,
 
 export const getRepositorySettings = () => request<RepositorySettings>('/config/repository');
 
-export const saveInitialFilesystemRoots = (working_roots: string[], archive_roots: string[],
-                                          accept_inaccessible = false) =>
-    request<RepositorySettings & { warnings?: FilesystemIssue[] }>(
-        '/config/initial-filesystem-roots', 'PUT',
-        {working_roots, archive_roots, accept_inaccessible});
+export const acknowledgeFirstRun = () =>
+    request<RepositorySettings>('/config/acknowledge-first-run', 'POST');
 
 export const saveModelExtensions = (extensions: string[]) =>
     request<RepositorySettings>('/config/model-extensions', 'PUT', {extensions});

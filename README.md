@@ -126,12 +126,11 @@ path restrictions.
 
 The `[filesystem]` section of `config.toml` defines permitted working roots,
 permitted archive roots, and exclusions. It is initialized on first startup and
-can be reviewed and saved once in the first-run dialog, with one root per line.
-Before saving, Archivist checks directory access and warns about unavailable roots.
-Users can edit those paths or continue anyway when the storage will be available later.
-Saving applies the roots immediately and closes this UI permission permanently.
-Later changes require editing the file and restarting. Existing installations do
-not gain this first-run permission during upgrades. See [filesystem setup](docs/INSTALLATION.md#filesystem-permissions) for
+is displayed read-only in the first-run dialog. Embedded installations default the
+archive root to `<ComfyUI directory>/archive`; standalone installations leave it unset.
+Continue acknowledges the screen and opens Settings without changing permissions.
+Changing roots requires editing the file and restarting. No API route can change
+filesystem permissions. See [filesystem setup](docs/INSTALLATION.md#filesystem-permissions) for
 defaults, examples, and migration of existing installations.
 
 Model, workflow, and user-type mappings, mapping previews, scans, metadata edits,

@@ -103,20 +103,23 @@ SQLite database.
 On first run without a `[filesystem]` section, Archivist appends one to the
 configuration file it loaded, preserving the other settings and comments:
 
-- Standalone: working roots default to the operating-system
-  user's home directory (`%USERPROFILE%` on Windows, `$HOME` on Unix).
+- Standalone: working roots, archive roots, and exclusions start as empty arrays.
+  Edit `config.toml` and restart to permit the directories you want to manage.
 - ComfyUI: working roots default to ComfyUI's `models` directory and any additional roots registered
   in `extra_model_paths.yaml`.
-- Archive roots and exclusions initially contain no paths. Enter at least one
-  working root and one archive root before completing first-run setup.
+- ComfyUI: the archive root defaults to `<ComfyUI directory>/archive`.
+- Standalone: archive roots initially contain no paths, so archiving is disabled
+  until you configure an archive root in `config.toml` and restart.
+- Exclusions initially contain no paths.
 
 Initialization happens only when the entire section is absent.
-A new repository's first-run screen presents working and archive
-roots as multiline fields, pre-populated from these defaults or the existing file.
-Enter one root per line. Opening Settings saves the roots to `config.toml` and
-applies them immediately. This can be done only once; later changes require editing
-the file and restarting. An interrupted first-run screen reappears on restart until
-the roots are saved. Upgrading an existing repository does not enable this editor.
+A new embedded repository's first-run screen presents working and archive
+roots as read-only, scrollable lists from the active backend configuration.
+The standalone first-run screen omits these lists.
+Continue acknowledges the screen and opens Settings without saving or applying roots.
+If you want different roots, edit `config.toml` and restart before continuing.
+An interrupted first-run screen reappears on restart until acknowledged.
+No API route can change filesystem permissions.
 
 Explicit empty root lists deny all access for that role. Invalid or incomplete policy settings stop
 startup rather than restoring permissive defaults. The configuration file must be
