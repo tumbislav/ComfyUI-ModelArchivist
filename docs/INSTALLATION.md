@@ -106,8 +106,11 @@ configuration file it loaded, preserving the other settings and comments:
 - Standalone: working roots, archive roots, and exclusions start as empty arrays.
   Edit `config.toml` and restart to permit the directories you want to manage.
 - ComfyUI: working roots default to ComfyUI's `models` directory and any additional roots registered
-  in `extra_model_paths.yaml`.
-- ComfyUI: the archive root defaults to `<ComfyUI directory>/archive`.
+  in `extra_model_paths.yaml`, plus the default public profile's `workflows` directory.
+- ComfyUI: the archive root defaults to `<ComfyUI user directory>/default/archive`.
+  Both profile paths use ComfyUI's directory API, respecting a relocated user directory.
+  Startup has no browser-selected profile; for a named profile, edit the roots in
+  `config.toml` and restart.
 - Standalone: archive roots initially contain no paths, so archiving is disabled
   until you configure an archive root in `config.toml` and restart.
 - Exclusions initially contain no paths.

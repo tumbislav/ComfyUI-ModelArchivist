@@ -56,7 +56,7 @@ Model Archivist can be set up in one of two ways: as a standalone application or
 extension. See [Installation and setup](INSTALLATION.md) for instructions how to do one or the other.
 
 On first run, the splash screen shows the filesystem roots configured by the backend.
-In ComfyUI mode, the archive root defaults to `<ComfyUI directory>/archive`; standalone
+In ComfyUI mode, the archive root defaults to `<ComfyUI user directory>/default/archive`; standalone
 mode leaves it unset. The root lists are read-only. To change them, edit the
 `[filesystem]` section in `config.toml` and restart. Continue opens Settings, where
 you configure folder mappings within those roots. The splash screen stays dismissed

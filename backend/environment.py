@@ -83,10 +83,14 @@ class ComfyEnvironmentProvider:
                 continue
             roots = [root for root in roots if not _contains(path, root)]
             roots.append(path)
+        for path in self.workflow_locations():
+            if not any(_contains(root, path) for root in roots):
+                roots.append(path)
         return roots
 
     def default_archive_roots(self) -> list[Path]:
-        return [(Path(self.folder_paths.base_path) / 'archive').absolute()]
+        directory = self._public_user_directory('default')
+        return [] if directory is None else [directory / 'archive']
 
     def model_locations(self) -> list[DiscoveredModelLocation]:
         discovered: dict[str, DiscoveredModelLocation] = {}
@@ -129,19 +133,23 @@ class ComfyEnvironmentProvider:
                         working_dir, canonical_type, existing.model_type)
         return list(discovered.values())
 
-    def workflow_locations(self, profile: str = 'default') -> list[Path]:
-        get_user_directory = getattr(self.folder_paths, 'get_user_directory', None)
-        if not callable(get_user_directory):
-            return []
+    def _public_user_directory(self, profile: str) -> Path | None:
         if not profile or profile.startswith('__') or profile in {'.', '..'} or any(
                 character in profile for character in '/\\:'):
             raise ValueError('Invalid ComfyUI profile directory.')
         get_profile_directory = getattr(self.folder_paths, 'get_public_user_directory', None)
-        directory = (get_profile_directory(profile) if callable(get_profile_directory)
-                     else Path(get_user_directory()) / profile)
-        if directory is None:
-            return []
-        return [(Path(directory) / 'workflows').absolute()]
+        if callable(get_profile_directory):
+            directory = get_profile_directory(profile)
+        else:
+            get_user_directory = getattr(self.folder_paths, 'get_user_directory', None)
+            if not callable(get_user_directory):
+                return None
+            directory = Path(get_user_directory()) / profile
+        return None if directory is None else Path(directory).absolute()
+
+    def workflow_locations(self, profile: str = 'default') -> list[Path]:
+        directory = self._public_user_directory(profile)
+        return [] if directory is None else [directory / 'workflows']
 
     def runtime_data_directory(self) -> Path | None:
         get_user_directory = getattr(self.folder_paths, 'get_user_directory', None)

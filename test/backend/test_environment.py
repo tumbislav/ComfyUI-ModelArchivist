@@ -57,12 +57,13 @@ def test_comfy_environment_reads_registered_model_and_workflow_locations():
     models = provider.model_locations()
 
     assert provider.mode == 'comfyui'
-    assert provider.default_archive_roots() == [(Path('ComfyUI') / 'archive').absolute()]
+    assert provider.default_archive_roots() == [(Path('comfy-user') / 'default' / 'archive').absolute()]
     assert len(models) == 2
     assert {item.model_type for item in models} == {'checkpoints'}
     assert all(item.extensions == ('.ckpt', '.safetensors') for item in models)
     assert provider.default_working_roots() == [
-        Path('models').absolute(), Path('extra/checkpoints').absolute()]
+        Path('models').absolute(), Path('extra/checkpoints').absolute(),
+        (Path('comfy-user') / 'default' / 'workflows').absolute()]
     assert provider.workflow_locations() == [
         (Path('comfy-user') / 'default' / 'workflows').absolute()]
     assert provider.runtime_data_directory() == (
@@ -117,3 +118,26 @@ def test_comfy_default_roots_consolidate_only_immediate_siblings(paths, expected
         Path(path).absolute() for path in ['models', *expected]]
     assert {location.working_dir for location in provider.model_locations()} == {
         Path(path).absolute() for path in paths}
+
+
+@pytest.mark.parametrize('public_api', [False, True])
+def test_comfy_initial_roots_use_reported_user_directory(tmp_path, public_api):
+    folders = SimpleNamespace(models_dir=tmp_path / 'models', folder_names_and_paths={})
+    if public_api:
+        folders.get_public_user_directory = lambda profile: tmp_path / 'relocated' / profile
+    else:
+        folders.get_user_directory = lambda: tmp_path / 'relocated'
+    provider = ComfyEnvironmentProvider(folders)
+    profile_directory = tmp_path / 'relocated' / 'default'
+    assert provider.default_archive_roots() == [profile_directory / 'archive']
+    assert provider.default_working_roots() == [tmp_path / 'models', profile_directory / 'workflows']
+    assert not profile_directory.exists()
+
+
+def test_comfy_initial_roots_do_not_guess_rejected_public_directory(tmp_path):
+    provider = ComfyEnvironmentProvider(SimpleNamespace(
+        models_dir=tmp_path / 'models', folder_names_and_paths={},
+        get_public_user_directory=lambda profile: None,
+        get_user_directory=lambda: tmp_path / 'user'))
+    assert provider.default_archive_roots() == []
+    assert provider.default_working_roots() == [tmp_path / 'models']

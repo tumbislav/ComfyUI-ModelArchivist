@@ -355,16 +355,19 @@ def test_initialization_written_once_with_mode_defaults(tmp_path, monkeypatch, m
     models = tmp_path / 'ComfyUI' / 'models'
     extra = tmp_path / 'shared-models'
     monkeypatch.setattr(Path, 'home', lambda: home)
-    monkeypatch.setattr(environment, 'get_environment_provider', lambda:
-                        SimpleNamespace(default_working_roots=lambda: [models, extra],
-                                        default_archive_roots=lambda: [models.parent / 'archive']))
+    user_directory = tmp_path / 'relocated-users'
+    provider = environment.ComfyEnvironmentProvider(SimpleNamespace(
+        models_dir=models,
+        folder_names_and_paths={'checkpoints': ([str(extra)], {'.bin'})},
+        get_public_user_directory=lambda profile: user_directory / profile))
+    monkeypatch.setattr(environment, 'get_environment_provider', lambda: provider)
     path = bootstrap_file(tmp_path)
     before = path.read_text(encoding='utf-8')
     config = load_config(path, mode)
     assert config.filesystem.working_roots == (() if mode == 'standalone'
-                                               else (models, extra))
+                                               else (models, extra, user_directory / 'default' / 'workflows'))
     assert config.filesystem.archive_roots == (() if mode == 'standalone'
-                                               else (models.parent / 'archive',))
+                                               else (user_directory / 'default' / 'archive',))
     contents = path.read_text(encoding='utf-8')
     assert contents.startswith(before)
     addition = contents[len(before):]

@@ -127,7 +127,7 @@ path restrictions.
 The `[filesystem]` section of `config.toml` defines permitted working roots,
 permitted archive roots, and exclusions. It is initialized on first startup and
 is displayed read-only in the first-run dialog. Embedded installations default the
-archive root to `<ComfyUI directory>/archive`; standalone installations leave it unset.
+archive root to `<ComfyUI user directory>/default/archive`; standalone installations leave it unset.
 Continue acknowledges the screen and opens Settings without changing permissions.
 Changing roots requires editing the file and restarting. No API route can change
 filesystem permissions. See [filesystem setup](docs/INSTALLATION.md#filesystem-permissions) for
