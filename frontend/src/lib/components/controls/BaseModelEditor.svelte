@@ -48,7 +48,7 @@ function select(value: string) {
 }
 </script>
 
-<div class="base-model-editor">
+<div class="base-model-editor space-below">
     <input class="text-input full-width"
            id={inputId}
            type="text"

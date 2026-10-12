@@ -51,12 +51,17 @@
     font-style: italic;
 }
 
-.main-table .selection-column,
 .main-table .indicator-column,
 .main-table .error-column {
     width: 2rem;
     text-align: center;
 }
+
+.main-table .selection-column {
+    width: 2rem;
+    text-align: left;
+}
+
 
 .main-table .indicator-icon {
     display: block;
