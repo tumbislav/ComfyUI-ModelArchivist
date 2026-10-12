@@ -36,6 +36,8 @@
         onSave,
         onSaveType,
         onRemoveType,
+        onSelectType,
+        onWorkingFolder,
         canDiscardLocation,
         onDiscardLocation,
         onError
@@ -56,6 +58,8 @@
         onSave: (scan: boolean) => void;
         onSaveType: (type: ModelTypeSetting, scan: boolean) => void;
         onRemoveType: (index: number) => void;
+        onSelectType: (type: ModelTypeSetting, name: string) => void;
+        onWorkingFolder: (type: ModelTypeSetting, index: number, path: string) => void;
         canDiscardLocation: (type: ModelTypeSetting, location: ModelTypeSetting['locations'][number]) => boolean;
         onDiscardLocation: (type: ModelTypeSetting, index: number) => void;
         onError: (message: string) => void;
@@ -109,7 +113,8 @@
     </section>
 
     <div class="spaced-horizontally model-settings-actions">
-        {#if settings.mode === 'standalone'}
+        {#if settings.mode === 'standalone' || settings.available_model_types.some(candidate =>
+            !settings!.model_types.some(type => type.name === candidate.name))}
             <button class="button-with-text" onclick={onAddType}>
                 <img class="action-icon" alt={locale.t('ui.model_settings.add')} src={addIcon} />
                 <span class="button-label">{locale.t('ui.model_settings.add_type')}</span>
@@ -141,8 +146,18 @@
                 <div class="settings-form model-settings-form">
                     <label class="dialog-label">
                         {locale.t('ui.model_settings.type_key')}
-                        <input class="text-input" bind:value={type.name}
-                               disabled={settings.mode === 'comfyui'} />
+                        {#if settings.mode === 'comfyui' && type._new}
+                            <select class="text-input" value={type.name}
+                                    onchange={event => onSelectType(type, event.currentTarget.value)}>
+                                <option value="">{locale.t('ui.model_settings.select_type')}</option>
+                                {#each settings.available_model_types.filter(candidate =>
+                                    !settings!.model_types.some(other => other !== type && other.name === candidate.name)) as candidate}
+                                    <option value={candidate.name}>{candidate.name}</option>
+                                {/each}
+                            </select>
+                        {:else}
+                            <input class="text-input" value={type.name} disabled />
+                        {/if}
                     </label>
                     <label class="dialog-label">
                         {locale.t('ui.model_settings.display_name')}
@@ -158,7 +173,9 @@
                     {#each type.locations as location, locationIndex}
                         <label class="dialog-label">
                             {locale.t('ui.model_settings.working_folder')}
-                            <PathInput bind:value={location.working_dir} role="working"
+                            <PathInput bind:value={() => location.working_dir,
+                                                  path => onWorkingFolder(type, locationIndex, path ?? '')}
+                                       role="working"
                                        disabled={settings.mode === 'comfyui'}
                                        onError={onError} />
                         </label>
@@ -179,13 +196,11 @@
                 </div>
 
                 <div class="spaced-horizontally model-type-actions settings-actions">
-                    {#if settings.mode === 'standalone' || type._new}
-                        <button class="button-with-text danger" onclick={() => onRemoveType(typeIndex)}>
-                            <img class="action-icon" alt="" src={removeIcon} />
-                            <span class="button-label">{locale.t(type._new
-                                ? 'ui.model_settings.discard_type' : 'ui.model_settings.remove_type')}</span>
-                        </button>
-                    {/if}
+                    <button class="button-with-text danger" onclick={() => onRemoveType(typeIndex)}>
+                        <img class="action-icon" alt="" src={removeIcon} />
+                        <span class="button-label">{locale.t(type._new
+                            ? 'ui.model_settings.discard_type' : 'ui.model_settings.remove_type')}</span>
+                    </button>
                     <button class="button-with-text" disabled={!isDirty(type)}
                             onclick={() => onSaveType(type, false)}>
                         <img class="action-icon" alt="" src={saveIcon} />

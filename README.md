@@ -77,13 +77,21 @@ model paths. Workflow suggestions use `user/<selected profile>/workflows`, with
 `default` as the startup fallback. Workflow working and archive folders are editable
 within the filesystem permissions; saved mappings remain authoritative after restart.
 Model working paths remain owned by ComfyUI; Archivist stores their archive mappings, editable
-extension lists, and display settings. Empty ComfyUI extension lists default to
-`.sft`, `.safetensors`, `.gguf`, `.pt`, `.pth`, `.ckpt`, and `.bin`. Saved extensions
+extension lists, and display settings. Initial ComfyUI extension lists are combined with
+`.sft`, `.safetensors`, `.pt`, `.pth`, and `.gguf`, including when ComfyUI reports no extensions. Saved extensions
 are owned by Archivist and remain authoritative after restarting.
 Model type settings start empty; users create them by adding and
 saving mappings for discovered ComfyUI folders. Discovery alone does not create model
 type entries. Mapping proposals include only registered folders that exist on disk.
-Users can discard proposed types or individual unsaved mappings before saving;
+Settings also permits adding one unmapped ComfyUI type at a time, using the live
+registry's type key and all its working directories. Working directories remain
+read-only. Removing a type removes all its directory mappings as a group, along
+with its catalogued models and their collection/tag links. A confirmation shows
+the current model count; a changed count requires confirmation again. Model files
+and their sidecars remain on disk. Removed types are not recreated on startup and
+can be added again explicitly. In standalone mode, adding one type derives its key
+from the final element of the selected working folder.
+Users can discard proposed types before saving;
 startup does not create omitted model mappings. Model and workflow saves validate
 and update only their own settings, preserving the other tab's stored mappings.
 A ComfyUI action-bar button opens `/model-archivist/` on the ComfyUI

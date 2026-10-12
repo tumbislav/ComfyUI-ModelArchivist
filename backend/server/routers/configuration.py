@@ -4,8 +4,9 @@
 # purpose: REST access to repository settings and first-run acknowledgment
 # ---------------------------------------------------------------------------
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Query
 from pydantic import BaseModel, Field
+from pathlib import Path
 
 from backend.config import get_config
 from backend import directory_browser
@@ -166,6 +167,12 @@ async def update_single_model_type(data: ModelTypeInput, original_name: str | No
     try:
         with dispatcher.configuration_change():
             current = repo.get_repository_configuration()
+            if original_name is None and current.get('mode') == 'standalone':
+                if len(data.locations) != 1 or not data.locations[0].working_dir.strip():
+                    raise HTTPException(400, detail={
+                        'code': 'model_working_folder_required',
+                        'message': 'Select one working folder before adding a model type.', 'params': {}})
+                data.name = Path(data.locations[0].working_dir).name
             types = current['model_types']
             name = original_name if original_name is not None else data.name.strip()
             index = next((i for i, item in enumerate(types) if item['name'] == name), None)
@@ -184,4 +191,21 @@ async def update_single_model_type(data: ModelTypeInput, original_name: str | No
         raise HTTPException(409, detail={
             'code': 'operation_busy', 'message': str(error), 'params': {}}) from error
     except ValueError as error:
-        raise HTTPException(400, str(error)) from error
+        raise HTTPException(400, detail={
+            'code': 'invalid_model_type', 'message': str(error), 'params': {}}) from error
+
+
+@router.delete('/config/model-type')
+async def delete_model_type(name: str, expected_model_count: int = Query(ge=0)) -> dict:
+    try:
+        with dispatcher.configuration_change():
+            return repo.delete_model_type(name, expected_model_count)
+    except OperationBusyError as error:
+        raise HTTPException(409, detail={
+            'code': 'operation_busy', 'message': str(error), 'params': {}}) from error
+    except ValueError as error:
+        code = str(error)
+        message = ('The model count changed. Review the current count and confirm again.'
+                   if code == 'model_type_count_changed' else 'The model type no longer exists.')
+        raise HTTPException(409 if code == 'model_type_count_changed' else 404, detail={
+            'code': code, 'message': message, 'params': {'name': name}}) from error

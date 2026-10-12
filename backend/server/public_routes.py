@@ -24,6 +24,7 @@ PUBLIC_API_ROUTES = (
     ('POST', '/config/model-mapping-preview'),
     ('GET', '/config/model-mapping-roots'),
     ('PUT', '/config/model-type'),
+    ('DELETE', '/config/model-type'),
     ('GET', '/config/model_types'),
     ('PUT', '/config/models'),
     ('GET', '/config/repository'),

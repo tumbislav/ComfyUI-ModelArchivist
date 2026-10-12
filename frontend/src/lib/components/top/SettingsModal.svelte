@@ -30,6 +30,7 @@
     import UserTypeSettings from '$components/settings/UserTypeSettings.svelte';
     import WorkflowSettings from '$components/settings/WorkflowSettings.svelte';
     import {
+        deleteModelType,
         getModelMappingRoots,
         getRepositorySettings,
         previewModelMappings,
@@ -59,7 +60,32 @@
 
     export type SettingsTab = 'general' | 'models' | 'workflows' | 'user-types';
     const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
-    const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right); let activeTab = $state<SettingsTab>('general'); let settings = $state<RepositorySettings | null>(null); let savedModels = $state<ModelTypeSetting[]>([]); let savedExtensions = $state<string[]>([]); let savedWorkflows = $state<RepositoryLocation[]>([]); let userTypes = $state<UserDefinedType[]>([]); let savedUserTypes = $state<UserDefinedType[]>([]); let deletedUserTypeIds = $state<string[]>([]); let loading = $state(true); let startupScan = $state(false); let rememberTab = $state(false); let saving = $state(false); let mappingDiscoveryBusy = $state(false); let error = $state<string | null>(null); let guardTarget = $state<SettingsTab | 'close' | null>(null); let modelMappingRoots = $state<string[]>([]); let mappingWorkingRoot = $state(''); let mappingArchiveRoot = $state(''); let mappingExtensions = $state('.safetensors, .ckpt, .pt, .pth, .bin, .gguf'); let operationActive = $derived(statusMonitor.operation?.state === 'pending' || statusMonitor.operation?.state === 'running'); let editingLocked = $derived(saving || mappingDiscoveryBusy || operationActive || $serverUnresponsive); const modelOriginalNames = new SvelteMap<object, string>(); const expandedTypes = new SvelteMap<object, boolean>(); function preserveExpansion<T extends object>(previous: T[], next: T[], key: (type: T) => string): void {
+    const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
+    let activeTab = $state<SettingsTab>('general');
+    let settings = $state<RepositorySettings | null>(null);
+    let savedModels = $state<ModelTypeSetting[]>([]);
+    let savedExtensions = $state<string[]>([]);
+    let savedWorkflows = $state<RepositoryLocation[]>([]);
+    let userTypes = $state<UserDefinedType[]>([]);
+    let savedUserTypes = $state<UserDefinedType[]>([]);
+    let deletedUserTypeIds = $state<string[]>([]);
+    let loading = $state(true);
+    let startupScan = $state(false);
+    let rememberTab = $state(false);
+    let saving = $state(false);
+    let mappingDiscoveryBusy = $state(false);
+    let error = $state<string | null>(null);
+    let guardTarget = $state<SettingsTab | 'close' | null>(null);
+    let modelMappingRoots = $state<string[]>([]);
+    let mappingWorkingRoot = $state('');
+    let mappingArchiveRoot = $state('');
+    let mappingExtensions = $state('.safetensors, .ckpt, .pt, .pth, .bin, .gguf');
+    let operationActive = $derived(statusMonitor.operation?.state === 'pending' || statusMonitor.operation?.state === 'running');
+    let editingLocked = $derived(saving || mappingDiscoveryBusy || operationActive || $serverUnresponsive);
+    const modelOriginalNames = new SvelteMap<object, string>();
+    const expandedTypes = new SvelteMap<object, boolean>();
+
+    function preserveExpansion<T extends object>(previous: T[], next: T[], key: (type: T) => string): void {
         for (const type of next) {
             const old = previous.find(candidate => key(candidate) === key(type));
 
@@ -345,11 +371,71 @@
         return runSave(activeTab);
     }
     function addModelType(): void {
-        settings?.model_types.unshift({name: '', display_name: '', extensions: [],
-            locations: [{working_dir: '', archive_dir: ''}], _new: true});
+        if (!settings || editingLocked) return;
+        settings.model_types.unshift({
+            name: '', display_name: '', extensions: [...settings.model_extensions],
+            locations: settings.mode === 'standalone' ? [{working_dir: '', archive_dir: ''}] : [],
+            _new: true
+        });
+    }
+
+    function selectComfyType(type: ModelTypeSetting, name: string): void {
+        const candidate = settings?.available_model_types.find(item => item.name === name);
+        if (!candidate || settings?.model_types.some(item => item !== type && item.name === name)) return;
+        Object.assign(type, clone(candidate), {_new: true});
+    }
+
+    function selectWorkingFolder(type: ModelTypeSetting, index: number, path: string): void {
+        type.locations[index].working_dir = path;
+        if (!type._new || settings?.mode !== 'standalone') return;
+        const previousName = type.name;
+        type.name = path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ?? '';
+        if (!type.display_name || type.display_name === previousName) type.display_name = type.name;
+    }
+
+    async function removeModelType(index: number): Promise<void> {
+        if (!settings || editingLocked) return;
+        const type = settings.model_types[index];
+        if (type._new) {
+            settings.model_types.splice(index, 1);
+            return;
+        }
+        saving = true;
+        error = null;
+        try {
+            const current = await getRepositorySettings();
+            if (!current.ok) {
+                error = current.message ?? locale.t('ui.settings_modal.cannot_load_repository_settings');
+                return;
+            }
+            const name = modelOriginalNames.get(type) ?? type.name;
+            const stored = current.data.model_types.find(item => item.name === name);
+            if (!stored) {
+                error = locale.t('errors.model_type_not_found');
+                return;
+            }
+            const count = stored.model_count ?? 0;
+            if (!await confirmBox({message: locale.plural('messages.remove_model_type', count, {
+                name: stored.display_name, count: locale.number(count)
+            })})) return;
+            const result = await deleteModelType(name, count);
+            if (!result.ok) {
+                error = result.message ?? locale.t('messages.cannot_remove_model_type');
+                return;
+            }
+            settings.model_types = settings.model_types.filter(item => item !== type);
+            savedModels = savedModels.filter(item => item.name !== name);
+            settings.available_model_types = clone(result.data.available_model_types);
+            settings.setup_complete = result.data.setup_complete;
+        } catch (cause) {
+            error = cause instanceof Error ? cause.message : locale.t('messages.cannot_remove_model_type');
+        } finally {
+            saving = false;
+        }
     }
 
     function canDiscardLocation(type: ModelTypeSetting, location: RepositoryLocation): boolean {
+        if (settings?.mode === 'comfyui') return false;
         const original = savedModels.find(saved => saved.name === modelOriginalNames.get(type));
         return !original?.locations.some(saved =>
             saved.working_dir.toLowerCase() === location.working_dir.toLowerCase());
@@ -386,6 +472,8 @@
                     item => !knownPaths.has(item.working_dir.toLowerCase())));
             }
             settings.model_types.unshift(...newTypes);
+            const current = await getRepositorySettings();
+            if (current.ok) settings.available_model_types = clone(current.data.available_model_types);
         } catch (cause) {
             error = cause instanceof Error ? cause.message
                 : locale.t('ui.settings_modal.cannot_discover_model_mappings');
@@ -463,7 +551,9 @@
                     onUndo={undo}
                     onSave={scan => runSave('models', scan)}
                     onSaveType={(type, scan) => runSave('models', scan, type)}
-                    onRemoveType={index => settings?.model_types.splice(index, 1)}
+                    onRemoveType={index => void removeModelType(index)}
+                    onSelectType={selectComfyType}
+                    onWorkingFolder={selectWorkingFolder}
                     {canDiscardLocation}
                     onDiscardLocation={discardLocation}
                     onError={message => error = message} />

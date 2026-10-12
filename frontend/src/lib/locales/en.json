@@ -440,6 +440,7 @@
             "loading_settings": "Loading settings…"
         },
         "model_settings": {
+            "select_type": "Select a ComfyUI type",
             "add": "add",
             "undo": "undo",
             "save": "save",
@@ -738,6 +739,10 @@
         }
     },
     "errors": {
+        "invalid_model_type": "The model type settings are invalid.",
+        "model_type_not_found": "The model type no longer exists.",
+        "model_type_count_changed": "The model count changed. Review the current count and confirm again.",
+        "model_working_folder_required": "Select one working folder before adding a model type.",
         "filesystem_roots_required": "Enter at least one working root and one archive root.",
         "request_cancelled": "Request cancelled",
         "server_unresponsive": "The server is not responding",
@@ -833,8 +838,8 @@
         "comfyui_version": "ComfyUI embedded version",
         "standalone_version": "Standalone version",
         "show_all": "Show all",
-        "comfyui_model_help": "Working folders are supplied by ComfyUI. Extensions are initialized from ComfyUI and can be edited and saved in Archivist.",
-        "standalone_model_help": "Each model type has one working/archive location pair.",
+        "comfyui_model_help": "Add an unmapped type supplied by ComfyUI. Its working folders are fixed; choose their archive folders. Removing a type forgets all its mappings and catalogued models without deleting files. Extensions can be edited and saved in Archivist.",
+        "standalone_model_help": "Select a working folder to add a type. Its final folder name becomes the type key. Each type has one working/archive pair. Removing a type forgets its mappings and catalogued models without deleting files.",
         "pref_startup_error": "Cannot save the startup preference in browser storage",
         "pref_tab_error": "Cannot save the tab preference in browser storage",
         "pref_filter_error": "Cannot save the filter preference in browser storage",
@@ -843,6 +848,11 @@
         "find_tag": "Find tag"
     },
     "messages": {
+        "remove_model_type": {
+            "one": "Remove “{name}” and all its directory mappings? Its {count} model will be removed from the database and collections and will no longer be manageable with Archivist. Files on disk will be kept.",
+            "other": "Remove “{name}” and all its directory mappings? Its {count} models will be removed from the database and collections and will no longer be manageable with Archivist. Files on disk will be kept."
+        },
+        "cannot_remove_model_type": "Cannot remove this model type.",
         "remove_selected_workflows": {
             "one": "Remove selected workflows from {count} collection?",
             "other": "Remove selected workflows from {count} collections?"

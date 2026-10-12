@@ -33,7 +33,8 @@ from backend.repository.tables import (Model, Workflow, Collection, Component, C
 from backend.exception import ArcException
 from backend.base_models import normalize_base_model
 from backend.tags import edited_tags
-from backend.config import (Configuration, OptionsConfig, get_config, DEFAULT_MODEL_EXTENSIONS)
+from backend.config import (Configuration, OptionsConfig, get_config, DEFAULT_MODEL_EXTENSIONS,
+                            COMFY_DEFAULT_MODEL_EXTENSIONS)
 from backend.environment import get_environment_provider
 from backend.repository.migrations import update_database_schema
 import backend.files.model_files as model_files
@@ -278,6 +279,44 @@ def update_model_extensions(extensions: list[str]) -> dict:
     return get_repository_configuration()
 
 
+def available_comfy_model_types() -> list[dict]:
+    """Return live ComfyUI type keys and their immutable working locations."""
+    if _config.mode != 'comfyui':
+        return []
+    grouped: dict[str, dict] = {}
+    for location in get_environment_provider().model_locations():
+        item = grouped.setdefault(location.model_type, {
+            'name': location.model_type, 'display_name': location.model_type,
+            'extensions': [], 'locations': [],
+        })
+        item['extensions'] = sorted(set(item['extensions']) | set(location.extensions))
+        item['locations'].append({'working_dir': str(location.working_dir), 'archive_dir': None})
+    for item in grouped.values():
+        item['extensions'] = sorted(set(item['extensions']) | COMFY_DEFAULT_MODEL_EXTENSIONS)
+    return list(grouped.values())
+
+
+def delete_model_type(name: str, expected_model_count: int) -> dict:
+    """Forget a complete type and its catalogued models without touching files."""
+    with Session(_engine) as session:
+        type_row = session.get(ModelTypeSetting, name)
+        if type_row is None:
+            raise ValueError('model_type_not_found')
+        models = session.exec(select(Model).where(Model.type == name)).all()
+        if len(models) != expected_model_count:
+            raise ValueError('model_type_count_changed')
+        for model in models:
+            session.delete(model)
+        for location in session.exec(select(ModelLocationSetting).where(
+                ModelLocationSetting.model_type == name)).all():
+            session.delete(location)
+        session.flush()
+        session.delete(type_row)
+        session.commit()
+    load_repository_configuration(_config)
+    return get_repository_configuration()
+
+
 def get_repository_configuration(profile: str | None = None) -> dict:
     """Return the persistent settings together with environment-derived locations."""
     with Session(_engine) as session:
@@ -311,11 +350,14 @@ def get_repository_configuration(profile: str | None = None) -> dict:
                 'ignore_unknown_types': settings.ignore_unknown_types,
                 'always_recalc_hashes': settings.always_recalc_hashes,
             },
+            'available_model_types': available_comfy_model_types(),
             'model_types': [{
                 'name': item.name,
                 'display_name': item.display_name,
                 'extensions': list(item.extensions),
                 'locations': by_type.get(item.name, []),
+                'model_count': session.exec(select(func.count()).select_from(Model).where(
+                    Model.type == item.name)).one(),
             } for item in model_types],
             'filesystem': get_policy().to_dict(),
             'filesystem_issues': _config.filesystem_issues,
@@ -365,6 +407,9 @@ def update_repository_configuration(data: dict, *, scope: str = 'all') -> dict:
     update_models = scope != 'workflows'
     update_workflows = scope != 'models'
     models_to_update = model_types if update_models else []
+    names = [item.get('name', '').strip() for item in models_to_update]
+    if len(names) != len(set(names)):
+        raise ValueError('model type keys must be unique')
     workflows_to_update = workflow_locations if update_workflows else []
     if _config.mode == 'standalone' and update_models and any(
             len(item.get('locations', [])) > 1 for item in model_types):
@@ -415,6 +460,22 @@ def update_repository_configuration(data: dict, *, scope: str = 'all') -> dict:
             if name in options:
                 setattr(settings, name, bool(options[name]))
         session.add(settings)
+
+        if update_models:
+            retained_names = set(names)
+            removed_types = session.exec(select(ModelTypeSetting)).all()
+            for type_row in removed_types:
+                if type_row.name in retained_names:
+                    continue
+                for model in session.exec(select(Model).where(Model.type == type_row.name)).all():
+                    session.delete(model)
+                if _config.mode == 'comfyui':
+                    for location in session.exec(select(ModelLocationSetting).where(
+                            ModelLocationSetting.model_type == type_row.name)).all():
+                        session.delete(location)
+                    session.flush()
+                    session.delete(type_row)
+            session.flush()
 
         if _config.mode == 'standalone':
             if update_models:
@@ -563,8 +624,8 @@ def propose_model_mappings(working_root_value: str, archive_root_value: str,
                     'name': item.model_type,
                     'display_name': current['display_name'] if current else item.model_type,
                     'extensions': (list(current['extensions']) if current else
-                                   sorted(initial_extensions[item.model_type]) or
-                                   list(DEFAULT_MODEL_EXTENSIONS)),
+                                   sorted(initial_extensions[item.model_type] |
+                                          COMFY_DEFAULT_MODEL_EXTENSIONS)),
                     'locations': []})
                 candidate['locations'].append({
                     'working_dir': str(item.working_dir),

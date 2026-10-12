@@ -91,7 +91,7 @@ def test_new_database_starts_in_setup_mode_without_scan(tmp_path, monkeypatch):
         assert MigrationContext.configure(connection).get_current_revision() == '000000000002'
 
 
-@pytest.mark.parametrize('registered_extensions', [{'.safetensors'}, set()])
+@pytest.mark.parametrize('registered_extensions', [{'.safetensors'}, {'.ckpt', '.pkl'}, set()])
 def test_comfy_model_types_are_created_only_when_user_saves_mappings(
         tmp_path, monkeypatch, registered_extensions):
     models = tmp_path / 'models'
@@ -120,8 +120,8 @@ def test_comfy_model_types_are_created_only_when_user_saves_mappings(
     assert {item['name'] for item in candidates} == {'checkpoints', 'loras'}
     assert repository.get_repository_configuration()['model_types'] == []
     selected = next(item for item in candidates if item['name'] == 'checkpoints')
-    assert selected['extensions'] == (['.safetensors'] if registered_extensions else
-                                     ['.sft', '.safetensors', '.gguf', '.pt', '.pth', '.ckpt', '.bin'])
+    assert selected['extensions'] == sorted(
+        registered_extensions | {'.sft', '.safetensors', '.pt', '.pth', '.gguf'})
     selected['display_name'] = 'My checkpoints'
     selected['extensions'] = ['GGUF', '.sft']
     result = repository.update_model_configuration({'model_types': [selected]})

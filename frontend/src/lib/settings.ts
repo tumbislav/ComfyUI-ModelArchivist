@@ -20,6 +20,7 @@ export type ModelTypeSetting = {
     display_name: string;
     extensions: string[];
     locations: RepositoryLocation[];
+    model_count?: number;
     _new?: boolean;
 };
 
@@ -44,6 +45,7 @@ export type RepositorySettings = {
         always_recalc_hashes: boolean;
     };
     model_types: ModelTypeSetting[];
+    available_model_types: ModelTypeSetting[];
     workflow_locations: RepositoryLocation[];
 };
 
@@ -82,6 +84,11 @@ export const previewModelMappings = (working_root: string, archive_root: string,
 export const saveModelType = (type: ModelTypeSetting, originalName?: string) =>
     request<RepositorySettings>('/config/model-type' + (originalName === undefined ? ''
         : `?original_name=${encodeURIComponent(originalName)}`), 'PUT', type);
+
+export const deleteModelType = (name: string, expectedModelCount: number) =>
+    request<RepositorySettings>(`/config/model-type?${new URLSearchParams({
+        name, expected_model_count: String(expectedModelCount)
+    })}`, 'DELETE');
 
 export type DirectoryRole = 'working' | 'archive';
 export type DirectoryEntry = { path: string; name: string; issue: FilesystemIssue | null };

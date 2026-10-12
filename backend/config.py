@@ -15,6 +15,7 @@ from pathlib import Path
 from backend.filesystem_policy import FilesystemPolicy, FilesystemPolicyError, get_policy, set_policy
 
 DEFAULT_MODEL_EXTENSIONS = ['.sft', '.safetensors', '.gguf', '.pt', '.pth', '.ckpt', '.bin']
+COMFY_DEFAULT_MODEL_EXTENSIONS = frozenset({'.sft', '.safetensors', '.pt', '.pth', '.gguf'})
 
 class ConfigError(StrEnum):
     CONFIG_NOT_FOUND = 'Configuration file not found'
