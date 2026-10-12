@@ -209,7 +209,7 @@
         {locale.t('ui.multi_user_object_editor.apply_tags')}
     </button>
 
-    <div class="settings-actions space-below">
+    <div class="spaced-horizontally">
         <button class="button-with-text" disabled={blocked} onclick={() => perform('working')}>
             {locale.t('ui.multi_user_object_editor.to_working_set')}
         </button>

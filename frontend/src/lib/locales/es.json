@@ -169,7 +169,7 @@
             "cannot_move_workflows": "No se pueden mover los flujos de trabajo",
             "move_workflows": "Mover flujos de trabajo",
             "different_subdirectories": "Subcarpetas diferentes",
-            "the_workflows_are_currently_in_different_subdirectories_are_you_sure_you_want_to_move_them_to_the_same_subdirectory": "Los flujos de trabajo están en subcarpetas diferentes. ¿Seguro que quieres moverlos a la misma subcarpeta?"
+            "consolidate_workflows": "Los flujos de trabajo están en subcarpetas diferentes. ¿Seguro que quieres moverlos a la misma subcarpeta?"
         },
         "multi_workflow_collection_editor": {
             "add": "añadir",

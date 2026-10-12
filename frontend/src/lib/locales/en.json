@@ -184,7 +184,7 @@
             "cannot_move_workflows": "Cannot move workflows",
             "move_workflows": "Move workflows",
             "different_subdirectories": "Different subdirectories",
-            "the_workflows_are_currently_in_different_subdirectories_are_you_sure_you_want_to_move_them_to_the_same_subdirectory": "The workflows are currently in different subdirectories. Are you sure you want to move them to the same subdirectory?"
+            "consolidate_workflows": "The workflows are currently in different subdirectories. Are you sure you want to move them to the same subdirectory?"
         },
         "multi_workflow_collection_editor": {
             "add": "add",

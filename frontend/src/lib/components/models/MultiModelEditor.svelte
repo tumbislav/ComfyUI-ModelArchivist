@@ -265,7 +265,7 @@ async function relocate() {
                     onMove={relocate} />
             </div>
 
-            <div class="space-below multi-model-deployment-actions">
+            <div class="spaced-horizontally">
                 <button class="button-with-text" disabled={busy} onclick={() => runOperation('working')}>
                     <img class="action-icon" alt={locale.t('ui.multi_model_editor.to_working_set')} src={moveUpIcon} />
                     <span class="button-label">{locale.t('ui.multi_model_editor.to_working_set_2')}</span>

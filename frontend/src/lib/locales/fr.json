@@ -169,7 +169,7 @@
             "cannot_move_workflows": "Impossible de déplacer les flux de travail",
             "move_workflows": "Déplacer les flux de travail",
             "different_subdirectories": "Sous-dossiers différents",
-            "the_workflows_are_currently_in_different_subdirectories_are_you_sure_you_want_to_move_them_to_the_same_subdirectory": "Les flux de travail se trouvent dans des sous-dossiers différents. Voulez-vous vraiment les déplacer dans le même sous-dossier ?"
+            "consolidate_workflows": "Les flux de travail se trouvent dans des sous-dossiers différents. Voulez-vous vraiment les déplacer dans le même sous-dossier ?"
         },
         "multi_workflow_collection_editor": {
             "add": "ajouter",

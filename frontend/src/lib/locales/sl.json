@@ -169,7 +169,7 @@
             "cannot_move_workflows": "Delotokov ni mogoče premakniti",
             "move_workflows": "Premakni delotoke",
             "different_subdirectories": "Različne podmape",
-            "the_workflows_are_currently_in_different_subdirectories_are_you_sure_you_want_to_move_them_to_the_same_subdirectory": "Delotoki so trenutno v različnih podmapah. Jih res želite premakniti v isto podmapo?"
+            "consolidate_workflows": "Delotoki so trenutno v različnih podmapah. Jih res želite premakniti v isto podmapo?"
         },
         "multi_workflow_collection_editor": {
             "add": "dodaj",
