@@ -18,7 +18,7 @@ import { sidebar_in_out } from '$lib/common';
 import { confirmBox } from '$lib/confirm.svelte';
 import { unsavedChangesBox } from '$lib/unsaved-changes.svelte';
 import { type Workflow, type WorkflowSummary } from '$lib/objects';
-import { getWorkflow, getWorkflows, moveWorkflow, syncWorkflow,
+import { fixWorkflowId, getWorkflow, getWorkflows, moveWorkflow, syncWorkflow,
     updateWorkflow, getWorkflowRelativePaths, relocateWorkflows,
     type WorkflowDestination } from '$lib/workflows';
 
@@ -76,6 +76,7 @@ async function refreshWorkflows(): Promise<boolean> {
     workflows = result.data; error = null; return true;
 }
 async function closeDetails(): Promise<boolean> {
+    if (operating) return false;
     if (changed) {
         const result = await unsavedChangesBox({
             message: locale.t('ui.workflow_contents.save_workflow_changes_before_continuing')
@@ -138,6 +139,35 @@ async function refreshActive() {
     if (!result.ok) { operationError = result.message ?? locale.t('ui.workflow_contents.cannot_refresh_workflow'); return; }
     active = result.data; snapshot = makeSnapshot(result.data); await refreshWorkflows();
 }
+
+async function fixId(): Promise<void> {
+    if (!active || operating || saving || changed) return;
+    const oldId = active.id;
+    operating = true;
+    operationError = null;
+    try {
+        const result = await fixWorkflowId(oldId);
+        if (!result.ok) {
+            operationError = result.message ?? locale.t('ui.workflow_contents.cannot_fix_id');
+            return;
+        }
+        active = result.data;
+        active_id = result.data.id;
+        selected_id = result.data.id;
+        snapshot = makeSnapshot(result.data);
+        if (selected_ids.has(oldId)) {
+            const next = new Set(selected_ids);
+            next.delete(oldId);
+            next.add(result.data.id);
+            selected_ids = next;
+        }
+        await refreshWorkflows();
+    } catch (cause) {
+        operationError = cause instanceof Error ? cause.message : locale.t('ui.workflow_contents.cannot_fix_id');
+    } finally {
+        operating = false;
+    }
+}
 async function openMulti() { if (selected_ids.size >= 2 && await closeDetails()) multiEditorOpen = true; }
 function closeMulti() { multiEditorOpen = false; }
 async function refreshAfterMultiEdit() { await refreshWorkflows(); }
@@ -167,7 +197,7 @@ async function clickOutside(event: MouseEvent) {
     <div class="object-results">
         <main data-workflow-table>
             <WorkflowTable {workflows} {error}
-                           disabled={multiEditorOpen}
+                           disabled={multiEditorOpen || operating}
                            bind:selected_id bind:selected_ids />
         </main>
     </div>
@@ -189,6 +219,7 @@ async function clickOutside(event: MouseEvent) {
                              onSync={() => runOperation(null)}
                              onMove={runOperation}
                              onRelocate={relocate}
+                             onFixId={fixId}
                              {relativePaths}
                              onCollectionsChanged={refreshActive} />
         </aside>

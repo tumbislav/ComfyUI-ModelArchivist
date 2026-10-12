@@ -7,6 +7,7 @@
 import backend.repository.repository as repo
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.exc import SQLAlchemyError
 
 from backend.exception import ArcException
 from backend.repository.tables import DeploymentStatus
@@ -114,3 +115,24 @@ async def synchronize_workflow(id: str, simulate: bool = True) -> dict:
 async def move_workflow(id: str, destination: DeploymentStatus,
                         simulate: bool = True) -> dict:
     return repo.move_workflow(id, destination, simulate)
+
+
+@router.post('/workflows/{id}/fix-id')
+async def fix_workflow_id(id: str) -> dict:
+    try:
+        with dispatcher.configuration_change():
+            return repo.fix_workflow_ids(id)
+    except OperationBusyError as error:
+        raise HTTPException(409, detail={
+            'code': 'operation_busy', 'message': str(error), 'params': {}}) from error
+    except repo.WorkflowIdentityError as error:
+        status = 404 if error.code == 'unknown_workflow' else 403 if error.code == 'filesystem_read_only' else 409
+        raise HTTPException(status, detail={
+            'code': error.code, 'message': str(error), 'params': {}}) from error
+    except (OSError, ValueError, TypeError) as error:
+        raise HTTPException(400, detail={
+            'code': 'workflow_identity_repair_failed', 'message': str(error), 'params': {}}) from error
+    except SQLAlchemyError as error:
+        raise HTTPException(500, detail={
+            'code': 'workflow_identity_repair_failed',
+            'message': 'The database could not be updated.', 'params': {}}) from error

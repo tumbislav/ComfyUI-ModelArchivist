@@ -60,6 +60,7 @@
 .main-table .selection-column {
     width: 2rem;
     text-align: left;
+    cursor: default;
 }
 
 

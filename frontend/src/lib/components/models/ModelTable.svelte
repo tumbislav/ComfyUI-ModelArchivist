@@ -7,66 +7,75 @@
 <script lang=ts>
     import { locale } from '$lib/locale.svelte';
 
-import ColumnFilter from '$components/controls/ColumnFilter.svelte';
-import { filteredRows, filterStates } from '$lib/column-filters';
-import { type ModelSummary } from "$lib/objects";
-import tagIcon from '$icons/indicators/tag16.png';
-import noTagIcon from '$icons/indicators/no-tag16.png';
-import collectionIcon from '$icons/indicators/collection16.png';
-import noCollectionIcon from '$icons/indicators/no-collection16.png';
+    import ColumnFilter from '$components/controls/ColumnFilter.svelte';
+    import { filteredRows, filterStates } from '$lib/column-filters';
+    import { type ModelSummary } from "$lib/objects";
+    import tagIcon from '$icons/indicators/tag16.png';
+    import noTagIcon from '$icons/indicators/no-tag16.png';
+    import collectionIcon from '$icons/indicators/collection16.png';
+    import noCollectionIcon from '$icons/indicators/no-collection16.png';
 
-let {
-    models: allRows,
-    error,
-    disabled = false,
-    selected_id=$bindable(),
-    selected_ids=$bindable(),
-} : {
-    models: ModelSummary[],
-    error: string | null,
-    disabled?: boolean,
-    selected_id: string | null,
-    selected_ids: Set<string>,
-} = $props();
+    let {
+        models: allRows,
+        error,
+        disabled = false,
+        selected_id=$bindable(),
+        selected_ids=$bindable(),
+    } : {
+        models: ModelSummary[],
+        error: string | null,
+        disabled?: boolean,
+        selected_id: string | null,
+        selected_ids: Set<string>,
+    } = $props();
 
-let models = $derived(filteredRows(allRows, $filterStates.models));
+    let models = $derived(filteredRows(allRows, $filterStates.models));
 
-let allVisibleSelected = $derived(
-    models.length > 0 && models.every((model) => selected_ids.has(model.id)) ); let closedTypes = $state(new Set<string>());
-let sections = $derived.by(() => {
-    const grouped = new Map<string, ModelSummary[]>();
-    for (const model of models) {
-        const section = grouped.get(model.type);
-        section ? section.push(model) : grouped.set(model.type, [model]);
+    let allVisibleSelected = $derived(
+        models.length > 0 && models.every((model) => selected_ids.has(model.id)) );
+
+    let closedTypes = $state(new Set<string>());
+    let sections = $derived.by(() => {
+        const grouped = new Map<string, ModelSummary[]>();
+        for (const model of models) {
+            const section = grouped.get(model.type);
+            section ? section.push(model) : grouped.set(model.type, [model]);
+        }
+        return [...grouped.entries()];
+    });
+
+    function toggleSelected(modelId: string) {
+        if (disabled) return;
+
+        const next = new Set(selected_ids);
+        next.has(modelId) ? next.delete(modelId) : next.add(modelId);
+        selected_ids = next;
     }
-    return [...grouped.entries()];
-});
 
-function toggleSelected(modelId: string) {
-    if (disabled) return;
+    function toggleAllVisible() {
+        if (disabled) return;
 
-    const next = new Set(selected_ids);
-    next.has(modelId) ? next.delete(modelId) : next.add(modelId);
-    selected_ids = next;
-}
-
-function toggleAllVisible() {
-    if (disabled) return;
-
-    const next = new Set(selected_ids);
-    if (allVisibleSelected) {
-        models.forEach((model) => next.delete(model.id));
-    } else {
-        models.forEach((model) => next.add(model.id));
+        const next = new Set(selected_ids);
+        if (allVisibleSelected) {
+            next.clear();
+        } else {
+            models.forEach((model) => next.add(model.id));
+        }
+        selected_ids = next;
     }
-    selected_ids = next;
-}
 
-function toggleSection(type: string) {
-    const next = new Set(closedTypes);
-    next.has(type) ? next.delete(type) : next.add(type);
-    closedTypes = next;
-}
+    function openModel(event: MouseEvent, modelId: string) {
+        if (disabled || (event.target instanceof Element &&
+            event.target.closest('td.selection-column'))) return;
+
+        selected_id = modelId;
+    }
+
+    function toggleSection(type: string) {
+        const next = new Set(closedTypes);
+        next.has(type) ? next.delete(type) : next.add(type);
+        closedTypes = next;
+    }
 
 </script>
 
@@ -149,7 +158,7 @@ function toggleSection(type: string) {
                         <tr class:table-clickable={!disabled}
                             aria-selected={selected_id === model.id}
                             aria-disabled={disabled}
-                            onclick={() => { if (!disabled) selected_id = model.id; }} >
+                            onclick={event => openModel(event, model.id)}>
                             <td class="clear selection-column" id="{model.id}">
                                 <input type="checkbox"
                                        disabled={disabled}

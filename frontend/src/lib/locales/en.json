@@ -113,6 +113,8 @@
             "e": "E"
         },
         "workflow_details": {
+            "fix_id_prompt": "You can fix this error by changing the workflow's ID. Warning, this may not work if this workflow is currently open in ComfyUI",
+            "fix_it": "Fix it",
             "close_workflow_details": "Close workflow details",
             "tags": "Tags",
             "save": "save",
@@ -129,6 +131,7 @@
             "to_archive_2": "To archive"
         },
         "workflow_contents": {
+            "cannot_fix_id": "Cannot fix the workflow ID.",
             "cannot_load_workflows": "Cannot load workflows",
             "unsaved_changes": "Unsaved changes",
             "discard_workflow_changes": "Discard workflow changes?",
@@ -739,6 +742,9 @@
         }
     },
     "errors": {
+        "workflow_not_duplicate": "The workflow no longer has duplicate IDs. Rescan workflows.",
+        "workflow_identity_changed": "A workflow file changed. Rescan before fixing its ID.",
+        "workflow_identity_repair_failed": "The workflow IDs could not be repaired.",
         "invalid_model_type": "The model type settings are invalid.",
         "model_type_not_found": "The model type no longer exists.",
         "model_type_count_changed": "The model count changed. Review the current count and confirm again.",

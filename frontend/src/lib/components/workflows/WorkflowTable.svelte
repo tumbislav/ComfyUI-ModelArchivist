@@ -7,34 +7,57 @@
 <script lang="ts">
     import { locale } from '$lib/locale.svelte';
 
-import ColumnFilter from '$components/controls/ColumnFilter.svelte';
-import { filteredRows, filterStates } from '$lib/column-filters';
-import { type WorkflowSummary } from '$lib/objects';
-import tagIcon from '$icons/indicators/tag16.png';
-import noTagIcon from '$icons/indicators/no-tag16.png';
-import collectionIcon from '$icons/indicators/collection16.png';
-import noCollectionIcon from '$icons/indicators/no-collection16.png';
-let { workflows: allRows, error, disabled=false, selected_id=$bindable(), selected_ids=$bindable() }: {
-    workflows: WorkflowSummary[]; error: string | null; selected_id: string | null;
-    selected_ids: Set<string>; disabled?: boolean;
-} = $props();
+    import ColumnFilter from '$components/controls/ColumnFilter.svelte';
+    import { filteredRows, filterStates } from '$lib/column-filters';
+    import { type WorkflowSummary } from '$lib/objects';
+    import tagIcon from '$icons/indicators/tag16.png';
+    import noTagIcon from '$icons/indicators/no-tag16.png';
+    import collectionIcon from '$icons/indicators/collection16.png';
+    import noCollectionIcon from '$icons/indicators/no-collection16.png';
+    let {
+        workflows: allRows,
+        error,
+        disabled = false,
+        selected_id = $bindable(),
+        selected_ids = $bindable()
+    }: {
+        workflows: WorkflowSummary[];
+        error: string | null;
+        selected_id: string | null;
+        selected_ids: Set<string>;
+        disabled?: boolean;
+    } = $props();
 
-let workflows = $derived(filteredRows(allRows, $filterStates.workflows));
-let allVisibleSelected = $derived(workflows.length > 0 &&
-    workflows.every(workflow => selected_ids.has(workflow.id)));
-function toggleSelected(id: string) {
-    if (disabled) return;
+    let workflows = $derived(filteredRows(allRows, $filterStates.workflows));
+    let allVisibleSelected = $derived(workflows.length > 0 &&
+        workflows.every(workflow => selected_ids.has(workflow.id)));
 
-    const next = new Set(selected_ids); next.has(id) ? next.delete(id) : next.add(id);
-    selected_ids = next;
-}
-function toggleAllVisible() {
-    if (disabled) return;
+    function toggleSelected(id: string) {
+        if (disabled) return;
 
-    const next = new Set(selected_ids);
-    workflows.forEach(workflow => allVisibleSelected ? next.delete(workflow.id) : next.add(workflow.id));
-    selected_ids = next;
-}
+        const next = new Set(selected_ids);
+        next.has(id) ? next.delete(id) : next.add(id);
+        selected_ids = next;
+    }
+
+    function toggleAllVisible() {
+        if (disabled) return;
+
+        const next = new Set(selected_ids);
+        if (allVisibleSelected) {
+            next.clear();
+        } else {
+            workflows.forEach(workflow => next.add(workflow.id));
+        }
+        selected_ids = next;
+    }
+
+    function openWorkflow(event: MouseEvent, workflowId: string) {
+        if (disabled || (event.target instanceof Element &&
+            event.target.closest('td.selection-column'))) return;
+
+        selected_id = workflowId;
+    }
 
 </script>
 
@@ -81,7 +104,7 @@ function toggleAllVisible() {
     <tbody>{#each workflows as workflow (workflow.id)}
         <tr class:table-clickable={!disabled} aria-selected={selected_id === workflow.id}
             aria-disabled={disabled}
-            onclick={() => { if (!disabled) selected_id = workflow.id; }}>
+            onclick={event => openWorkflow(event, workflow.id)}>
             <td class="clear selection-column"><input type="checkbox" checked={selected_ids.has(workflow.id)} disabled={disabled}
                 onclick={event => event.stopPropagation()} onchange={() => toggleSelected(workflow.id)} /></td>
             <td>{workflow.internal_name}</td>

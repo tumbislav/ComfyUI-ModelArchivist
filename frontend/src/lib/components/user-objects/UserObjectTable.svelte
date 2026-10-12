@@ -5,41 +5,63 @@
  ! -------------------------------------------------------------------------- -->
 
 <script lang="ts">
-import { locale } from '$lib/locale.svelte';
-import ColumnFilter from '$components/controls/ColumnFilter.svelte';
+    import { locale } from '$lib/locale.svelte';
+    import ColumnFilter from '$components/controls/ColumnFilter.svelte';
 
-import tagIcon from '$icons/indicators/tag16.png';
-import noTagIcon from '$icons/indicators/no-tag16.png';
-import collectionIcon from '$icons/indicators/collection16.png';
-import noCollectionIcon from '$icons/indicators/no-collection16.png';
+    import tagIcon from '$icons/indicators/tag16.png';
+    import noTagIcon from '$icons/indicators/no-tag16.png';
+    import collectionIcon from '$icons/indicators/collection16.png';
+    import noCollectionIcon from '$icons/indicators/no-collection16.png';
 
-import { filteredRows, filterStates } from '$lib/column-filters';
-import type { UserDefinedType, UserObjectSummary } from '$lib/objects';
+    import { filteredRows, filterStates } from '$lib/column-filters';
+    import type { UserDefinedType, UserObjectSummary } from '$lib/objects';
 
-let { type, objects: allRows, error, disabled=false, selectedId=$bindable(), selectedIds=$bindable() }: {
-    type: UserDefinedType;
-    objects: UserObjectSummary[];
-    error: string | null;
-    disabled?: boolean;
-    selectedId: string | null;
-    selectedIds: Set<string>;
-} = $props();
+    let {
+        type,
+        objects: allRows,
+        error,
+        disabled = false,
+        selectedId = $bindable(),
+        selectedIds = $bindable()
+    }: {
+        type: UserDefinedType;
+        objects: UserObjectSummary[];
+        error: string | null;
+        disabled?: boolean;
+        selectedId: string | null;
+        selectedIds: Set<string>;
+    } = $props();
 
-let objects = $derived(filteredRows(allRows, $filterStates.user));
+    let objects = $derived(filteredRows(allRows, $filterStates.user));
 
-let allSelected = $derived(objects.length > 0 && objects.every(item => selectedIds.has(item.id)));
-function toggleSelected(id: string) {
-    if (disabled) return;
+    let allSelected = $derived(objects.length > 0 && objects.every(item => selectedIds.has(item.id)));
 
-    const next = new Set(selectedIds); next.has(id) ? next.delete(id) : next.add(id); selectedIds = next;
-}
-function toggleAll() {
-    if (disabled) return;
+    function toggleSelected(id: string) {
+        if (disabled) return;
 
-    const next = new Set(selectedIds);
-    objects.forEach(item => allSelected ? next.delete(item.id) : next.add(item.id));
-    selectedIds = next;
-}
+        const next = new Set(selectedIds);
+        next.has(id) ? next.delete(id) : next.add(id);
+        selectedIds = next;
+    }
+
+    function toggleAll() {
+        if (disabled) return;
+
+        const next = new Set(selectedIds);
+        if (allSelected) {
+            next.clear();
+        } else {
+            objects.forEach(item => next.add(item.id));
+        }
+        selectedIds = next;
+    }
+
+    function openObject(event: MouseEvent, objectId: string) {
+        if (disabled || (event.target instanceof Element &&
+            event.target.closest('td.selection-column'))) return;
+
+        selectedId = objectId;
+    }
 
 </script>
 
@@ -89,7 +111,7 @@ function toggleAll() {
             {#each objects as item (item.id)}
                 <tr class:table-clickable={!disabled} aria-selected={selectedId === item.id}
                     aria-disabled={disabled}
-                    onclick={() => { if (!disabled) selectedId = item.id; }}>
+                    onclick={event => openObject(event, item.id)}>
                     <td class="clear selection-column"><input type="checkbox" checked={selectedIds.has(item.id)} disabled={disabled}
                         onclick={(event) => event.stopPropagation()}
                         onchange={() => toggleSelected(item.id)} /></td>

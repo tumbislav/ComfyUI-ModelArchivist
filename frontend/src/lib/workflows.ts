@@ -43,6 +43,11 @@ export async function updateWorkflow(workflow: Workflow): Promise<ApiResult<Work
     return await parseResponse(response, toWorkflow, 'updateWorkflow');
 }
 
+export async function fixWorkflowId(id: string): Promise<ApiResult<Workflow>> {
+    const response = await apiFetch(getUrl(`/workflows/${id}/fix-id`), {method: 'POST'}, null);
+    return await parseResponse(response, toWorkflow, 'fixWorkflowId');
+}
+
 async function workflowOperation(path: string): Promise<ApiResult<Record<string, any>>> {
     const response = await apiFetch(getUrl(path), {method: 'POST'});
     return await parseResponse(response, identity, 'workflowOperation');

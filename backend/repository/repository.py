@@ -24,6 +24,7 @@ from sqlalchemy.orm import selectinload
 from backend.repository.tables import (Model, Workflow, Collection, Component, ComponentSet,
                                        ComponentType, Tag, PrimaryObjectType, DeploymentStatus,
                                        ModelError, CollectionCollectionLink, ModelCollectionLink,
+                                       WorkflowError,
                                        WorkflowCollectionLink, UserDefinedType,
                                        UserDefinedObject, UserObjectCollectionLink,
                                        UserObjectClass, UserObjectError, UserObjectSet,
@@ -1498,6 +1499,108 @@ def get_workflow(id: str) -> dict:
             raise ArcException(ArcException.Code.UNKNOWN_WORKFLOW, msg)
         working_path, archive_path = _workflow_paths(workflow)
         return workflow.representation(working_path, archive_path)
+
+
+class WorkflowIdentityError(ValueError):
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+
+
+def fix_workflow_ids(workflow_id: str) -> dict:
+    """Give duplicate filenames distinct IDs, preserving paired deployed copies."""
+    import json
+    from uuid import UUID
+    from backend.files.scanner import read_workflow_candidate, scanned_component
+
+    if _config.read_only:
+        raise WorkflowIdentityError('filesystem_read_only', 'Workflow updates are disabled.')
+    with lock, Session(_engine) as session:
+        original = session.get(Workflow, workflow_id)
+        if original is None:
+            raise WorkflowIdentityError('unknown_workflow', 'The workflow no longer exists.')
+        if not {WorkflowError.DUPLICATE_WORKING.value, WorkflowError.DUPLICATE_ARCHIVE.value}.intersection(
+                original.errors):
+            raise WorkflowIdentityError('workflow_not_duplicate', 'The workflow has no duplicate ID error.')
+
+        grouped = {}
+        for pair_index, (working, archive) in enumerate(_config.workflow_folders):
+            for root, where, role in ((working, 'w', 'working'), (archive, 'a', 'archive')):
+                for path in sorted(safe_tree(root, role), key=str):
+                    if not path.is_file() or path.suffix.lower() != '.json':
+                        continue
+                    candidate = read_workflow_candidate(path, root, where)
+                    if candidate and candidate.workflow_id == workflow_id:
+                        grouped.setdefault((pair_index, candidate.relative_file.as_posix()), []).append(candidate)
+        candidates = [candidate for group in grouped.values() for candidate in group]
+        if not any(sum(candidate.where == where for candidate in candidates) > 1 for where in ('w', 'a')):
+            raise WorkflowIdentityError('workflow_not_duplicate', 'The files no longer have duplicate IDs. Rescan workflows.')
+
+        preferred_set = next((item for item in original.component_sets if item.where == 'w'),
+                             original.component_sets[0] if original.component_sets else None)
+        preferred_key = next((key for key, group in grouped.items() if any(
+            preferred_set and candidate.root == Path(preferred_set.primary_dir)
+            and candidate.relative_file.stem == original.file_name
+            and candidate.relative_file.parent == Path(original.relative_path or '.')
+            for candidate in group)), next(iter(grouped)))
+        collections = list(original.collections)
+        timestamp = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
+        updates = []
+        new_ids = {}
+        for key, group in grouped.items():
+            new_id = str(uuid4())
+            while session.get(Workflow, new_id) is not None or new_id in new_ids.values():
+                new_id = str(uuid4())
+            new_ids[key] = new_id
+            for candidate in group:
+                role = 'working' if candidate.where == 'w' else 'archive'
+                path = checked_path(candidate.path, role)
+                content = path.read_bytes()
+                data = json.loads(content.decode('utf-8'))
+                if str(UUID(data['id'])) != workflow_id:
+                    raise WorkflowIdentityError('workflow_identity_changed', 'A workflow ID changed. Rescan before fixing it.')
+                data['id'] = new_id
+                updates.append((path, role, content, json.dumps(data, ensure_ascii=False).encode('utf-8')))
+
+        attempted = []
+        try:
+            for path, role, before, after in updates:
+                if checked_path(path, role).read_bytes() != before:
+                    raise WorkflowIdentityError('workflow_identity_changed', 'A workflow file changed. Rescan before fixing it.')
+                attempted.append((path, role, before))
+                checked_path(path, role).write_bytes(after)
+            session.delete(original)
+            session.flush()
+            for key, group in grouped.items():
+                selected = next((candidate for candidate in group if candidate.where == 'w'), group[0])
+                sides = {candidate.where for candidate in group}
+                errors = set().union(*(candidate.errors for candidate in group))
+                relative_parent = selected.relative_file.parent.as_posix()
+                if relative_parent == '.':
+                    relative_parent = ''
+                workflow = Workflow(
+                    id=new_ids[key], file_name=selected.path.stem, internal_name=selected.name,
+                    purpose=selected.purpose, relative_path=relative_parent,
+                    deployment='synced' if sides == {'w', 'a'} else 'working' if 'w' in sides else 'archive',
+                    touched=timestamp, errors=[error.value for error in WorkflowError if error in errors],
+                    component_sets=[ComponentSet(
+                        where=candidate.where, primary_dir=candidate.root.as_posix(),
+                        components=[scanned_component(candidate.path, ComponentType.WORKFLOW,
+                                                      timestamp, relative_parent)])
+                        for candidate in group])
+                workflow.tags = resolve_tags(session, selected.tags)
+                workflow.collections = list(collections)
+                session.add(workflow)
+            session.commit()
+        except Exception:
+            session.rollback()
+            for path, role, before in reversed(attempted):
+                try:
+                    checked_path(path, role).write_bytes(before)
+                except (OSError, FilesystemPolicyError):
+                    _logger.exception('Could not restore workflow after ID repair failed: %s', path)
+            raise
+    return get_workflow(new_ids[preferred_key])
 
 
 def update_workflow(updates: dict) -> dict:

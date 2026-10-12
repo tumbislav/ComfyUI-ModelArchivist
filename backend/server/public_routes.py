@@ -87,6 +87,7 @@ PUBLIC_API_ROUTES = (
     ('GET', '/workflows/{id}'),
     ('PUT', '/workflows/{id}'),
     ('POST', '/workflows/{id}/move'),
+    ('POST', '/workflows/{id}/fix-id'),
     ('POST', '/workflows/{id}/synchronize'),
 )
 

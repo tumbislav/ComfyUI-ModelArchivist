@@ -161,6 +161,11 @@ than the content working/archive policy.
 - A model or workflow has at most one working component set and one archive component set. Missing sides have no component set; their prospective paths are derived from the configured pair.
 - A workflow is identified by a UUID in its top-level `id` field. JSON files without a usable UUID are ignored.
 - Workflow IDs uniquely identify one relative filename across working and archive storage.
+- Workflow details offers “Fix it” for duplicate working or archive IDs. It assigns a
+  new UUID to each relative filename within a configured pair, keeping matching
+  working/archive copies together. Each resulting workflow retains collection
+  memberships. Avoid saving an already-open ComfyUI workflow over a repaired file,
+  as that can restore its old ID.
 - A model is identified by the SHA-256 hash of its main weights file.
 - Normal scans trust a usable cached SHA-256 from Archivist or LoraManager metadata and hash weights only when no usable cached hash exists.
 - User-requested rehash scans calculate hashes from every weights file, including archived files on slow storage.
