@@ -25,6 +25,24 @@ The principal directories are:
 Read `README.md` before changing repository semantics. Its Assumptions section records
 accepted constraints and deliberate tradeoffs.
 
+## Maintenance workflow
+
+Version 1.0.2 is the current release. Maintenance mode begins once reviewers confirm
+that the reported vulnerabilities are fixed; do not assume that confirmation has
+already happened.
+
+- In maintenance mode, make all changes on a separate branch and merge them through
+  a pull request. Do not edit, commit, or push changes directly on `master`.
+- Protect `master` on GitHub against direct pushes when maintenance mode begins.
+- Before making changes, check the current branch. If it is `master`, remind the user
+  of this policy and move the work to a separate branch before editing. Apply this
+  reminder immediately to future tasks, including before maintenance mode begins.
+- Associate every maintenance change with a release number or a higher-level version
+  increase, and keep a one-line entry for every change in `docs/CHANGES.md` under the
+  corresponding version.
+- The user's own branches typically follow `YYYY-MM-YY-tumbislav`. Preserve a branch
+  name supplied by the user; treat this pattern as their naming preference.
+
 ## Operating modes and configuration
 
 `config.toml` contains bootstrap configuration and disk-owned filesystem permissions:
