@@ -169,7 +169,7 @@
         const directories = items.map(item => item.relative_path.replace(/[/\\][^/\\]+$/, '')
             .replace(item.relative_path, ''));
         if (new Set(directories).size > 1 && !await confirmBox({
-            message: locale.t('ui.multi_user_object_editor.the_objects_are_currently_in_different_subdirectories_are_you_sure_you_want_to_move_them_to_the_same_subdirectory')
+            message: locale.t('ui.multi_user_object_editor.consolidate_objects')
         })) return;
         busy = true;
         const result = await relocateUserObjects(ids, destinationPath, false);
@@ -218,7 +218,7 @@
         </p>
     {/if}
 
-    <div class="dialog-section">
+    <div class="dialog-section space-below">
         <div class="space-below">
             <TagEditor
                 title={locale.t('ui.multi_user_object_editor.add_tags')}
@@ -249,8 +249,8 @@
     </div>
 
     <div class="dialog-section space-below">
-        <h2 class="tight-vertical">
-            Archive and working locations
+        <h2 class="space-below">
+            {locale.t('common.archive_working_locations')}
         </h2>
         <div class="spaced-horizontally">
             <button class="button-with-text" disabled={blocked} onclick={() => perform('working')}>

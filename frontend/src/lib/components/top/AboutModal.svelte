@@ -102,7 +102,7 @@
             {/if}
             <div>
                 {locale.t('ui.about_modal.github')} <a href="https://github.com/tumbislav/ComfyUI-ModelArchivist"
-                           target="_blank" rel="noopener noreferrer">{locale.t('ui.about_modal.https_github_com_tumbislav_comfyui_modelarchivist')}</a>
+                           target="_blank" rel="noopener noreferrer">{locale.t('ui.about_modal.repository_url')}</a>
             </div>
             <div>{locale.t('ui.about_modal.author_tumbislav_nilski')}</div>
             <div>{locale.t('ui.about_modal.coding_tumbislav_nilski_chatgpt')}</div>

@@ -167,7 +167,7 @@
     async function resolveGuard(target: SettingsTab | 'close'): Promise<void> {
         guardTarget = target;
         const result = await unsavedChangesBox({
-            message: locale.t('ui.settings_modal.save_changes_to_this_tab_before_continuing'),
+            message: locale.t('ui.settings_modal.save_tab_changes'),
             saveDisabled: editingLocked
         });
 
@@ -353,7 +353,7 @@
                 const result = await startScan(false, scope,
                     scope === 'all' || scope === 'workflows' || scanAllModels ? undefined : ids);
                 if (!result.ok) {
-                    error = result.message ?? locale.t('ui.settings_modal.settings_saved_but_the_scan_could_not_start');
+                    error = result.message ?? locale.t('ui.settings_modal.saved_scan_failed');
                     return false;
                 }
                 statusMonitor.track(result.data);

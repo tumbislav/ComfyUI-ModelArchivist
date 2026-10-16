@@ -69,7 +69,7 @@ async function mayClose() {
     if (!changed) return true;
 
     const result = await unsavedChangesBox({
-        message: locale.t('ui.collection_contents.save_collection_changes_before_continuing')
+        message: locale.t('ui.collection_contents.save_collection_changes')
     });
     return result === 'discard' || (result === 'save' && await save());
 }

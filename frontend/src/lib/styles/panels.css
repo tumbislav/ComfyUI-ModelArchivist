@@ -118,6 +118,7 @@ body {
   max-height: 400px;
   overflow: auto;
   margin-block: var(--gap-small);
+  border: var(--solid-border);
 }
 
 .collection-add-row {

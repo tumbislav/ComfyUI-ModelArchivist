@@ -95,7 +95,7 @@ export async function requestClose(): Promise<void> {
 
     if (baseModelDirty || addTags.length > 0 || removeTags.length > 0) {
         const result = await unsavedChangesBox({
-            message: locale.t('messages.save_multi_model_changes_before_continuing')
+            message: locale.t('messages.save_multi_model_changes')
         });
         if (result === 'cancel') return;
         if (result === 'save') {
@@ -148,7 +148,7 @@ async function runOperation(destination: ModelDestination | null) {
 
 async function relocate() {
     if (new Set(models.map(model => model.raw_type)).size !== 1) {
-        error = locale.t('ui.multi_model_editor.models_of_different_types_cannot_be_moved_together');
+        error = locale.t('ui.multi_model_editor.mixed_types_cannot_move');
         return;
     }
     busy = true;
@@ -166,7 +166,7 @@ async function relocate() {
             destination: destinationPath || locale.t('dynamic.repository_root').toLocaleLowerCase(locale.language)
         })})) return;
     if (new Set(models.map(model => model.relative_path)).size > 1 && !await confirmBox({
-        message: locale.t('ui.multi_model_editor.the_models_are_currently_in_different_subdirectories_are_you_sure_you_want_to_move_them_to_the_same_subdirectory')
+        message: locale.t('ui.multi_model_editor.consolidate_models')
     })) return;
     busy = true;
     const result = await relocateModels(modelIds, destinationPath, false);
@@ -205,7 +205,7 @@ async function relocate() {
 
     {#if hasObjectErrors}
         <p class="error-details">
-            {locale.t('ui.multi_model_editor.some_selected_models_have_errors_editing_is_disabled')}
+            {locale.t('ui.multi_model_editor.selected_models_have_errors')}
         </p>
     {:else}
         <div class="dialog-section space-below">
@@ -256,8 +256,8 @@ async function relocate() {
         </div>
 
         <div class="dialog-section space-below">
-            <h2 class="tight-vertical">
-                Archive and working locations
+            <h2 class="space-below">
+                {locale.t('common.archive_working_locations')}
             </h2>
             <div class="spaced-horizontally">
                 <button class="button-with-text" disabled={busy} onclick={() => runOperation('working')}>

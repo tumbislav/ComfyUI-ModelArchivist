@@ -158,7 +158,7 @@
             "working": "delovno",
             "sync": "uskladi",
             "archive": "arhiv",
-            "some_selected_workflows_have_errors_editing_is_disabled": "Nekateri izbrani delovtoki imajo napake. Urejanje je onemogočeno.",
+            "selected_workflows_have_errors": "Nekateri izbrani delovtoki imajo napake. Urejanje je onemogočeno.",
             "apply_tags": "Uveljavi značke",
             "to_working_set": "V delovno zbirko",
             "sync_2": "Uskladi",
@@ -282,7 +282,7 @@
             "cannot_move_objects": "Objektov ni mogoče premakniti",
             "move_objects": "Premakni objekte",
             "different_subdirectories": "Različne podmape",
-            "the_objects_are_currently_in_different_subdirectories_are_you_sure_you_want_to_move_them_to_the_same_subdirectory": "Objekti so trenutno v različnih podmapah. Jih res želite premakniti v isto podmapo?"
+            "consolidate_objects": "Objekti so trenutno v različnih podmapah. Jih res želite premakniti v isto podmapo?"
         },
         "settings_modal": {
             "settings": "Nastavitve",
@@ -292,7 +292,7 @@
             "discard": "zavrzi",
             "save": "shrani",
             "unsaved_changes": "Neshranjene spremembe",
-            "save_changes_to_this_tab_before_continuing": "Shrani spremembe tega zavihka pred nadaljevanjem?",
+            "save_tab_changes": "Shrani spremembe tega zavihka pred nadaljevanjem?",
             "cancel_2": "Prekliči",
             "discard_2": "Zavrzi",
             "save_2": "Shrani",
@@ -301,7 +301,7 @@
             "cannot_delete_user_defined_type": "Uporabniško določenega tipa ni mogoče izbrisati",
             "cannot_save_model_extensions": "Končnic modelov ni mogoče shraniti",
             "cannot_save_workflow_settings": "Nastavitev delotokov ni mogoče shraniti",
-            "settings_saved_but_the_scan_could_not_start": "Nastavitve so shranjene, vendar pregleda ni bilo mogoče začeti",
+            "saved_scan_failed": "Nastavitve so shranjene, vendar pregleda ni bilo mogoče začeti",
             "cannot_save_settings": "Nastavitev ni mogoče shraniti",
             "cannot_discover_model_mappings": "Preslikav map modelov ni mogoče odkriti"
         },
@@ -311,7 +311,7 @@
             "close_repository_summary": "Zapri povzetek repozitorija",
             "repository": "Repozitorij",
             "the_server_is_not_responding": "Strežnik se ne odziva",
-            "individual_types_can_be_scanned_from_the_settings_dialog": "Posamezne tipe lahko pregledate v pogovornem oknu z nastavitvami",
+            "scan_types_in_settings": "Posamezne tipe lahko pregledate v pogovornem oknu z nastavitvami",
             "loading_repository_summary": "Nalaganje povzetka repozitorija ...",
             "models": "Modeli",
             "workflows": "Delotoki",
@@ -328,7 +328,7 @@
             "user_types": "Uporabniški tipi",
             "collections": "Zbirke",
             "remap_tags": "Preslikaj značke",
-            "discard_the_unsaved_tag_mappings_and_close": "Zavrzi neshranjene preslikave značk in zapri?",
+            "discard_tag_mappings": "Zavrzi neshranjene preslikave značk in zapri?",
             "save_the_tag_mappings_before_continuing": "Shrani preslikave značk pred nadaljevanjem?",
             "keep_editing": "Nadaljuj urejanje",
             "discard_and_close": "Zavrzi in zapri",
@@ -383,7 +383,7 @@
             "open_image_full_size": "Odpri sliko v polni velikosti",
             "model_archivist": "Model Archivist",
             "github": "GitHub:",
-            "https_github_com_tumbislav_comfyui_modelarchivist": "https://github.com/tumbislav/ComfyUI-ModelArchivist",
+            "repository_url": "https://github.com/tumbislav/ComfyUI-ModelArchivist",
             "author_tumbislav_nilski": "Avtor: Tumbislav Nilski",
             "coding_tumbislav_nilski_chatgpt": "Programiranje: Tumbislav Nilski, ChatGPT",
             "help": "Pomoč",
@@ -449,7 +449,7 @@
             "always_run_a_full_scan_at_startup": "Ob zagonu vedno izvedi celoten pregled",
             "remember_last_open_tab": "Zapomni si zadnji odprti zavihek",
             "remember_last_used_filters": "Zapomni si nazadnje uporabljene filtre",
-            "changing_the_list_of_extensions_can_invalidate_parts_of_the_repository_please_rescan_before_continuing": "Sprememba seznama končnic lahko razveljavi dele repozitorija. Pred nadaljevanjem ga znova preglejte.",
+            "extensions_rescan_required": "Sprememba seznama končnic lahko razveljavi dele repozitorija. Pred nadaljevanjem ga znova preglejte.",
             "save": "Shrani",
             "save_and_scan": "Shrani in preglej"
         },
@@ -464,7 +464,7 @@
             "to_working_set": "v delovno zbirko",
             "sync": "uskladi",
             "to_archive": "v arhiv",
-            "some_selected_models_have_errors_editing_is_disabled": "Nekateri izbrani modeli imajo napake. Urejanje je onemogočeno.",
+            "selected_models_have_errors": "Nekateri izbrani modeli imajo napake. Urejanje je onemogočeno.",
             "set_base_model": "Določi osnovni model",
             "apply_base_model": "Uveljavi osnovni model",
             "apply_tags": "Uveljavi značke",
@@ -477,11 +477,11 @@
             "cannot_start_model_operation": "Operacije na modelu ni mogoče začeti",
             "model_operation_failed": "Operacija na modelu ni uspela",
             "cannot_retrieve_model_operation": "Operacije na modelu ni mogoče pridobiti",
-            "models_of_different_types_cannot_be_moved_together": "Modelov različnih tipov ni mogoče premakniti skupaj.",
+            "mixed_types_cannot_move": "Modelov različnih tipov ni mogoče premakniti skupaj.",
             "cannot_move_models": "Modelov ni mogoče premakniti",
             "move_models": "Premakni modele",
             "different_subdirectories": "Različne podmape",
-            "the_models_are_currently_in_different_subdirectories_are_you_sure_you_want_to_move_them_to_the_same_subdirectory": "Modeli so trenutno v različnih podmapah. Jih res želite premakniti v isto podmapo?"
+            "consolidate_models": "Modeli so trenutno v različnih podmapah. Jih res želite premakniti v isto podmapo?"
         },
         "multi_model_collection_editor": {
             "add": "dodaj",
@@ -525,7 +525,7 @@
             "move_down": "premakni dol",
             "type": "Tip:",
             "last_accessed": "Zadnji dostop:",
-            "model_is_mismatched_synchronize_it_before_continuing": "Kopiji modela se ne ujemata; pred nadaljevanjem ju uskladite.",
+            "mismatched_model_sync_required": "Kopiji modela se ne ujemata; pred nadaljevanjem ju uskladite.",
             "file_name": "Ime datoteke",
             "internal_name": "Notranje ime",
             "base_model": "Osnovni model",
@@ -572,7 +572,7 @@
             "cannot_remove_model_from_collection": "Modela ni mogoče odstraniti iz zbirke"
         },
         "tag_editor": {
-            "start_with_a_letter_underscore_or_digit_0_9_use_name_characters_or_spaces_ascii_colon_and_dash_are_allowed_only_inside_the_tag": "Začnite s črko, podčrtajem ali števko (0–9). Uporabite znake za imena ali presledke; dvopičje (:) in vezaj (-) ASCII sta dovoljena le znotraj značke.",
+            "tag_naming_rules": "Začnite s črko, podčrtajem ali števko (0–9). Uporabite znake za imena ali presledke; dvopičje (:) in vezaj (-) ASCII sta dovoljena le znotraj značke.",
             "cannot_load_tag_rules": "Pravil za značke ni mogoče naložiti"
         },
         "relative_path_editor": {
@@ -640,7 +640,7 @@
             "to_working_set": "V delovno zbirko",
             "sync": "Uskladi",
             "to_archive": "V arhiv",
-            "save_metadata_changes_before_running_location_actions": "Pred izvajanjem dejanj na lokacijah shranite spremembe metapodatkov.",
+            "save_metadata_before_location_actions": "Pred izvajanjem dejanj na lokacijah shranite spremembe metapodatkov.",
             "models": "Modeli",
             "workflows": "Delotoki",
             "user_types": "Uporabniški tipi",
@@ -655,7 +655,7 @@
             "request_failed": "Zahteva ni uspela",
             "unsaved_changes": "Neshranjene spremembe",
             "discard_collection_metadata_changes": "Zavrzi spremembe metapodatkov zbirke?",
-            "save_collection_changes_before_continuing": "Shrani spremembe zbirke pred nadaljevanjem?",
+            "save_collection_changes": "Shrani spremembe zbirke pred nadaljevanjem?",
             "cannot_load_collection": "Zbirke ni mogoče naložiti",
             "cannot_load_members": "Članov ni mogoče naložiti",
             "cannot_refresh_collection": "Zbirke ni mogoče osvežiti",
@@ -675,6 +675,7 @@
         }
     },
     "common": {
+        "archive_working_locations": "Arhivske in delovne lokacije",
         "confirm": "Potrdi",
         "confirm_please": "Prosimo, potrdite",
         "unsaved_changes": "Neshranjene spremembe",
@@ -892,6 +893,6 @@
         "partial_objects_updated": "Posodobljeni objekti: {completed} od {total}. {error}",
         "save_new_collection_before_continuing": "Shrani novo zbirko pred nadaljevanjem?",
         "save_tag_changes_before_continuing": "Shrani spremembe značk pred nadaljevanjem?",
-        "save_multi_model_changes_before_continuing": "Shrani spremembe modela pred nadaljevanjem?"
+        "save_multi_model_changes": "Shrani spremembe modela pred nadaljevanjem?"
     }
 }

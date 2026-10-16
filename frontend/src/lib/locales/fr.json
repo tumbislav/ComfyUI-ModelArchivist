@@ -158,7 +158,7 @@
             "working": "travail",
             "sync": "synchroniser",
             "archive": "archive",
-            "some_selected_workflows_have_errors_editing_is_disabled": "Certains flux de travail sélectionnés comportent des erreurs. La modification est désactivée.",
+            "selected_workflows_have_errors": "Certains flux de travail sélectionnés comportent des erreurs. La modification est désactivée.",
             "apply_tags": "Appliquer les étiquettes",
             "to_working_set": "Vers l’espace de travail",
             "sync_2": "Synchroniser",
@@ -282,7 +282,7 @@
             "cannot_move_objects": "Impossible de déplacer les objets",
             "move_objects": "Déplacer les objets",
             "different_subdirectories": "Sous-dossiers différents",
-            "the_objects_are_currently_in_different_subdirectories_are_you_sure_you_want_to_move_them_to_the_same_subdirectory": "Les objets se trouvent dans des sous-dossiers différents. Voulez-vous vraiment les déplacer dans le même sous-dossier ?"
+            "consolidate_objects": "Les objets se trouvent dans des sous-dossiers différents. Voulez-vous vraiment les déplacer dans le même sous-dossier ?"
         },
         "settings_modal": {
             "settings": "Paramètres",
@@ -292,7 +292,7 @@
             "discard": "abandonner",
             "save": "enregistrer",
             "unsaved_changes": "Modifications non enregistrées",
-            "save_changes_to_this_tab_before_continuing": "Enregistrer les modifications de cet onglet avant de continuer ?",
+            "save_tab_changes": "Enregistrer les modifications de cet onglet avant de continuer ?",
             "cancel_2": "Annuler",
             "discard_2": "Abandonner",
             "save_2": "Enregistrer",
@@ -301,7 +301,7 @@
             "cannot_delete_user_defined_type": "Impossible de supprimer le type défini par l’utilisateur",
             "cannot_save_model_extensions": "Impossible d’enregistrer les extensions des modèles",
             "cannot_save_workflow_settings": "Impossible d’enregistrer les paramètres des flux de travail",
-            "settings_saved_but_the_scan_could_not_start": "Les paramètres ont été enregistrés, mais l’analyse n’a pas pu démarrer",
+            "saved_scan_failed": "Les paramètres ont été enregistrés, mais l’analyse n’a pas pu démarrer",
             "cannot_save_settings": "Impossible d’enregistrer les paramètres",
             "cannot_discover_model_mappings": "Impossible de détecter les correspondances des modèles"
         },
@@ -311,7 +311,7 @@
             "close_repository_summary": "Fermer le résumé du dépôt",
             "repository": "Dépôt",
             "the_server_is_not_responding": "Le serveur ne répond pas",
-            "individual_types_can_be_scanned_from_the_settings_dialog": "Les types peuvent être analysés individuellement depuis la fenêtre des paramètres",
+            "scan_types_in_settings": "Les types peuvent être analysés individuellement depuis la fenêtre des paramètres",
             "loading_repository_summary": "Chargement du résumé du dépôt...",
             "models": "Modèles",
             "workflows": "Flux de travail",
@@ -328,7 +328,7 @@
             "user_types": "Types utilisateur",
             "collections": "Collections",
             "remap_tags": "Remapper les étiquettes",
-            "discard_the_unsaved_tag_mappings_and_close": "Abandonner les correspondances d’étiquettes non enregistrées et fermer ?",
+            "discard_tag_mappings": "Abandonner les correspondances d’étiquettes non enregistrées et fermer ?",
             "save_the_tag_mappings_before_continuing": "Enregistrer les correspondances d’étiquettes avant de continuer ?",
             "keep_editing": "Continuer à modifier",
             "discard_and_close": "Abandonner et fermer",
@@ -383,7 +383,7 @@
             "open_image_full_size": "Ouvrir l’image en taille réelle",
             "model_archivist": "Model Archivist",
             "github": "GitHub :",
-            "https_github_com_tumbislav_comfyui_modelarchivist": "https://github.com/tumbislav/ComfyUI-ModelArchivist",
+            "repository_url": "https://github.com/tumbislav/ComfyUI-ModelArchivist",
             "author_tumbislav_nilski": "Auteur : Tumbislav Nilski",
             "coding_tumbislav_nilski_chatgpt": "Programmation : Tumbislav Nilski, ChatGPT",
             "help": "Aide",
@@ -449,7 +449,7 @@
             "always_run_a_full_scan_at_startup": "Toujours lancer une analyse complète au démarrage",
             "remember_last_open_tab": "Mémoriser le dernier onglet ouvert",
             "remember_last_used_filters": "Mémoriser les derniers filtres utilisés",
-            "changing_the_list_of_extensions_can_invalidate_parts_of_the_repository_please_rescan_before_continuing": "Modifier la liste des extensions peut rendre certaines parties du dépôt non valides. Relancez une analyse avant de continuer.",
+            "extensions_rescan_required": "Modifier la liste des extensions peut rendre certaines parties du dépôt non valides. Relancez une analyse avant de continuer.",
             "save": "Enregistrer",
             "save_and_scan": "Enregistrer et analyser"
         },
@@ -464,7 +464,7 @@
             "to_working_set": "vers l’espace de travail",
             "sync": "synchroniser",
             "to_archive": "vers l’archive",
-            "some_selected_models_have_errors_editing_is_disabled": "Certains modèles sélectionnés comportent des erreurs. La modification est désactivée.",
+            "selected_models_have_errors": "Certains modèles sélectionnés comportent des erreurs. La modification est désactivée.",
             "set_base_model": "Définir le modèle de base",
             "apply_base_model": "Appliquer le modèle de base",
             "apply_tags": "Appliquer les étiquettes",
@@ -477,11 +477,11 @@
             "cannot_start_model_operation": "Impossible de lancer l’opération sur le modèle",
             "model_operation_failed": "Échec de l’opération sur le modèle",
             "cannot_retrieve_model_operation": "Impossible de récupérer l’opération sur le modèle",
-            "models_of_different_types_cannot_be_moved_together": "Les modèles de types différents ne peuvent pas être déplacés ensemble.",
+            "mixed_types_cannot_move": "Les modèles de types différents ne peuvent pas être déplacés ensemble.",
             "cannot_move_models": "Impossible de déplacer les modèles",
             "move_models": "Déplacer les modèles",
             "different_subdirectories": "Sous-dossiers différents",
-            "the_models_are_currently_in_different_subdirectories_are_you_sure_you_want_to_move_them_to_the_same_subdirectory": "Les modèles se trouvent dans des sous-dossiers différents. Voulez-vous vraiment les déplacer dans le même sous-dossier ?"
+            "consolidate_models": "Les modèles se trouvent dans des sous-dossiers différents. Voulez-vous vraiment les déplacer dans le même sous-dossier ?"
         },
         "multi_model_collection_editor": {
             "add": "ajouter",
@@ -525,7 +525,7 @@
             "move_down": "déplacer vers le bas",
             "type": "Type :",
             "last_accessed": "Dernier accès :",
-            "model_is_mismatched_synchronize_it_before_continuing": "Les copies du modèle ne concordent pas ; synchronisez-les avant de continuer.",
+            "mismatched_model_sync_required": "Les copies du modèle ne concordent pas ; synchronisez-les avant de continuer.",
             "file_name": "Nom du fichier",
             "internal_name": "Nom interne",
             "base_model": "Modèle de base",
@@ -572,7 +572,7 @@
             "cannot_remove_model_from_collection": "Impossible de retirer le modèle de la collection"
         },
         "tag_editor": {
-            "start_with_a_letter_underscore_or_digit_0_9_use_name_characters_or_spaces_ascii_colon_and_dash_are_allowed_only_inside_the_tag": "Commencez par une lettre, un trait de soulignement ou un chiffre (0–9). Utilisez des caractères d’identifiant ou des espaces ; les deux-points (:) et le trait d’union (-) ASCII ne sont autorisés qu’à l’intérieur de l’étiquette.",
+            "tag_naming_rules": "Commencez par une lettre, un trait de soulignement ou un chiffre (0–9). Utilisez des caractères d’identifiant ou des espaces ; les deux-points (:) et le trait d’union (-) ASCII ne sont autorisés qu’à l’intérieur de l’étiquette.",
             "cannot_load_tag_rules": "Impossible de charger les règles des étiquettes"
         },
         "relative_path_editor": {
@@ -640,7 +640,7 @@
             "to_working_set": "Vers l’espace de travail",
             "sync": "Synchroniser",
             "to_archive": "Vers l’archive",
-            "save_metadata_changes_before_running_location_actions": "Enregistrez les modifications des métadonnées avant d’effectuer des actions sur les emplacements.",
+            "save_metadata_before_location_actions": "Enregistrez les modifications des métadonnées avant d’effectuer des actions sur les emplacements.",
             "models": "Modèles",
             "workflows": "Flux de travail",
             "user_types": "Types utilisateur",
@@ -655,7 +655,7 @@
             "request_failed": "Échec de la requête",
             "unsaved_changes": "Modifications non enregistrées",
             "discard_collection_metadata_changes": "Abandonner les modifications des métadonnées de la collection ?",
-            "save_collection_changes_before_continuing": "Enregistrer les modifications de la collection avant de continuer ?",
+            "save_collection_changes": "Enregistrer les modifications de la collection avant de continuer ?",
             "cannot_load_collection": "Impossible de charger la collection",
             "cannot_load_members": "Impossible de charger les membres",
             "cannot_refresh_collection": "Impossible d’actualiser la collection",
@@ -675,6 +675,7 @@
         }
     },
     "common": {
+        "archive_working_locations": "Emplacements d’archive et de travail",
         "confirm": "Confirmer",
         "confirm_please": "Veuillez confirmer",
         "unsaved_changes": "Modifications non enregistrées",
@@ -884,6 +885,6 @@
         "partial_objects_updated": "{completed} objets mis à jour sur {total}. {error}",
         "save_new_collection_before_continuing": "Enregistrer la nouvelle collection avant de continuer ?",
         "save_tag_changes_before_continuing": "Enregistrer les modifications d’étiquettes avant de continuer ?",
-        "save_multi_model_changes_before_continuing": "Enregistrer les modifications du modèle avant de continuer ?"
+        "save_multi_model_changes": "Enregistrer les modifications du modèle avant de continuer ?"
     }
 }

@@ -154,7 +154,7 @@ async function relocate() {
 
     {#if hasObjectErrors}
         <p class="error-details">
-            {locale.t('ui.multi_workflow_editor.some_selected_workflows_have_errors_editing_is_disabled')}
+            {locale.t('ui.multi_workflow_editor.selected_workflows_have_errors')}
         </p>
     {:else}
         <div class="dialog-section space-below">
@@ -186,8 +186,8 @@ async function relocate() {
             </div>
         </div>
         <div class="dialog-section space-below">
-            <h2 class="tight-vertical">
-                Archive and working locations
+            <h2 class="space-below">
+                {locale.t('common.archive_working_locations')}
             </h2>
             <div class="spaced-horizontally">
                 <button class="button-with-text" disabled={busy} onclick={() => run('working')}>

@@ -158,7 +158,7 @@
             "working": "trabajo",
             "sync": "sincronizar",
             "archive": "archivo",
-            "some_selected_workflows_have_errors_editing_is_disabled": "Algunos flujos de trabajo seleccionados tienen errores. La edición está deshabilitada.",
+            "selected_workflows_have_errors": "Algunos flujos de trabajo seleccionados tienen errores. La edición está deshabilitada.",
             "apply_tags": "Aplicar etiquetas",
             "to_working_set": "Al conjunto de trabajo",
             "sync_2": "Sincronizar",
@@ -282,7 +282,7 @@
             "cannot_move_objects": "No se pueden mover los objetos",
             "move_objects": "Mover objetos",
             "different_subdirectories": "Subcarpetas diferentes",
-            "the_objects_are_currently_in_different_subdirectories_are_you_sure_you_want_to_move_them_to_the_same_subdirectory": "Los objetos están en subcarpetas diferentes. ¿Seguro que quieres moverlos a la misma subcarpeta?"
+            "consolidate_objects": "Los objetos están en subcarpetas diferentes. ¿Seguro que quieres moverlos a la misma subcarpeta?"
         },
         "settings_modal": {
             "settings": "Ajustes",
@@ -292,7 +292,7 @@
             "discard": "descartar",
             "save": "guardar",
             "unsaved_changes": "Cambios sin guardar",
-            "save_changes_to_this_tab_before_continuing": "¿Guardar los cambios de esta pestaña antes de continuar?",
+            "save_tab_changes": "¿Guardar los cambios de esta pestaña antes de continuar?",
             "cancel_2": "Cancelar",
             "discard_2": "Descartar",
             "save_2": "Guardar",
@@ -301,7 +301,7 @@
             "cannot_delete_user_defined_type": "No se puede eliminar el tipo definido por el usuario",
             "cannot_save_model_extensions": "No se pueden guardar las extensiones de modelos",
             "cannot_save_workflow_settings": "No se pueden guardar los ajustes de flujos de trabajo",
-            "settings_saved_but_the_scan_could_not_start": "Se han guardado los ajustes, pero no se ha podido iniciar el análisis",
+            "saved_scan_failed": "Se han guardado los ajustes, pero no se ha podido iniciar el análisis",
             "cannot_save_settings": "No se pueden guardar los ajustes",
             "cannot_discover_model_mappings": "No se pueden detectar las asignaciones de modelos"
         },
@@ -311,7 +311,7 @@
             "close_repository_summary": "Cerrar resumen del repositorio",
             "repository": "Repositorio",
             "the_server_is_not_responding": "El servidor no responde",
-            "individual_types_can_be_scanned_from_the_settings_dialog": "Los tipos individuales se pueden analizar desde el diálogo de ajustes",
+            "scan_types_in_settings": "Los tipos individuales se pueden analizar desde el diálogo de ajustes",
             "loading_repository_summary": "Cargando resumen del repositorio...",
             "models": "Modelos",
             "workflows": "Flujos de trabajo",
@@ -328,7 +328,7 @@
             "user_types": "Tipos de usuario",
             "collections": "Colecciones",
             "remap_tags": "Reasignar etiquetas",
-            "discard_the_unsaved_tag_mappings_and_close": "¿Descartar las reasignaciones de etiquetas sin guardar y cerrar?",
+            "discard_tag_mappings": "¿Descartar las reasignaciones de etiquetas sin guardar y cerrar?",
             "save_the_tag_mappings_before_continuing": "¿Guardar las reasignaciones de etiquetas antes de continuar?",
             "keep_editing": "Seguir editando",
             "discard_and_close": "Descartar y cerrar",
@@ -383,7 +383,7 @@
             "open_image_full_size": "Abrir imagen a tamaño completo",
             "model_archivist": "Model Archivist",
             "github": "GitHub:",
-            "https_github_com_tumbislav_comfyui_modelarchivist": "https://github.com/tumbislav/ComfyUI-ModelArchivist",
+            "repository_url": "https://github.com/tumbislav/ComfyUI-ModelArchivist",
             "author_tumbislav_nilski": "Autor: Tumbislav Nilski",
             "coding_tumbislav_nilski_chatgpt": "Programación: Tumbislav Nilski, ChatGPT",
             "help": "Ayuda",
@@ -449,7 +449,7 @@
             "always_run_a_full_scan_at_startup": "Ejecutar siempre un análisis completo al iniciar",
             "remember_last_open_tab": "Recordar la última pestaña abierta",
             "remember_last_used_filters": "Recordar los últimos filtros utilizados",
-            "changing_the_list_of_extensions_can_invalidate_parts_of_the_repository_please_rescan_before_continuing": "Cambiar la lista de extensiones puede invalidar partes del repositorio. Vuelve a analizarlo antes de continuar.",
+            "extensions_rescan_required": "Cambiar la lista de extensiones puede invalidar partes del repositorio. Vuelve a analizarlo antes de continuar.",
             "save": "Guardar",
             "save_and_scan": "Guardar y analizar"
         },
@@ -464,7 +464,7 @@
             "to_working_set": "al conjunto de trabajo",
             "sync": "sincronizar",
             "to_archive": "al archivo",
-            "some_selected_models_have_errors_editing_is_disabled": "Algunos modelos seleccionados tienen errores. La edición está deshabilitada.",
+            "selected_models_have_errors": "Algunos modelos seleccionados tienen errores. La edición está deshabilitada.",
             "set_base_model": "Establecer modelo base",
             "apply_base_model": "Aplicar modelo base",
             "apply_tags": "Aplicar etiquetas",
@@ -477,11 +477,11 @@
             "cannot_start_model_operation": "No se puede iniciar la operación del modelo",
             "model_operation_failed": "La operación del modelo ha fallado",
             "cannot_retrieve_model_operation": "No se puede obtener la operación del modelo",
-            "models_of_different_types_cannot_be_moved_together": "Los modelos de tipos diferentes no se pueden mover juntos.",
+            "mixed_types_cannot_move": "Los modelos de tipos diferentes no se pueden mover juntos.",
             "cannot_move_models": "No se pueden mover los modelos",
             "move_models": "Mover modelos",
             "different_subdirectories": "Subcarpetas diferentes",
-            "the_models_are_currently_in_different_subdirectories_are_you_sure_you_want_to_move_them_to_the_same_subdirectory": "Los modelos están en subcarpetas diferentes. ¿Seguro que quieres moverlos a la misma subcarpeta?"
+            "consolidate_models": "Los modelos están en subcarpetas diferentes. ¿Seguro que quieres moverlos a la misma subcarpeta?"
         },
         "multi_model_collection_editor": {
             "add": "añadir",
@@ -525,7 +525,7 @@
             "move_down": "mover abajo",
             "type": "Tipo:",
             "last_accessed": "Último acceso:",
-            "model_is_mismatched_synchronize_it_before_continuing": "Las copias del modelo no coinciden; sincronízalas antes de continuar.",
+            "mismatched_model_sync_required": "Las copias del modelo no coinciden; sincronízalas antes de continuar.",
             "file_name": "Nombre de archivo",
             "internal_name": "Nombre interno",
             "base_model": "Modelo base",
@@ -572,7 +572,7 @@
             "cannot_remove_model_from_collection": "No se puede quitar el modelo de la colección"
         },
         "tag_editor": {
-            "start_with_a_letter_underscore_or_digit_0_9_use_name_characters_or_spaces_ascii_colon_and_dash_are_allowed_only_inside_the_tag": "Empieza con una letra, un guion bajo o un dígito (0–9). Usa caracteres de nombre o espacios; los dos puntos (:) y el guion (-) ASCII solo se permiten en el interior de la etiqueta.",
+            "tag_naming_rules": "Empieza con una letra, un guion bajo o un dígito (0–9). Usa caracteres de nombre o espacios; los dos puntos (:) y el guion (-) ASCII solo se permiten en el interior de la etiqueta.",
             "cannot_load_tag_rules": "No se pueden cargar las reglas de etiquetas"
         },
         "relative_path_editor": {
@@ -640,7 +640,7 @@
             "to_working_set": "Al conjunto de trabajo",
             "sync": "Sincronizar",
             "to_archive": "Al archivo",
-            "save_metadata_changes_before_running_location_actions": "Guarda los cambios de metadatos antes de realizar acciones de ubicación.",
+            "save_metadata_before_location_actions": "Guarda los cambios de metadatos antes de realizar acciones de ubicación.",
             "models": "Modelos",
             "workflows": "Flujos de trabajo",
             "user_types": "Tipos de usuario",
@@ -655,7 +655,7 @@
             "request_failed": "La solicitud ha fallado",
             "unsaved_changes": "Cambios sin guardar",
             "discard_collection_metadata_changes": "¿Descartar los cambios de metadatos de la colección?",
-            "save_collection_changes_before_continuing": "¿Guardar los cambios de la colección antes de continuar?",
+            "save_collection_changes": "¿Guardar los cambios de la colección antes de continuar?",
             "cannot_load_collection": "No se puede cargar la colección",
             "cannot_load_members": "No se pueden cargar los miembros",
             "cannot_refresh_collection": "No se puede actualizar la colección",
@@ -675,6 +675,7 @@
         }
     },
     "common": {
+        "archive_working_locations": "Ubicaciones de archivo y de trabajo",
         "confirm": "Confirmar",
         "confirm_please": "Confirma, por favor",
         "unsaved_changes": "Cambios sin guardar",
@@ -884,6 +885,6 @@
         "partial_objects_updated": "Se han actualizado {completed} de {total} objetos. {error}",
         "save_new_collection_before_continuing": "¿Guardar la nueva colección antes de continuar?",
         "save_tag_changes_before_continuing": "¿Guardar los cambios de etiquetas antes de continuar?",
-        "save_multi_model_changes_before_continuing": "¿Guardar los cambios del modelo antes de continuar?"
+        "save_multi_model_changes": "¿Guardar los cambios del modelo antes de continuar?"
     }
 }

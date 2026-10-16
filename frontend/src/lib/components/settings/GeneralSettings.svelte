@@ -95,7 +95,7 @@
         </div>
         {#if extensionsDirty}
             <p class="warning-details">
-                {locale.t('ui.general_settings.changing_the_list_of_extensions_can_invalidate_parts_of_the_repository_please_rescan_before_continuing')}
+                {locale.t('ui.general_settings.extensions_rescan_required')}
             </p>
         {/if}
 
