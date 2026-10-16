@@ -226,7 +226,9 @@ async function relocate() {
                     </button>
                 </div>
             </div>
+        </div>
 
+        <div class="dialog-section space-below">
             <div class="space-below">
                 <TagEditor
                     title={locale.t('ui.multi_model_editor.add_tags')}
