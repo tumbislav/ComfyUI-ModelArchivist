@@ -99,7 +99,7 @@ body {
 .multi-model-list {
     max-height: 10rem;
     overflow-y: auto;
-    border-radius: var(--radius-mid);
+    border-radius: var(--radius-small);
     border: var(--solid-border);
     padding: var(--gap-small);
 }

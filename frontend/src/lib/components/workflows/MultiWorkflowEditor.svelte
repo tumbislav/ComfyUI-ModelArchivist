@@ -157,55 +157,63 @@ async function relocate() {
             {locale.t('ui.multi_workflow_editor.some_selected_workflows_have_errors_editing_is_disabled')}
         </p>
     {:else}
-        <div class="space-below">
-            <TagEditor
-                title={locale.t('ui.multi_workflow_editor.add_tags')}
-                tags={addTags}
-                disabled={busy}
-                editable={true}
-                onChanged={tags => addTags = tags} />
+        <div class="dialog-section">
+            <div class="space-below">
+                <TagEditor
+                    title={locale.t('ui.multi_workflow_editor.add_tags')}
+                    tags={addTags}
+                    disabled={busy}
+                    editable={true}
+                    onChanged={tags => addTags = tags} />
+            </div>
+            <div class="space-below">
+                <TagEditor
+                    title={locale.t('ui.multi_workflow_editor.remove_tags')}
+                    tags={removeTags}
+                    disabled={busy}
+                    editable={false}
+                    availableTags={removableTags}
+                    onChanged={tags => removeTags = tags} />
+            </div>
+            <div class="space-below spaced-horizontally">
+                <div></div>
+                <button class="button-with-text"
+                        disabled={busy || (!addTags.length && !removeTags.length)}
+                        onclick={saveTags}>
+                    <img class="action-icon" alt={locale.t('ui.multi_workflow_editor.save')} src={saveIcon} />
+                    <span>{locale.t('ui.multi_workflow_editor.apply_tags')}</span>
+                </button>
+            </div>
         </div>
-        <div class="space-below">
-            <TagEditor
-                title={locale.t('ui.multi_workflow_editor.remove_tags')}
-                tags={removeTags}
-                disabled={busy}
-                editable={false}
-                availableTags={removableTags}
-                onChanged={tags => removeTags = tags} />
+        <div class="dialog-section">
+            <div class="spaced-horizontally">
+                <button class="button-with-text" disabled={busy} onclick={() => run('working')}>
+                    <img class="action-icon" alt={locale.t('ui.multi_workflow_editor.working')} src={moveUpIcon} />
+                    <span>{locale.t('ui.multi_workflow_editor.to_working_set')}</span>
+                </button>
+                <button class="button-with-text" disabled={busy} onclick={() => run(null)}>
+                    <img class="action-icon" alt={locale.t('ui.multi_workflow_editor.sync')} src={syncIcon} />
+                    <span>{locale.t('ui.multi_workflow_editor.sync_2')}</span>
+                </button>
+                <button class="button-with-text" disabled={busy} onclick={() => run('archive')}>
+                    <img class="action-icon" alt={locale.t('ui.multi_workflow_editor.archive')} src={moveDownIcon} />
+                    <span>{locale.t('ui.multi_workflow_editor.to_archive')}</span>
+                </button>
+            </div>
         </div>
-        <div class="space-below spaced-horizontally">
-            <div></div>
-            <button class="button-with-text"
-                    disabled={busy || (!addTags.length && !removeTags.length)}
-                    onclick={saveTags}>
-                <img class="action-icon" alt={locale.t('ui.multi_workflow_editor.save')} src={saveIcon} />
-                <span>{locale.t('ui.multi_workflow_editor.apply_tags')}</span>
-            </button>
-        </div>
-        <div class="spaced-horizontally">
-            <button class="button-with-text" disabled={busy} onclick={() => run('working')}>
-                <img class="action-icon" alt={locale.t('ui.multi_workflow_editor.working')} src={moveUpIcon} />
-                <span>{locale.t('ui.multi_workflow_editor.to_working_set')}</span>
-            </button>
-            <button class="button-with-text" disabled={busy} onclick={() => run(null)}>
-                <img class="action-icon" alt={locale.t('ui.multi_workflow_editor.sync')} src={syncIcon} />
-                <span>{locale.t('ui.multi_workflow_editor.sync_2')}</span>
-            </button>
-            <button class="button-with-text" disabled={busy} onclick={() => run('archive')}>
-                <img class="action-icon" alt={locale.t('ui.multi_workflow_editor.archive')} src={moveDownIcon} />
-                <span>{locale.t('ui.multi_workflow_editor.to_archive')}</span>
-            </button>
-        </div>
-        <div class="space-below">
-            <RelativePathEditor
-                bind:value={destinationPath}
-                options={relativePaths}
-                disabled={busy || workflows.length === 0}
-                onMove={relocate} />
+        <div class="dialog-section">
+            <div class="space-below">
+                <RelativePathEditor
+                    bind:value={destinationPath}
+                    options={relativePaths}
+                    disabled={busy || workflows.length === 0}
+                    onMove={relocate} />
+            </div>
         </div>
         {#if workflows.length}
-            <MultiWorkflowCollectionEditor {workflows} onChanged={refresh} />
+            <div class="dialog-section">
+                <MultiWorkflowCollectionEditor {workflows} onChanged={refresh} />
+            </div>
         {/if}
     {/if}
 </div>
