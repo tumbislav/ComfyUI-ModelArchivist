@@ -8,6 +8,7 @@ from threading import Event
 from time import monotonic, sleep
 
 import pytest
+from fastapi import HTTPException, Response
 
 import backend.dispatcher as dispatcher_module
 from backend.dispatcher import (OperationBusyError, OperationDispatcher,
@@ -88,6 +89,57 @@ def test_dispatcher_marks_rejected_repository_result_failed(
     assert result['state'] == 'failed'
     assert result['result']['allowed'] is False
     assert result['error']['type'] == 'operation_rejected'
+
+
+def test_dispatcher_marks_partial_transfer_failed(monkeypatch):
+    monkeypatch.setattr(dispatcher_module, '_get_scanner', lambda: None)
+    dispatcher = OperationDispatcher()
+    submitted = dispatcher.submit('user_object_move', lambda report: {
+        'allowed': True, 'performed': False,
+        'warnings': [{'code': 'filesystem_error', 'message': 'directory locked'}],
+    })
+    result = await_finished(dispatcher, submitted['id'])
+    assert result['state'] == 'failed'
+    assert result['error']['type'] == 'operation_incomplete'
+    assert 'directory locked' in result['error']['message']
+
+
+@pytest.mark.parametrize('action', ['move', 'synchronize'])
+def test_user_transfer_returns_before_filesystem_planning_finishes(monkeypatch, action):
+    from backend.server.routers import user_types
+    from backend.repository.tables import DeploymentStatus
+
+    monkeypatch.setattr(dispatcher_module, '_get_scanner', lambda: None)
+    dispatcher = OperationDispatcher()
+    monkeypatch.setattr(user_types, 'dispatcher', dispatcher)
+    monkeypatch.setattr(user_types.repo, 'user_object_operation_requires_lro',
+                        lambda *_args: True)
+    entered = Event()
+    release = Event()
+
+    def transfer(*args):
+        assert args[2 if action == 'move' else 1] is False
+        entered.set()
+        assert release.wait(2)
+        return {'allowed': True, 'performed': True}
+
+    monkeypatch.setattr(user_types.repo, f'{action}_user_object', transfer)
+    response = Response()
+    endpoint = getattr(user_types, f'{action}_user_object')
+    arguments = {'id': 'object', 'response': response, 'simulate': False}
+    if action == 'move':
+        arguments['destination'] = DeploymentStatus.ARCHIVE
+    try:
+        submitted = endpoint(**arguments)
+        assert response.status_code == 202
+        assert entered.wait(1)
+        assert dispatcher.get(submitted['id'])['state'] == 'running'
+        with pytest.raises(HTTPException) as error:
+            endpoint(**arguments)
+        assert error.value.status_code == 409
+    finally:
+        release.set()
+    assert await_finished(dispatcher, submitted['id'])['state'] == 'succeeded'
 
 
 def test_scan_error_summary_does_not_stringify_structured_diagnostics(monkeypatch):

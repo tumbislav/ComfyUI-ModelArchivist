@@ -7,3 +7,7 @@
 
 **2026-10-13** v1.0.2
 * Many usability improvements
+
+**Unreleased** v1.0.3
+* Aligned the multi-object UDP collection editor with the model editor, including membership counts, picker creation, and add/remove availability.
+* Fixed UDP directory-tree move cleanup, partial-failure reporting and deployment reconciliation, and server responsiveness and connection recovery during transfers.

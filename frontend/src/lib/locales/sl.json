@@ -868,6 +868,18 @@
         },
         "remap_tag_to": "Preslikaj {tag} v",
         "refresh_section": "Osveži {section}",
+        "collection_object_count": {
+            "one": "({count} predmet) {name}",
+            "two": "({count} predmeta) {name}",
+            "few": "({count} predmeti) {name}",
+            "other": "({count} predmetov) {name}"
+        },
+        "remove_selected_objects": {
+            "one": "Odstranim izbrane predmete iz {count} zbirke?",
+            "two": "Odstranim izbrane predmete iz {count} zbirk?",
+            "few": "Odstranim izbrane predmete iz {count} zbirk?",
+            "other": "Odstranim izbrane predmete iz {count} zbirk?"
+        },
         "remove_selected_models": {
             "one": "Odstrani izbrane modele iz {count} zbirke?",
             "other": "Odstrani izbrane modele iz {count} zbirk?",

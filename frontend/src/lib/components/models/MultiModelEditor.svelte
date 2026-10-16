@@ -280,9 +280,11 @@ async function relocate() {
                 </button>
             </div>
         </div>
-
         {#if models.length > 0}
-            <MultiModelCollectionEditor {models} onChanged={refresh} />
+            <div class="dialog-section">
+                <MultiModelCollectionEditor {models} onChanged={refresh} />
+            </div>
         {/if}
+
     {/if}
 </div>

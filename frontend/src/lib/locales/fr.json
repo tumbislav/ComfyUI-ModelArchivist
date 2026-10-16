@@ -863,6 +863,16 @@
         },
         "remap_tag_to": "Remapper {tag} vers",
         "refresh_section": "Actualiser {section}",
+        "collection_object_count": {
+            "one": "({count} objet) {name}",
+            "other": "({count} objets) {name}",
+            "many": "({count} objets) {name}"
+        },
+        "remove_selected_objects": {
+            "one": "Retirer les objets sélectionnés de {count} collection ?",
+            "other": "Retirer les objets sélectionnés de {count} collections ?",
+            "many": "Retirer les objets sélectionnés de {count} collections ?"
+        },
         "remove_selected_models": {
             "one": "Retirer les modèles sélectionnés de {count} collection ?",
             "other": "Retirer les modèles sélectionnés de {count} collections ?",

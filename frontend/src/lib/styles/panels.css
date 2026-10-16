@@ -41,7 +41,6 @@ body {
     bottom: var(--gap-mid);
     right: var(--gap-mid);
     box-sizing: border-box;
-    /* Add usable width plus an allowance for the permanent scrollbar gutter. */
     width: calc(var(--max-width-right) + 6px + var(--gap-mid));
     padding: var(--gap-mid);
     min-width: var(--min-width-right);
@@ -100,6 +99,9 @@ body {
 .multi-model-list {
     max-height: 10rem;
     overflow-y: auto;
+    border-radius: var(--radius-mid);
+    border: var(--solid-border);
+    padding: var(--gap-small);
 }
 
 .multi-model-list p {

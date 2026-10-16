@@ -891,6 +891,14 @@
         },
         "remap_tag_to": "Remap {tag} to",
         "refresh_section": "Refresh {section}",
+        "collection_object_count": {
+            "one": "({count} object) {name}",
+            "other": "({count} objects) {name}"
+        },
+        "remove_selected_objects": {
+            "one": "Remove selected objects from {count} collection?",
+            "other": "Remove selected objects from {count} collections?"
+        },
         "remove_selected_models": {
             "one": "Remove selected models from {count} collection?",
             "other": "Remove selected models from {count} collections?"

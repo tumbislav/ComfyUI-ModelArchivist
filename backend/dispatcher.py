@@ -125,6 +125,14 @@ class OperationDispatcher:
                         'message': ('Scan completed with errors.' if operation['type'] == 'scan'
                                     else str(result.get('errors', 'operation was rejected'))),
                     }
+                elif isinstance(result, dict) and result.get('performed') is False:
+                    operation['state'] = 'failed'
+                    operation['error'] = {
+                        'type': 'operation_incomplete',
+                        'message': 'Operation did not complete. ' + '; '.join(
+                            issue.get('message', '') for issue in result.get('warnings', [])
+                            if isinstance(issue, dict)),
+                    }
                 else:
                     operation['state'] = 'succeeded'
         except Exception as error:

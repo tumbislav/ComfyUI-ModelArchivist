@@ -2127,7 +2127,8 @@ def user_object_operation_requires_lro(ids: list[str], transfer_bytes: int) -> b
             missing = set(ids) - {item.id for item in objects}
             raise ArcException(ArcException.Code.UNKNOWN_USER_OBJECT,
                                ', '.join(sorted(missing)))
-        return any(not item.type.small for item in objects)
+        return any(not item.type.small or
+                   item.type.object_class != UserObjectClass.FILE.value for item in objects)
 
 
 def collection_operation_requires_lro(plan: dict) -> bool:
@@ -2224,7 +2225,7 @@ def _add_exact_mirror_actions(plan: OperationPlan, source_root: Path,
         if source_snapshot is None or source_snapshot.entry_type != destination_snapshot.entry_type:
             path = destination_root if relative == '' else destination_root / relative
             action = 'rmdir' if destination_snapshot.entry_type == 'directory' else 'remove'
-            removals.append((relative.count('/'), FileAction(
+            removals.append((len(PurePosixPath(relative).parts), FileAction(
                 action, None, str(path), None, destination_snapshot)))
     for relative, source_snapshot in source.items():
         destination_snapshot = destination.get(relative, FileSnapshot(False))
@@ -2232,13 +2233,13 @@ def _add_exact_mirror_actions(plan: OperationPlan, source_root: Path,
         source_path = source_root if relative == '' else source_root / relative
         if source_snapshot.entry_type == 'directory':
             if not destination_snapshot.exists or destination_snapshot.entry_type != 'directory':
-                creations.append((relative.count('/'), FileAction(
+                creations.append((len(PurePosixPath(relative).parts), FileAction(
                     'mkdir', None, str(path), None, FileSnapshot(False))))
         elif (not destination_snapshot.exists or
               destination_snapshot.entry_type != 'file' or
               source_snapshot.size != destination_snapshot.size or
               source_snapshot.modified_at_ns != destination_snapshot.modified_at_ns):
-            creations.append((relative.count('/'), FileAction(
+            creations.append((len(PurePosixPath(relative).parts), FileAction(
                 'copy', str(source_path), str(path), source_snapshot,
                 FileSnapshot(False) if destination_snapshot.entry_type == 'directory'
                 else destination_snapshot)))
@@ -2281,8 +2282,18 @@ def _refresh_user_object_state(session: Session, item: UserDefinedObject) -> Non
     item.sets = sets
     item.size = selected_size
     item.modified_at_ns = selected_mtime
-    item.errors = []
-    item.deployment = str(DeploymentStatus.SYNCED if len(present) == 2 else
+    mismatch = len(sets) == 2 and {
+        (entry.relative_path, entry.entry_type, entry.size,
+         entry.modified_at_ns if entry.entry_type == 'file' else 0)
+        for entry in sets[0].entries
+    } != {
+        (entry.relative_path, entry.entry_type, entry.size,
+         entry.modified_at_ns if entry.entry_type == 'file' else 0)
+        for entry in sets[1].entries
+    }
+    item.errors = [UserObjectError.LOCATION_MISMATCH.value] if mismatch else []
+    item.deployment = str(DeploymentStatus.MISMATCH if mismatch else
+                          DeploymentStatus.SYNCED if len(present) == 2 else
                           DeploymentStatus.WORKING if present == ['w'] else
                           DeploymentStatus.ARCHIVE)
     item.touched = datetime.datetime.now(tz=datetime.timezone.utc).isoformat()
@@ -2347,7 +2358,8 @@ def _user_object_operation(id: str, operation: str, simulate: bool,
         mirror_action_count = len(plan.actions)
         if operation == 'move':
             for relative, snapshot in sorted(
-                    source_snapshot.items(), key=lambda value: -value[0].count('/')):
+                    source_snapshot.items(),
+                    key=lambda value: -len(PurePosixPath(value[0]).parts)):
                 path = source_path if relative == '' else source_path / relative
                 action = 'rmdir' if snapshot.entry_type == 'directory' else 'remove'
                 plan.actions.append(FileAction(action, None, str(path), None, snapshot))
@@ -2381,10 +2393,13 @@ def _user_object_operation(id: str, operation: str, simulate: bool,
                 progress({'phase': 'executing', 'files_total': total,
                           'files_completed': completed, 'bytes_total': transfer_bytes,
                           'bytes_completed': copied})
-        if not failures:
+        try:
             _refresh_user_object_state(session, item)
             session.commit()
-            plan.performed = True
+        except (OSError, RuntimeError, ValueError) as error:
+            failures = True
+            plan.warnings.append(OperationIssue('state_refresh_failed', str(error)))
+        plan.performed = not failures
         output = plan.to_dict()
         output['transfer_bytes'] = transfer_bytes
         return output

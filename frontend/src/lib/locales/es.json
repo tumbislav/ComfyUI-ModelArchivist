@@ -863,6 +863,16 @@
         },
         "remap_tag_to": "Reasignar {tag} a",
         "refresh_section": "Actualizar {section}",
+        "collection_object_count": {
+            "one": "({count} objeto) {name}",
+            "other": "({count} objetos) {name}",
+            "many": "({count} objetos) {name}"
+        },
+        "remove_selected_objects": {
+            "one": "¿Eliminar los objetos seleccionados de {count} colección?",
+            "other": "¿Eliminar los objetos seleccionados de {count} colecciones?",
+            "many": "¿Eliminar los objetos seleccionados de {count} colecciones?"
+        },
         "remove_selected_models": {
             "one": "¿Quitar los modelos seleccionados de {count} colección?",
             "other": "¿Quitar los modelos seleccionados de {count} colecciones?",

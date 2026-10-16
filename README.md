@@ -53,6 +53,12 @@ After startup, the server is assumed available until a request fails. Repository
 status polling runs only while a long-running operation is being tracked and stops
 after its final result is retrieved.
 
+After a connection failure, status checks retry until the backend responds and
+resume tracking an active transfer. UDP directory-tree transfers run in the
+background, including filesystem planning, regardless of the type's Small setting.
+Partial transfer failures are reported and deployment indicators are reconciled
+with the files remaining on disk.
+
 The Repository dialog shows counts by location for models, workflows, user-defined
 objects, and collections. Working, archive, and synchronized counts are disjoint;
 mixed or mismatched locations remain included in the total. Errors count objects with

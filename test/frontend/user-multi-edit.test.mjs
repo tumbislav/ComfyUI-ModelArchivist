@@ -23,7 +23,7 @@ const code = ts.transpileModule(script + `
     };
 `, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 
-function editor(objects, update) {
+function editor(objects, update, transfer) {
     let refreshed = 0;
     const context = {
         exports: {}, $state: value => value, $derived: value => value, onMount() {},
@@ -31,7 +31,11 @@ function editor(objects, update) {
         statusMonitor: { operation: null },
         getUserObject: async id => ({ ok: true, data: structuredClone(objects.find(item => item.id === id)) }),
         updateUserObject: update,
+        moveUserObject: transfer,
+        syncUserObject: transfer,
+        isLongOperation: operation => 'state' in operation,
         locale: {
+            error: issue => issue.message,
             t: (key, parameters = {}) => {
                 if (key === 'ui.multi_user_object_editor.some_selected_objects_are_read_only') {
                     return 'Some selected objects are read-only.';
@@ -75,6 +79,22 @@ test('partial failure stops the batch and reports completed objects', async () =
     await api.perform('tags');
     assert.equal(calls, 2);
     assert.match(api.error, /1 of 2 objects updated.*Denied/);
+    assert.equal(api.busy, false);
+    assert.equal(refreshed(), 1);
+});
+
+test('incomplete immediate transfer reports warnings and stops the batch', async () => {
+    let calls = 0;
+    const { api, refreshed } = editor(objects(), async () => assert.fail('must not edit'),
+        async () => {
+            calls++;
+            return {ok: true, data: {allowed: true, performed: false,
+                warnings: [{code: 'filesystem_error', message: 'directory locked'}]}};
+        });
+    api.prepare();
+    await api.perform('archive');
+    assert.equal(calls, 1);
+    assert.match(api.error, /0 of 2 objects updated.*directory locked/);
     assert.equal(api.busy, false);
     assert.equal(refreshed(), 1);
 });
