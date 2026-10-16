@@ -62,8 +62,13 @@ function chooseType(event: Event) {
             {locale.t('ui.collection_details.purpose')}
             <textarea class="text-input full-width" disabled={busy} bind:value={item.purpose}></textarea>
         </label>
-        <TagEditor tags={[...item.tags]} title={locale.t('ui.collection_details.tags')} editable={true} disabled={busy}
-                   onChanged={(tags: string[])=> item.tags = [...tags]} />
+        <div class="space-below">
+            <TagEditor tags={[...item.tags]}
+                       title={locale.t('ui.collection_details.tags')}
+                       editable={true}
+                       disabled={busy}
+                       onChanged={(tags: string[])=> item.tags = [...tags]} />
+        </div>
         <div class="spaced-horizontally">
             <div></div>
             <button class="button-with-text" disabled={busy || !changed || !item.name.trim()} onclick={onSave}>
