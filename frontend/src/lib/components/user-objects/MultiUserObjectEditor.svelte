@@ -185,7 +185,8 @@
     }
 </script>
 
-<header class="sidebar-header space-below spaced-horizontally">
+<header class="sidebar-header spaced-horizontally">
+    <div></div>
     <button class="round"
             aria-label={locale.t('ui.multi_user_object_editor.close_multi_edit')}
             disabled={busy}
@@ -247,27 +248,34 @@
         </div>
     </div>
 
-    <div class="spaced-horizontally">
-        <button class="button-with-text" disabled={blocked} onclick={() => perform('working')}>
-            <img class="action-icon" alt={locale.t('ui.multi_user_object_editor.to_working_set')} src={moveUpIcon} />
-            <span class="button-label">{locale.t('ui.multi_user_object_editor.to_working_set')}</span>
-        </button>
-        <button class="button-with-text" disabled={blocked} onclick={() => perform('sync')}>
-            <img class="action-icon" alt={locale.t('ui.multi_user_object_editor.sync')} src={syncIcon} />
-            <span class="button-label">{locale.t('ui.multi_user_object_editor.sync')}</span>
-        </button>
-        <button class="button-with-text" disabled={blocked} onclick={() => perform('archive')}>
-            <img class="action-icon" alt={locale.t('ui.multi_user_object_editor.to_archive')} src={moveDownIcon} />
-            <span class="button-label">{locale.t('ui.multi_user_object_editor.to_archive')}</span>
-        </button>
+    <div class="dialog-section space-below">
+        <h2 class="tight-vertical">
+            Archive and working locations
+        </h2>
+        <div class="spaced-horizontally">
+            <button class="button-with-text" disabled={blocked} onclick={() => perform('working')}>
+                <img class="action-icon" alt={locale.t('ui.multi_user_object_editor.to_working_set')} src={moveUpIcon} />
+                <span class="button-label">{locale.t('ui.multi_user_object_editor.to_working_set')}</span>
+            </button>
+            <button class="button-with-text" disabled={blocked} onclick={() => perform('sync')}>
+                <img class="action-icon" alt={locale.t('ui.multi_user_object_editor.sync')} src={syncIcon} />
+                <span class="button-label">{locale.t('ui.multi_user_object_editor.sync')}</span>
+            </button>
+            <button class="button-with-text" disabled={blocked} onclick={() => perform('archive')}>
+                <img class="action-icon" alt={locale.t('ui.multi_user_object_editor.to_archive')} src={moveDownIcon} />
+                <span class="button-label">{locale.t('ui.multi_user_object_editor.to_archive')}</span>
+            </button>
+        </div>
     </div>
 
-    <div class="space-below">
-        <RelativePathEditor
-            bind:value={destinationPath}
-            options={relativePaths}
-            disabled={blocked}
-            onMove={relocate} />
+    <div class="dialog-section space-below">
+        <div class="space-below">
+            <RelativePathEditor
+                bind:value={destinationPath}
+                options={relativePaths}
+                disabled={blocked}
+                onMove={relocate} />
+        </div>
     </div>
 
     {#if !loading && items.length === ids.length && items.length > 0}

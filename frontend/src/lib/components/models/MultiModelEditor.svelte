@@ -180,7 +180,7 @@ async function relocate() {
 }
 </script>
 
-<div class="sidebar-header space-below spaced-horizontally">
+<div class="sidebar-header spaced-horizontally">
     <p class="annotation">{modelIds.length} models selected</p>
     <button type="button"
             class="round"
@@ -255,16 +255,10 @@ async function relocate() {
             </div>
         </div>
 
-        <div class="dialog-section">
-            <div class="space-below">
-                <RelativePathEditor
-                    bind:value={destinationPath}
-                    options={relativePaths}
-                    disabled={busy || models.length === 0 ||
-                        new Set(models.map(model => model.raw_type)).size !== 1}
-                    onMove={relocate} />
-            </div>
-
+        <div class="dialog-section space-below">
+            <h2 class="tight-vertical">
+                Archive and working locations
+            </h2>
             <div class="spaced-horizontally">
                 <button class="button-with-text" disabled={busy} onclick={() => runOperation('working')}>
                     <img class="action-icon" alt={locale.t('ui.multi_model_editor.to_working_set')} src={moveUpIcon} />
@@ -280,6 +274,16 @@ async function relocate() {
                 </button>
             </div>
         </div>
+
+        <div class="dialog-section space-below">
+            <RelativePathEditor
+                bind:value={destinationPath}
+                options={relativePaths}
+                disabled={busy || models.length === 0 ||
+                    new Set(models.map(model => model.raw_type)).size !== 1}
+                onMove={relocate} />
+        </div>
+
         {#if models.length > 0}
             <div class="dialog-section">
                 <MultiModelCollectionEditor {models} onChanged={refresh} />

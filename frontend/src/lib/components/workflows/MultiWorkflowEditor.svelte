@@ -131,7 +131,7 @@ async function relocate() {
 }
 </script>
 
-<div class="sidebar-header space-below spaced-horizontally">
+<div class="sidebar-header spaced-horizontally">
     <p class="annotation">{workflowIds.length} workflows selected</p>
     <button class="round"
             aria-label={locale.t('ui.multi_workflow_editor.close_workflow_editor')}
@@ -157,7 +157,7 @@ async function relocate() {
             {locale.t('ui.multi_workflow_editor.some_selected_workflows_have_errors_editing_is_disabled')}
         </p>
     {:else}
-        <div class="dialog-section">
+        <div class="dialog-section space-below">
             <div class="space-below">
                 <TagEditor
                     title={locale.t('ui.multi_workflow_editor.add_tags')}
@@ -175,7 +175,7 @@ async function relocate() {
                     availableTags={removableTags}
                     onChanged={tags => removeTags = tags} />
             </div>
-            <div class="space-below spaced-horizontally">
+            <div class="spaced-horizontally">
                 <div></div>
                 <button class="button-with-text"
                         disabled={busy || (!addTags.length && !removeTags.length)}
@@ -185,7 +185,10 @@ async function relocate() {
                 </button>
             </div>
         </div>
-        <div class="dialog-section">
+        <div class="dialog-section space-below">
+            <h2 class="tight-vertical">
+                Archive and working locations
+            </h2>
             <div class="spaced-horizontally">
                 <button class="button-with-text" disabled={busy} onclick={() => run('working')}>
                     <img class="action-icon" alt={locale.t('ui.multi_workflow_editor.working')} src={moveUpIcon} />
@@ -201,14 +204,12 @@ async function relocate() {
                 </button>
             </div>
         </div>
-        <div class="dialog-section">
-            <div class="space-below">
-                <RelativePathEditor
-                    bind:value={destinationPath}
-                    options={relativePaths}
-                    disabled={busy || workflows.length === 0}
-                    onMove={relocate} />
-            </div>
+        <div class="dialog-section space-below">
+            <RelativePathEditor
+                bind:value={destinationPath}
+                options={relativePaths}
+                disabled={busy || workflows.length === 0}
+                onMove={relocate} />
         </div>
         {#if workflows.length}
             <div class="dialog-section">
