@@ -9,7 +9,7 @@ purpose: Project overview and contributor reference
 What do you do when the number of models in your ComfyUI setup becomes
 unmanageable and your drop-downs extend over the edge of the screen? You move
 the models you are not using to separate storage. Then you need to remember what
-you moved and restore the complete set needed by each project.
+you moved and restore the complete set needed by each project. 
 
 Model Archivist helps keep that chaos under control. It catalogs models,
 workflows, and user-defined files; moves them between working and archive
