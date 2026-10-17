@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+import backend.config as config_module
 from backend.config import (ConfigError, ConfigException, Configuration, DatabaseConfig,
                             LoggingConfig, WebConfig, initialize_logging, load_config)
 
@@ -65,6 +66,68 @@ def test_load_config_reports_missing_file(tmp_path: Path):
     with pytest.raises(ConfigException) as exc_info:
         load_config(config_file)
     assert exc_info.value.code is ConfigError.CONFIG_NOT_FOUND
+
+
+@pytest.mark.parametrize('mode', ['standalone', 'comfyui'])
+def test_default_config_is_created_from_template(tmp_path, monkeypatch, mode):
+    template = Path(__file__).parents[2] / 'example.config.toml'
+    contents = template.read_bytes() + (
+        b'\n[filesystem]\nworking_roots = []\narchive_roots = []\nexclusions = []\n')
+    (tmp_path / 'example.config.toml').write_bytes(contents)
+    monkeypatch.setattr(config_module, '__file__', str(tmp_path / 'backend/config.py'))
+
+    config = load_config(mode=mode)
+
+    assert (tmp_path / 'config.toml').read_bytes() == contents
+    assert config.mode == mode
+
+
+def test_existing_default_config_is_preserved_without_template(tmp_path):
+    destination = tmp_path / 'config.toml'
+    destination.write_text('user configuration', encoding='utf-8')
+
+    config_module._create_default_config(tmp_path)
+
+    assert destination.read_text(encoding='utf-8') == 'user configuration'
+
+
+def test_default_config_creation_does_not_overwrite_concurrent_file(tmp_path, monkeypatch):
+    (tmp_path / 'example.config.toml').write_bytes(b'template')
+    destination = tmp_path / 'config.toml'
+    original_open = Path.open
+
+    def create_before_open(path, mode='r', *args, **kwargs):
+        if path == destination and mode == 'xb':
+            with original_open(path, 'wb') as stream:
+                stream.write(b'other startup configuration')
+        return original_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, 'open', create_before_open)
+    config_module._create_default_config(tmp_path)
+
+    assert destination.read_bytes() == b'other startup configuration'
+
+
+def test_missing_default_template_reports_its_path(tmp_path, monkeypatch):
+    monkeypatch.setattr(config_module, '__file__', str(tmp_path / 'backend/config.py'))
+    with pytest.raises(ConfigException) as exc_info:
+        load_config()
+    assert exc_info.value.code is ConfigError.CONFIG_NOT_FOUND
+    assert 'example.config.toml' in str(exc_info.value)
+    assert not (tmp_path / 'config.toml').exists()
+
+
+def test_missing_custom_config_is_not_seeded_from_template(tmp_path, monkeypatch):
+    (tmp_path / 'example.config.toml').write_text('template', encoding='utf-8')
+    monkeypatch.setattr(config_module, '__file__', str(tmp_path / 'backend/config.py'))
+    custom = tmp_path / 'custom.toml'
+
+    with pytest.raises(ConfigException) as exc_info:
+        load_config(custom)
+
+    assert exc_info.value.code is ConfigError.CONFIG_NOT_FOUND
+    assert not custom.exists()
+    assert not (tmp_path / 'config.toml').exists()
 
 
 def test_load_config_reports_malformed_toml(tmp_path: Path):

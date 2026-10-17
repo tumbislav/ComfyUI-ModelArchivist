@@ -51,6 +51,10 @@ already happened.
 SQLite path, logging, web-server settings, permitted roots, and exclusions. Repository
 options, model definitions, and working/archive mappings belong in SQLite.
 
+The default `config.toml` is seeded from `example.config.toml` only when missing.
+Keep first-run creation from overwriting existing configurations; explicitly selected
+custom configuration files must already exist.
+
 - Standalone mode does not use ComfyUI's `extra_model_paths` mechanism. It permits one
   working/archive pair per model type and one workflow pair.
 - ComfyUI mode discovers working model locations and extensions from `folder_paths`.

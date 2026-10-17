@@ -84,6 +84,12 @@ The application opens in your default browser. By default it listens only on
 
 ### Choose another configuration file
 
+On first startup, Archivist creates the default `config.toml` by copying
+`example.config.toml` if `config.toml` is missing. This applies to standalone and
+ComfyUI installations. Existing configuration files are preserved; later template
+updates do not replace them. A missing file explicitly selected with `--config`
+remains an error and is not created automatically.
+
 The root `config.toml` contains only the settings needed before the repository
 database can be opened: database path, web server address, logging, and filesystem
 permissions. Start the

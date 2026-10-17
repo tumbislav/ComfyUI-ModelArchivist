@@ -17,6 +17,7 @@ __pycache__/
 /model-archivist.db-wal
 /model-archivist.db-shm
 /model-archivist.db-journal
+/config.toml
 
 # Previous runtime filenames (keep existing local data out of Git)
 /model-archivist.db

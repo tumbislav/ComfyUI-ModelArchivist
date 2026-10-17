@@ -272,14 +272,32 @@ def initialize_logging(config: Configuration) -> None:
 _config: Configuration | None = None
 
 
+def _create_default_config(app_root: Path) -> None:
+    """Seed the default bootstrap file without replacing an existing config."""
+    destination = app_root / 'config.toml'
+    if destination.exists():
+        return
+    contents = (app_root / 'example.config.toml').read_bytes()
+    try:
+        with destination.open('xb') as stream:
+            stream.write(contents)
+    except FileExistsError:
+        # Another startup may have created the file after the existence check.
+        pass
+
+
 def load_config(cfg_file: Path | None = None, mode: str = 'standalone') -> Configuration:
     global _config
     app_root = Path(__file__).resolve().parent.parent
+    use_default = cfg_file is None
     cfg_file = app_root / 'config.toml' if cfg_file is None else Path(cfg_file).resolve()
     try:
+        if use_default:
+            _create_default_config(app_root)
         toml_string = cfg_file.read_text(encoding='utf-8')
     except FileNotFoundError as error:
-        raise ConfigException(ConfigError.CONFIG_NOT_FOUND, str(cfg_file)) from error
+        raise ConfigException(ConfigError.CONFIG_NOT_FOUND,
+                              str(error.filename or cfg_file)) from error
     except OSError as error:
         raise ConfigException(ConfigError.CONFIG_UNREADABLE, f'{cfg_file}: {error}') from error
     try:

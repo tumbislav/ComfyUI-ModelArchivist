@@ -9,6 +9,7 @@
 * Many usability improvements
 
 **Unreleased** v1.0.3
+* Create missing default config.toml from example.config.toml on first startup in standalone and ComfyUI modes, preserving existing and explicitly selected configurations.
 * Moved README technical reference material to docs/DEVELOPMENT.md and consolidated contributor requirements in AGENTS.md.
 * Updated ComfyUI mapping regression expectations for default extensions and verified retention of discovered non-default extensions.
 * Completed missing Spanish/French locale entries, added Slovenian null fallbacks, and corrected locale validation for paragraph translations and the transfer status-refresh error.
