@@ -344,8 +344,8 @@ file = "archivist.log"
     return path
 
 
-def test_shipped_config_defers_filesystem_defaults_until_first_start():
-    path = Path(__file__).parents[2] / 'config.toml'
+def test_shipped_config_template_defers_filesystem_defaults_until_first_start():
+    path = Path(__file__).parents[2] / 'example.config.toml'
 
     assert 'filesystem' not in tomllib.loads(path.read_text(encoding='utf-8'))
 

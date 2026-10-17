@@ -9,6 +9,7 @@
 * Many usability improvements
 
 **Unreleased** v1.0.3
+* Updated the shipped-configuration regression to validate example.config.toml instead of the user-owned config.toml.
 * Create missing default config.toml from example.config.toml on first startup in standalone and ComfyUI modes, preserving existing and explicitly selected configurations.
 * Moved README technical reference material to docs/DEVELOPMENT.md and consolidated contributor requirements in AGENTS.md.
 * Updated ComfyUI mapping regression expectations for default extensions and verified retention of discovered non-default extensions.
