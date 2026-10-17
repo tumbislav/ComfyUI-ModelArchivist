@@ -85,8 +85,23 @@
         "first_run": {
             "welcome": "Bienvenido a Model Archivist",
             "open_settings": "Abrir configuración",
+            "help": "Ayuda",
+            "roots_instructions_standalone": [
+                "Antes de continuar, configura las carpetas que voy a gestionar. Por seguridad, todo lo que quede fuera de ellas será invisible para mí.",
+                "Para cambiar las carpetas raíz, edita la sección [filesystem] de config.toml. Encontrarás más información en la ayuda.",
+                "Para las carpetas de trabajo, elige las carpetas principales donde guardas tus modelos y flujos de trabajo, además de cualquier otra cosa que quieras que gestione. Para el archivo, depende de cómo quieras organizarte.",
+                "Cuando termines, reinicia todo y abre el diálogo de Configuración para establecer las correspondencias entre carpetas."
+            ],
+            "roots_instructions_comfyui": [
+                "Antes de continuar, configura las carpetas que voy a gestionar. Por ahora, por seguridad, solo puedo ver el contenido de las carpetas de abajo. Si te parece bien, haz clic en Continuar.",
+                "Para cambiar las carpetas raíz, edita la sección [filesystem] de config.toml. Encontrarás más información en la ayuda.",
+                "Para las carpetas de trabajo, seguramente te convenga elegir algo como .../ComfyUI/models y .../ComfyUI/user/<your username>/workflows, además de cualquier otra cosa que quieras que gestione. Para el archivo, depende de cómo quieras organizarte.",
+                "Cuando termines, reinicia todo y abre el diálogo de Configuración para establecer las correspondencias entre carpetas."
+            ],
             "load_failed": "No se pueden cargar las carpetas raíz.",
-            "save_failed": "No se pueden guardar las carpetas raíz."
+            "acknowledge_failed": "No se ha podido confirmar la configuración inicial.",
+            "continue_anyway": "Continuar de todos modos",
+            "inaccessible_directory": "No se puede acceder a la carpeta {path}. No pasa nada si sabes que estará disponible cuando la necesites. Pero compruébalo de todos modos."
         },
         "workflow_table": {
             "does_the_workflow_have_tags": "¿Tiene etiquetas el flujo de trabajo?",
@@ -98,6 +113,8 @@
             "e": "E"
         },
         "workflow_details": {
+            "fix_id_prompt": "Puedes corregir este error cambiando el ID del flujo de trabajo. Ojo: puede que no funcione si este flujo de trabajo está abierto en ComfyUI.",
+            "fix_it": "Corregir",
             "close_workflow_details": "Cerrar detalles del flujo de trabajo",
             "tags": "Etiquetas",
             "save": "guardar",
@@ -114,6 +131,7 @@
             "to_archive_2": "Al archivo"
         },
         "workflow_contents": {
+            "cannot_fix_id": "No se ha podido corregir el ID del flujo de trabajo.",
             "cannot_load_workflows": "No se pueden cargar los flujos de trabajo",
             "unsaved_changes": "Cambios sin guardar",
             "discard_workflow_changes": "¿Descartar los cambios del flujo de trabajo?",
@@ -306,6 +324,7 @@
             "cannot_discover_model_mappings": "No se pueden detectar las asignaciones de modelos"
         },
         "repository_summary": {
+            "scan_errors": "Errores de escaneo",
             "retry": "Reintentar",
             "repository_summary": "Resumen del repositorio",
             "close_repository_summary": "Cerrar resumen del repositorio",
@@ -424,6 +443,7 @@
             "loading_settings": "Cargando ajustes…"
         },
         "model_settings": {
+            "select_type": "Selecciona un tipo de ComfyUI",
             "add": "añadir",
             "undo": "deshacer",
             "save": "guardar",
@@ -723,6 +743,14 @@
         }
     },
     "errors": {
+        "workflow_not_duplicate": "El flujo de trabajo ya no tiene IDs duplicados. Vuelve a escanear los flujos de trabajo.",
+        "workflow_identity_changed": "Ha cambiado un archivo de flujo de trabajo. Vuelve a escanear antes de corregir su ID.",
+        "workflow_identity_repair_failed": "No se han podido reparar los IDs de los flujos de trabajo.",
+        "invalid_model_type": "La configuración del tipo de modelo no es válida.",
+        "model_type_not_found": "El tipo de modelo ya no existe.",
+        "model_type_count_changed": "Ha cambiado el número de modelos. Revisa la cantidad actual y vuelve a confirmar.",
+        "model_working_folder_required": "Selecciona una carpeta de trabajo antes de añadir un tipo de modelo.",
+        "filesystem_roots_required": "Introduce al menos una raíz de trabajo y una raíz de archivo.",
         "request_cancelled": "Solicitud cancelada",
         "server_unresponsive": "El servidor no responde",
         "retrieve_operation": "No se puede obtener la operación",
@@ -790,7 +818,8 @@
         "empty_collection": "La colección no puede estar vacía.",
         "unknown_collection": "La colección no existe.",
         "duplicate_collection_member": "Miembro de colección duplicado.",
-        "collection_cycle": "Ciclo de pertenencia entre colecciones."
+        "collection_cycle": "Ciclo de pertenencia entre colecciones.",
+        "state_refresh_failed": "No se ha podido actualizar el estado del objeto tras la operación de archivos. Vuelve a escanear para comprobar su ubicación actual."
     },
     "dynamic": {
         "has_tags": "Tiene etiquetas",
@@ -827,6 +856,12 @@
         "find_tag": "Buscar etiqueta"
     },
     "messages": {
+        "remove_model_type": {
+            "one": "¿Eliminar «{name}» y todas sus correspondencias entre carpetas? Su {count} modelo se eliminará de la base de datos y de las colecciones, y ya no podrás gestionarlo con Archivist. Los archivos en disco se conservarán.",
+            "other": "¿Eliminar «{name}» y todas sus correspondencias entre carpetas? Sus {count} modelos se eliminarán de la base de datos y de las colecciones, y ya no podrás gestionarlos con Archivist. Los archivos en disco se conservarán.",
+            "many": "¿Eliminar «{name}» y todas sus correspondencias entre carpetas? Sus {count} modelos se eliminarán de la base de datos y de las colecciones, y ya no podrás gestionarlos con Archivist. Los archivos en disco se conservarán."
+        },
+        "cannot_remove_model_type": "No se ha podido eliminar este tipo de modelo.",
         "remove_selected_workflows": {
             "one": "¿Quitar los flujos de trabajo seleccionados de {count} colección?",
             "other": "¿Quitar los flujos de trabajo seleccionados de {count} colecciones?",

@@ -818,7 +818,8 @@
         "empty_collection": "Collection cannot be empty.",
         "unknown_collection": "Collection does not exist.",
         "duplicate_collection_member": "Duplicate collection member.",
-        "collection_cycle": "Collection membership cycle."
+        "collection_cycle": "Collection membership cycle.",
+        "state_refresh_failed": "Could not refresh the object status after the file operation. Rescan to check its current location."
     },
     "dynamic": {
         "has_tags": "Has tags",

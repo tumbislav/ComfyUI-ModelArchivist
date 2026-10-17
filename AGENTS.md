@@ -22,8 +22,10 @@ The principal directories are:
 - `test/backend/`: backend unit tests.
 - `web/`: ComfyUI browser extension entrypoint.
 
-Read `README.md` before changing repository semantics. Its Assumptions section records
-accepted constraints and deliberate tradeoffs.
+Read `README.md` for the user-facing overview and
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) before changing repository semantics.
+Its Assumptions section records accepted constraints and deliberate tradeoffs;
+it also documents runtime behavior, endpoint security, builds, and publication.
 
 ## Maintenance workflow
 
@@ -67,6 +69,38 @@ options, model definitions, and working/archive mappings belong in SQLite.
 Keep ComfyUI imports confined to the custom-node entrypoint or environment adapter so
 the backend remains importable in standalone development and test environments.
 
+Preserve saved model extension lists. Initial ComfyUI proposals combine discovered
+extensions with `.sft`, `.safetensors`, `.pt`, `.pth`, and `.gguf`; discovery must not
+overwrite saved choices or recreate types that the user removed. Removing a model
+type removes its database mappings and catalog links, never model files or sidecars.
+Model and workflow settings saves must preserve each other's configuration.
+
+Allow only one long-running operation at a time. UDP directory-tree transfers must
+include filesystem planning in background execution, regardless of the Small setting.
+Report partial transfer failures and reconcile deployment state with the remaining
+files. Preserve records outside selected scan targets and after incomplete scans.
+
+## Data identity and accepted constraints
+
+- ModelArchivist is a single-user application using SQLite.
+- If any configured model or workflow folder is inaccessible, the application runs read-only and does not scan files.
+- Every configured working directory has exactly one archive counterpart, and neither directory may be reused in another pair.
+- A model or workflow has at most one working component set and one archive component set. Missing sides have no component set; their prospective paths are derived from the configured pair.
+- A workflow is identified by a UUID in its top-level `id` field. JSON files without a usable UUID are ignored.
+- Workflow IDs uniquely identify one relative filename across working and archive storage.
+- Workflow details offers “Fix it” for duplicate working or archive IDs. It assigns a
+  new UUID to each relative filename within a configured pair, keeping matching
+  working/archive copies together. Each resulting workflow retains collection
+  memberships. Avoid saving an already-open ComfyUI workflow over a repaired file,
+  as that can restore its old ID.
+- A model is identified by the SHA-256 hash of its main weights file.
+- Normal scans trust a usable cached SHA-256 from Archivist or LoraManager metadata and hash weights only when no usable cached hash exists.
+- User-requested rehash scans calculate hashes from every weights file, including archived files on slow storage.
+- The risk of stale cached hashes and files changing during a scan is accepted. Users can request a manual rescan or rehash.
+- Other applications may rename files in the working set. The working filename is authoritative and metadata can be updated later.
+- Invalid third-party metadata is treated like an unreadable sidecar. Third-party and Archivist metadata are not reconciled.
+- Orphaned sidecars and orphaned example directories are ignored.
+
 ## Database policy
 
 Use SQLModel models in `backend/repository/tables.py`. Schema changes require an Alembic
@@ -78,6 +112,17 @@ baseline and rebuilding development databases. Otherwise, preserve migration his
 and assume databases contain user data.
 
 ## API and localization conventions
+
+Register every new public API path and method in `backend/server/public_routes.py`.
+Preserve exact frontend asset routes and the absence of catch-all routes. Keep the
+embedded listener on `127.0.0.1` and its proxy token private to the proxy. Browser
+requests must remain same-origin and carry the Archivist request header. Do not
+treat ComfyUI profile names or the `Comfy-User` header as authentication.
+
+Enforce filesystem policy for mappings, previews, scans, metadata edits, and transfers,
+and repeat checks near file operations. No API may change disk-owned filesystem
+permissions. Reject links, junctions, and multiple hard links; preserve blocked
+mappings and incomplete-scan records. Endpoint protection does not replace path checks.
 
 API clients must not rely on English exception text as an identifier. New API errors
 should expose a stable semantic code, an English fallback message, and structured
@@ -122,6 +167,13 @@ Avoid depending accidentally on packages bundled by ComfyUI. Declare every third
 package imported directly by Archivist unless the import is deliberately an integration
 point supplied by ComfyUI itself, such as `folder_paths` or `PromptServer`.
 
+Follow [build and release procedures](docs/DEVELOPMENT.md#frontend-production-build)
+when preparing a release. Generate frontend output with the build scripts, include
+the entire build and its manifest when committing a build, and verify committed
+freshness before publication. Rebuild and commit before tagging. Publication is
+manual; tags must match package metadata and be reachable from `master`. Do not
+assume that pushing creates tags, releases, or Registry publications.
+
 ## File headers
 
 Every new source, test, configuration, documentation, or asset-description file must
@@ -142,6 +194,17 @@ Run frontend checks from `frontend/`:
 ```powershell
 npm run check
 ```
+
+Run frontend regression tests from the repository root:
+
+```powershell
+node --test "test/frontend/*.test.mjs"
+```
+
+Pytest isolates temporary runs and caches by process account under `test/temp/`.
+Preserve that isolation; do not replace it with a shared directory that is deleted
+for each run. See [verification details](docs/DEVELOPMENT.md#development-verification)
+for supported temporary-directory and cache overrides.
 
 Also run `git diff --check`. Add focused regression tests for behavioral changes rather
 than relying only on the full suite.

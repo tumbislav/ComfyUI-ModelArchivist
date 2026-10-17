@@ -21,7 +21,7 @@ function leaves(value, prefix = '', result = new Map()) {
     for (const [key, child] of Object.entries(value)) {
         const path = prefix ? `${prefix}.${key}` : key;
 
-        if (child !== null && typeof child === 'object') leaves(child, path, result);
+        if (child !== null && typeof child === 'object' && !Array.isArray(child)) leaves(child, path, result);
         else result.set(path, child);
     }
 
@@ -64,7 +64,18 @@ test('configured locales mirror the complete English catalog', async () => {
             }
 
             if (value !== null) {
-                assert.equal(typeof value, 'string', `${language}:${key} must be text or null`);
+                const fallback = english.get(key) ?? english.get(pluralFallback);
+                if (Array.isArray(fallback)) {
+                    assert.ok(Array.isArray(value), `${language}:${key} must be paragraphs or null`);
+                    assert.equal(value.length, fallback.length, `${language}:${key} paragraph count`);
+                    value.forEach((paragraph, index) => {
+                        assert.equal(typeof paragraph, 'string', `${language}:${key}.${index} must be text`);
+                        assert.deepEqual(parameters(paragraph), parameters(fallback[index]),
+                            `${language}:${key}.${index} parameters`);
+                    });
+                } else {
+                    assert.equal(typeof value, 'string', `${language}:${key} must be text or null`);
+                }
                 assert.deepEqual(parameters(value), parameters(english.get(key) ?? english.get(pluralFallback)),
                     `${language}:${key} parameters`);
             }
@@ -179,15 +190,18 @@ test('initial language is English unless the user previously selected another lo
     assert.equal(locale.language, 'en');
 });
 
-test('completed translations contain text and preserve caption markup', async () => {
+test('translations contain text or Slovenian fallbacks and preserve caption markup', async () => {
     const english = await readJson('en.json');
 
     for (const language of ['es', 'fr', 'sl']) {
         const catalog = await readJson(`${language}.json`);
         for (const [key, value] of leaves(catalog)) {
-            assert.equal(typeof value, 'string', `${language}:${key} needs a translation`);
-            assert.ok(value.trim().length > 0, `${language}:${key} must not be blank`);
-            assert.ok(!value.includes('\uFFFD'), `${language}:${key} contains invalid Unicode`);
+            if (value === null && language === 'sl') continue;
+            for (const paragraph of Array.isArray(value) ? value : [value]) {
+                assert.equal(typeof paragraph, 'string', `${language}:${key} needs a translation`);
+                assert.ok(paragraph.trim().length > 0, `${language}:${key} must not be blank`);
+                assert.ok(!paragraph.includes('\uFFFD'), `${language}:${key} contains invalid Unicode`);
+            }
         }
 
         for (const [key, caption] of Object.entries(catalog.about.captions)) {

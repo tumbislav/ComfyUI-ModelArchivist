@@ -83,10 +83,25 @@
             "cannot_contact_server": "Impossible de contacter le serveur"
         },
         "first_run": {
-            "welcome": "Bienvenue dans Model Archivist",
-            "open_settings": "Ouvrir les paramètres",
+            "welcome": "Bienvenue chez l'Archiviste",
+            "open_settings": "Continuer",
+            "help": "Aide",
+            "roots_instructions_standalone": [
+                "Avant de continuer, configurez les dossiers que je vais gérer. Pour des raisons de sécurité, tout ce qui se trouve en dehors sera invisible pour moi.",
+                "Pour changer les dossiers racines, modifiez la section [filesystem] dans config.toml. Vous trouverez plus de détails dans l’aide.",
+                "Pour les dossiers de travail, choisissez les dossiers principaux où vous rangez vos modèles et vos workflows, ainsi que tout ce que vous voulez me confier. Pour les archives, à vous de voir comment vous préférez vous organiser.",
+                "Une fois que c’est fait, redémarrez le tout et ouvrez la fenêtre Paramètres pour définir les correspondances entre dossiers."
+            ],
+            "roots_instructions_comfyui": [
+                "Avant de continuer, configurez les dossiers que je vais gérer. Pour le moment, pour des raisons de sécurité, je ne peux voir que le contenu des dossiers ci-dessous. Si cela vous convient, cliquez sur Continuer.",
+                "Pour changer les dossiers racines, modifiez la section [filesystem] dans config.toml. Vous trouverez plus de détails dans l’aide.",
+                "Pour les dossiers de travail, vous pouvez choisir quelque chose comme .../ComfyUI/models et .../ComfyUI/user/<votre nom d'utilisateur>/workflows, ainsi que tout ce que vous voulez me confier. Pour les archives, à vous de voir comment vous préférez vous organiser.",
+                "Une fois que c’est fait, redémarrez le tout et ouvrez la fenêtre Paramètres pour définir les correspondances entre dossiers."
+            ],
             "load_failed": "Impossible de charger les dossiers racines.",
-            "save_failed": "Impossible d’enregistrer les dossiers racines."
+            "acknowledge_failed": "Impossible de confirmer la configuration initiale.",
+            "continue_anyway": "Continuer quand même",
+            "inaccessible_directory": "Le dossier {path} n’est pas accessible. Pas de souci si vous savez qu’il sera là quand vous en aurez besoin. Mais vérifiez quand même."
         },
         "workflow_table": {
             "does_the_workflow_have_tags": "Le flux de travail a-t-il des étiquettes ?",
@@ -98,6 +113,8 @@
             "e": "E"
         },
         "workflow_details": {
+            "fix_id_prompt": "Vous pouvez corriger cette erreur en changeant l’ID du workflow. Attention, cela risque de ne pas fonctionner si ce workflow est ouvert dans ComfyUI.",
+            "fix_it": "Corriger",
             "close_workflow_details": "Fermer les détails du flux de travail",
             "tags": "Étiquettes",
             "save": "enregistrer",
@@ -114,6 +131,7 @@
             "to_archive_2": "Vers l’archive"
         },
         "workflow_contents": {
+            "cannot_fix_id": "Impossible de corriger l’ID du workflow.",
             "cannot_load_workflows": "Impossible de charger les flux de travail",
             "unsaved_changes": "Modifications non enregistrées",
             "discard_workflow_changes": "Abandonner les modifications du flux de travail ?",
@@ -306,6 +324,7 @@
             "cannot_discover_model_mappings": "Impossible de détecter les correspondances des modèles"
         },
         "repository_summary": {
+            "scan_errors": "Erreurs d’analyse",
             "retry": "Réessayer",
             "repository_summary": "Résumé du dépôt",
             "close_repository_summary": "Fermer le résumé du dépôt",
@@ -424,6 +443,7 @@
             "loading_settings": "Chargement des paramètres…"
         },
         "model_settings": {
+            "select_type": "Sélectionner un type ComfyUI",
             "add": "ajouter",
             "undo": "annuler les modifications",
             "save": "enregistrer",
@@ -723,6 +743,14 @@
         }
     },
     "errors": {
+        "workflow_not_duplicate": "Le workflow n’a plus d’ID en double. Relancez l’analyse des workflows.",
+        "workflow_identity_changed": "Un fichier de workflow a changé. Relancez l’analyse avant de corriger son ID.",
+        "workflow_identity_repair_failed": "Les ID des workflows n’ont pas pu être réparés.",
+        "invalid_model_type": "Les paramètres du type de modèle ne sont pas valides.",
+        "model_type_not_found": "Le type de modèle n’existe plus.",
+        "model_type_count_changed": "Le nombre de modèles a changé. Vérifiez le nombre actuel et confirmez à nouveau.",
+        "model_working_folder_required": "Sélectionnez un dossier de travail avant d’ajouter un type de modèle.",
+        "filesystem_roots_required": "Indiquez au moins une racine de travail et une racine d’archive.",
         "request_cancelled": "Requête annulée",
         "server_unresponsive": "Le serveur ne répond pas",
         "retrieve_operation": "Impossible de récupérer l’opération",
@@ -790,7 +818,8 @@
         "empty_collection": "La collection ne peut pas être vide.",
         "unknown_collection": "La collection n’existe pas.",
         "duplicate_collection_member": "Membre de collection en double.",
-        "collection_cycle": "Cycle d’appartenance entre collections."
+        "collection_cycle": "Cycle d’appartenance entre collections.",
+        "state_refresh_failed": "Impossible d’actualiser l’état de l’objet après l’opération sur les fichiers. Relancez l’analyse pour vérifier son emplacement actuel."
     },
     "dynamic": {
         "has_tags": "Avec étiquettes",
@@ -827,6 +856,12 @@
         "find_tag": "Rechercher une étiquette"
     },
     "messages": {
+        "remove_model_type": {
+            "one": "Supprimer « {name} » et toutes ses correspondances entre dossiers ? Son {count} modèle sera supprimé de la base de données et des collections, et ne pourra plus être géré avec Archivist. Les fichiers sur disque seront conservés.",
+            "other": "Supprimer « {name} » et toutes ses correspondances entre dossiers ? Ses {count} modèles seront supprimés de la base de données et des collections, et ne pourront plus être gérés avec Archivist. Les fichiers sur disque seront conservés.",
+            "many": "Supprimer « {name} » et toutes ses correspondances entre dossiers ? Ses {count} modèles seront supprimés de la base de données et des collections, et ne pourront plus être gérés avec Archivist. Les fichiers sur disque seront conservés."
+        },
+        "cannot_remove_model_type": "Impossible de supprimer ce type de modèle.",
         "remove_selected_workflows": {
             "one": "Retirer les flux de travail sélectionnés de {count} collection ?",
             "other": "Retirer les flux de travail sélectionnés de {count} collections ?",
