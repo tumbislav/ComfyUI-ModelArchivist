@@ -34,6 +34,18 @@ $effect(() => {
 });
 
 let observedScanRevision = statusMonitor.scanRevision;
+let observedUserObjectRevision = statusMonitor.userObjectRevision;
+
+$effect(() => {
+    const revision = statusMonitor.userObjectRevision;
+    if (revision !== observedUserObjectRevision) {
+        observedUserObjectRevision = revision;
+        untrack(() => {
+            void refresh();
+            if (activeId && !changed && !operating) void refreshActive();
+        });
+    }
+});
 
 $effect(() => {
     const revision = statusMonitor.scanRevision;
@@ -118,10 +130,16 @@ async function runOperation(destination: UserObjectDestination | null) {
             const completed = await statusMonitor.waitForOperation(result.data);
             if (!completed.ok || completed.data.state === 'failed') {
                 operationError = completed.ok ? completed.data.error?.message ?? locale.t('ui.user_object_contents.object_operation_failed')
-                    : completed.message ?? locale.t('ui.user_object_contents.cannot_retrieve_object_operation'); return;
+                    : completed.message ?? locale.t('ui.user_object_contents.cannot_retrieve_object_operation');
+                await refreshActive();
+                return;
             }
-        } else if (!result.data.allowed) {
-            operationError = result.data.errors?.map((issue: Parameters<typeof locale.error>[0]) => locale.error(issue)).join('; ') ?? locale.t('ui.user_object_contents.operation_is_not_allowed'); return;
+        } else if (!result.data.allowed || result.data.performed === false) {
+            operationError = [...(result.data.errors ?? []), ...(result.data.warnings ?? [])]
+                .map(issue => locale.error(issue)).join('; ')
+                || locale.t('ui.user_object_contents.object_operation_failed');
+            await refreshActive();
+            return;
         }
         await refreshActive();
     } finally { operating = false; }

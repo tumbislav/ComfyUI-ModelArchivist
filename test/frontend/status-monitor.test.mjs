@@ -22,12 +22,20 @@ function monitor(request) {
     const timers = new Map();
     const calls = [];
     let nextTimer = 0;
+    let connectionListener = () => {};
     const context = {
         exports: {},
         $state: value => value,
         require: name => {
             if (name === '$lib/locale.svelte') return { locale: { t: key => key } };
             if (name === '$lib/api') return {
+                serverUnresponsive: {
+                    subscribe(listener) {
+                        connectionListener = listener;
+                        listener(false);
+                        return () => { connectionListener = () => {}; };
+                    }
+                },
                 getUrl: path => path,
                 apiFetch: async path => {
                     calls.push(path);
@@ -46,6 +54,7 @@ function monitor(request) {
     runInNewContext(code, context);
     return {
         status: context.exports.statusMonitor, calls, timers,
+        disconnect: () => connectionListener(true),
         async tick() {
             const [id, timer] = timers.entries().next().value;
             timers.delete(id);
@@ -66,6 +75,32 @@ test('initial idle status is fetched once with no recurring timer', async () => 
     assert.deepEqual(client.calls, ['/repository-status']);
     assert.equal(client.timers.size, 0);
     stop();
+});
+
+test('lost submission reconnects, discovers a move, and retrieves its final result', async () => {
+    let connected = false;
+    const move = {id: 'move-1', type: 'user_object_move', state: 'running', progress: {}};
+    let final = false;
+    const client = monitor(path => {
+        if (!connected) return {ok: false, status: 503, message: 'Unavailable'};
+        return {ok: true, data: path.startsWith('/operations/')
+            ? {...move, state: 'succeeded'}
+            : {counts: {}, operation: final ? null : move}};
+    });
+    client.status.start();
+    client.disconnect();
+    await settle();
+    await client.tick();
+    assert.equal(client.timers.size, 1);
+    connected = true;
+    await client.tick();
+    assert.equal(client.status.operation.id, move.id);
+    final = true;
+    await client.tick();
+    assert.equal(client.status.operation.state, 'succeeded');
+    assert.equal(client.status.userObjectRevision, 1);
+    assert.equal(client.timers.size, 0);
+    assert.ok(client.calls.includes('/operations/move-1'));
 });
 
 for (const finalState of ['succeeded', 'failed']) {

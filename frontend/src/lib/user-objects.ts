@@ -10,7 +10,12 @@ import { identity, toUserObject, type UserObject, type UserObjectSummary } from 
 import { type Operation } from '$lib/models';
 
 export type UserObjectDestination = 'working' | 'archive';
-export type ImmediateOperation = {allowed: boolean; performed?: boolean; errors?: string[]};
+export type ImmediateOperation = {
+    allowed: boolean;
+    performed?: boolean;
+    errors?: {code: string; message: string}[];
+    warnings?: {code: string; message: string}[];
+};
 export type UserObjectOperation = Operation | ImmediateOperation;
 
 export async function getUserObjects(typeId: string): Promise<ApiResult<UserObjectSummary[]>> {

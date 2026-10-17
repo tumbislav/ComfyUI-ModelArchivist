@@ -103,7 +103,7 @@ async function handleEnter(event: KeyboardEvent) {
         <p class="error-details">{locale.error(error)}</p>
     {/each}
     {#if model.deployment === 'mismatch'}
-        <p class="warning-details">{locale.t('ui.model_details.model_is_mismatched_synchronize_it_before_continuing')}</p>
+        <p class="warning-details">{locale.t('ui.model_details.mismatched_model_sync_required')}</p>
     {/if}
 
     <div class="space-below dialog-section">

@@ -61,7 +61,8 @@ def test_comfy_mapping_preview_ignores_unpermitted_folders_outside_selected_root
     monkeypatch.setattr(repository, 'get_repository_configuration', lambda: {'model_types': []})
 
     assert repository.propose_model_mappings(str(working), str(archive), ['.safetensors']) == [{
-        'name': 'checkpoints', 'display_name': 'checkpoints', 'extensions': ['.safetensors'],
+        'name': 'checkpoints', 'display_name': 'checkpoints',
+        'extensions': ['.gguf', '.pt', '.pth', '.safetensors', '.sft'],
         'locations': [{'working_dir': str(working / 'checkpoints'),
                        'archive_dir': str(archive / 'checkpoints')}],
     }]
@@ -87,7 +88,7 @@ def test_comfy_mapping_preview_merges_initial_extensions_for_shared_type(policy,
     (working / 'other-LLM').mkdir()
     locations = [
         DiscoveredModelLocation('LLM', working / 'LLM', ()),
-        DiscoveredModelLocation('LLM', working / 'other-LLM', ('.gguf',)),
+        DiscoveredModelLocation('LLM', working / 'other-LLM', ('.gguf', '.bin')),
     ]
     monkeypatch.setattr(repository, '_config', SimpleNamespace(mode='comfyui'))
     monkeypatch.setattr(repository, 'get_environment_provider',
@@ -96,7 +97,8 @@ def test_comfy_mapping_preview_merges_initial_extensions_for_shared_type(policy,
 
     candidates = repository.propose_model_mappings(str(working), str(archive), ['.safetensors'])
     assert len(candidates) == 1
-    assert candidates[0]['extensions'] == ['.gguf']
+    assert candidates[0]['extensions'] == [
+        '.bin', '.gguf', '.pt', '.pth', '.safetensors', '.sft']
     assert len(candidates[0]['locations']) == 2
 
 

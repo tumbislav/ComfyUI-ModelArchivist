@@ -176,7 +176,7 @@
             "working": "working",
             "sync": "sync",
             "archive": "archive",
-            "some_selected_workflows_have_errors_editing_is_disabled": "Some selected workflows have errors. Editing is disabled.",
+            "selected_workflows_have_errors": "Some selected workflows have errors. Editing is disabled.",
             "apply_tags": "Apply tags",
             "to_working_set": "To working set",
             "sync_2": "Sync",
@@ -300,7 +300,7 @@
             "cannot_move_objects": "Cannot move objects",
             "move_objects": "Move objects",
             "different_subdirectories": "Different subdirectories",
-            "the_objects_are_currently_in_different_subdirectories_are_you_sure_you_want_to_move_them_to_the_same_subdirectory": "The objects are currently in different subdirectories. Are you sure you want to move them to the same subdirectory?"
+            "consolidate_objects": "The objects are currently in different subdirectories. Are you sure you want to move them to the same subdirectory?"
         },
         "settings_modal": {
             "settings": "Settings",
@@ -310,7 +310,7 @@
             "discard": "discard",
             "save": "save",
             "unsaved_changes": "Unsaved changes",
-            "save_changes_to_this_tab_before_continuing": "Save changes to this tab before continuing?",
+            "save_tab_changes": "Save changes to this tab before continuing?",
             "cancel_2": "Cancel",
             "discard_2": "Discard",
             "save_2": "Save",
@@ -319,7 +319,7 @@
             "cannot_delete_user_defined_type": "Cannot delete user-defined type",
             "cannot_save_model_extensions": "Cannot save model extensions",
             "cannot_save_workflow_settings": "Cannot save workflow settings",
-            "settings_saved_but_the_scan_could_not_start": "Settings saved, but the scan could not start",
+            "saved_scan_failed": "Settings saved, but the scan could not start",
             "cannot_save_settings": "Cannot save settings",
             "cannot_discover_model_mappings": "Cannot discover model mappings"
         },
@@ -330,7 +330,7 @@
             "close_repository_summary": "Close repository summary",
             "repository": "Repository",
             "the_server_is_not_responding": "The server is not responding",
-            "individual_types_can_be_scanned_from_the_settings_dialog": "Individual types can be scanned from the Settings dialog",
+            "scan_types_in_settings": "Individual types can be scanned from the Settings dialog",
             "loading_repository_summary": "Loading repository summary...",
             "models": "Models",
             "workflows": "Workflows",
@@ -347,7 +347,7 @@
             "user_types": "User types",
             "collections": "Collections",
             "remap_tags": "Remap tags",
-            "discard_the_unsaved_tag_mappings_and_close": "Discard the unsaved tag mappings and close?",
+            "discard_tag_mappings": "Discard the unsaved tag mappings and close?",
             "save_the_tag_mappings_before_continuing": "Save the tag mappings before continuing?",
             "keep_editing": "Keep editing",
             "discard_and_close": "Discard and close",
@@ -402,7 +402,7 @@
             "open_image_full_size": "Open full-size image",
             "model_archivist": "Model Archivist",
             "github": "GitHub:",
-            "https_github_com_tumbislav_comfyui_modelarchivist": "https://github.com/tumbislav/ComfyUI-ModelArchivist",
+            "repository_url": "https://github.com/tumbislav/ComfyUI-ModelArchivist",
             "author_tumbislav_nilski": "Author: Tumbislav Nilski",
             "coding_tumbislav_nilski_chatgpt": "Coding: Tumbislav Nilski, ChatGPT",
             "help": "Help",
@@ -469,7 +469,7 @@
             "always_run_a_full_scan_at_startup": "Always run a full scan at startup",
             "remember_last_open_tab": "Remember last open tab",
             "remember_last_used_filters": "Remember last used filters",
-            "changing_the_list_of_extensions_can_invalidate_parts_of_the_repository_please_rescan_before_continuing": "Changing the list of extensions can invalidate parts of the repository. Please rescan before continuing.",
+            "extensions_rescan_required": "Changing the list of extensions can invalidate parts of the repository. Please rescan before continuing.",
             "save": "Save",
             "save_and_scan": "Save & scan"
         },
@@ -484,7 +484,7 @@
             "to_working_set": "to working set",
             "sync": "sync",
             "to_archive": "to archive",
-            "some_selected_models_have_errors_editing_is_disabled": "Some selected models have errors. Editing is disabled.",
+            "selected_models_have_errors": "Some selected models have errors. Editing is disabled.",
             "set_base_model": "Set base model",
             "apply_base_model": "Apply base model",
             "apply_tags": "Apply tags",
@@ -497,11 +497,11 @@
             "cannot_start_model_operation": "Cannot start model operation",
             "model_operation_failed": "Model operation failed",
             "cannot_retrieve_model_operation": "Cannot retrieve model operation",
-            "models_of_different_types_cannot_be_moved_together": "Models of different types cannot be moved together.",
+            "mixed_types_cannot_move": "Models of different types cannot be moved together.",
             "cannot_move_models": "Cannot move models",
             "move_models": "Move models",
             "different_subdirectories": "Different subdirectories",
-            "the_models_are_currently_in_different_subdirectories_are_you_sure_you_want_to_move_them_to_the_same_subdirectory": "The models are currently in different subdirectories. Are you sure you want to move them to the same subdirectory?"
+            "consolidate_models": "The models are currently in different subdirectories. Are you sure you want to move them to the same subdirectory?"
         },
         "multi_model_collection_editor": {
             "add": "add",
@@ -545,7 +545,7 @@
             "move_down": "move down",
             "type": "Type:",
             "last_accessed": "Last accessed:",
-            "model_is_mismatched_synchronize_it_before_continuing": "Model is mismatched; synchronize it before continuing.",
+            "mismatched_model_sync_required": "Model is mismatched; synchronize it before continuing.",
             "file_name": "File name",
             "internal_name": "Internal name",
             "base_model": "Base model",
@@ -592,7 +592,7 @@
             "cannot_remove_model_from_collection": "Cannot remove model from collection"
         },
         "tag_editor": {
-            "start_with_a_letter_underscore_or_digit_0_9_use_name_characters_or_spaces_ascii_colon_and_dash_are_allowed_only_inside_the_tag": "Start with a letter, underscore, or digit (0–9). Use name characters or spaces; ASCII colon (:) and dash (-) are allowed only inside the tag.",
+            "tag_naming_rules": "Start with a letter, underscore, or digit (0–9). Use name characters or spaces; ASCII colon (:) and dash (-) are allowed only inside the tag.",
             "cannot_load_tag_rules": "Cannot load tag rules"
         },
         "relative_path_editor": {
@@ -660,7 +660,7 @@
             "to_working_set": "To working set",
             "sync": "Sync",
             "to_archive": "To archive",
-            "save_metadata_changes_before_running_location_actions": "Save metadata changes before running location actions.",
+            "save_metadata_before_location_actions": "Save metadata changes before running location actions.",
             "models": "Models",
             "workflows": "Workflows",
             "user_types": "User types",
@@ -675,7 +675,7 @@
             "request_failed": "Request failed",
             "unsaved_changes": "Unsaved changes",
             "discard_collection_metadata_changes": "Discard collection metadata changes?",
-            "save_collection_changes_before_continuing": "Save the collection changes before continuing?",
+            "save_collection_changes": "Save the collection changes before continuing?",
             "cannot_load_collection": "Cannot load collection",
             "cannot_load_members": "Cannot load members",
             "cannot_refresh_collection": "Cannot refresh collection",
@@ -695,6 +695,7 @@
         }
     },
     "common": {
+        "archive_working_locations": "Archive and working locations",
         "confirm": "Confirm",
         "confirm_please": "Confirm, please",
         "unsaved_changes": "Unsaved changes",
@@ -817,7 +818,8 @@
         "empty_collection": "Collection cannot be empty.",
         "unknown_collection": "Collection does not exist.",
         "duplicate_collection_member": "Duplicate collection member.",
-        "collection_cycle": "Collection membership cycle."
+        "collection_cycle": "Collection membership cycle.",
+        "state_refresh_failed": "Could not refresh the object status after the file operation. Rescan to check its current location."
     },
     "dynamic": {
         "has_tags": "Has tags",
@@ -891,6 +893,14 @@
         },
         "remap_tag_to": "Remap {tag} to",
         "refresh_section": "Refresh {section}",
+        "collection_object_count": {
+            "one": "({count} object) {name}",
+            "other": "({count} objects) {name}"
+        },
+        "remove_selected_objects": {
+            "one": "Remove selected objects from {count} collection?",
+            "other": "Remove selected objects from {count} collections?"
+        },
         "remove_selected_models": {
             "one": "Remove selected models from {count} collection?",
             "other": "Remove selected models from {count} collections?"
@@ -901,6 +911,6 @@
         "partial_objects_updated": "{completed} of {total} objects updated. {error}",
         "save_new_collection_before_continuing": "Save the new collection before continuing?",
         "save_tag_changes_before_continuing": "Save the tag changes before continuing?",
-        "save_multi_model_changes_before_continuing": "Save the model changes before continuing?"
+        "save_multi_model_changes": "Save the model changes before continuing?"
     }
 }

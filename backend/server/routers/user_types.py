@@ -175,36 +175,40 @@ async def update_user_object(id: str, data: UserObjectUpdate) -> dict:
 
 
 @router.post('/user-objects/{id}/synchronize')
-async def synchronize_user_object(id: str, response: Response,
-                                  simulate: bool = True) -> dict:
-    plan = repo.synchronize_user_object(id, True)
-    if simulate or not plan['allowed']:
-        return plan
-    if not repo.user_object_operation_requires_lro([id], plan['transfer_bytes']):
-        return repo.synchronize_user_object(id, False)
+def synchronize_user_object(id: str, response: Response,
+                            simulate: bool = True) -> dict:
     try:
+        if simulate:
+            return repo.synchronize_user_object(id, True)
+        if not repo.user_object_operation_requires_lro([id], 0):
+            with dispatcher.configuration_change():
+                return repo.synchronize_user_object(id, False)
         operation = dispatcher.submit(
             'user_object_sync',
             lambda report: repo.synchronize_user_object(id, False, report))
     except OperationBusyError as error:
         raise HTTPException(409, str(error))
+    except ArcException as error:
+        raise handle(error)
     response.status_code = 202
     return operation
 
 
 @router.post('/user-objects/{id}/move')
-async def move_user_object(id: str, destination: DeploymentStatus,
-                           response: Response, simulate: bool = True) -> dict:
-    plan = repo.move_user_object(id, destination, True)
-    if simulate or not plan['allowed']:
-        return plan
-    if not repo.user_object_operation_requires_lro([id], plan['transfer_bytes']):
-        return repo.move_user_object(id, destination, False)
+def move_user_object(id: str, destination: DeploymentStatus,
+                     response: Response, simulate: bool = True) -> dict:
     try:
+        if simulate:
+            return repo.move_user_object(id, destination, True)
+        if not repo.user_object_operation_requires_lro([id], 0):
+            with dispatcher.configuration_change():
+                return repo.move_user_object(id, destination, False)
         operation = dispatcher.submit(
             'user_object_move',
             lambda report: repo.move_user_object(id, destination, False, report))
     except OperationBusyError as error:
         raise HTTPException(409, str(error))
+    except ArcException as error:
+        raise handle(error)
     response.status_code = 202
     return operation

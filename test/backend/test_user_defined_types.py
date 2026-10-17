@@ -276,6 +276,63 @@ def test_folder_sync_is_an_exact_recursive_mirror(user_type_repository):
     assert not (archive / 'obsolete.bin').exists()
 
 
+@pytest.mark.parametrize('nested', [False, True])
+@pytest.mark.parametrize('destination', [DeploymentStatus.ARCHIVE, DeploymentStatus.WORKING])
+def test_folder_move_removes_entire_source_tree(user_type_repository, nested, destination):
+    engine, tmp_path = user_type_repository
+    item = repository.create_user_type(type_input(
+        tmp_path, object_class='folder', extensions=[]))
+    object_id = add_object(engine, item['id'], relative_path='dataset')
+    source_side = 'working_dir' if destination == DeploymentStatus.ARCHIVE else 'archive_dir'
+    target_side = 'archive_dir' if destination == DeploymentStatus.ARCHIVE else 'working_dir'
+    source = Path(item[source_side]) / 'dataset'
+    target = Path(item[target_side]) / 'dataset'
+    source.mkdir()
+    relative = Path('sub/deeper/data.bin') if nested else Path('data.bin')
+    (source / relative).parent.mkdir(parents=True, exist_ok=True)
+    (source / relative).write_bytes(b'training data')
+    (source / 'empty').mkdir()
+    (source / 'top.txt').write_bytes(b'top level')
+
+    result = repository.move_user_object(object_id, destination, False)
+
+    assert result['performed'] is True
+    assert result['warnings'] == []
+    assert not source.exists()
+    assert (target / relative).read_bytes() == b'training data'
+    assert (target / 'top.txt').read_bytes() == b'top level'
+    assert (target / 'empty').is_dir()
+    assert repository.get_user_object(object_id)['deployment'] == destination.value
+    assert repository.user_object_operation_requires_lro([object_id], 0) is True
+
+
+def test_partial_folder_move_reconciles_mismatched_state(user_type_repository, monkeypatch):
+    engine, tmp_path = user_type_repository
+    item = repository.create_user_type(type_input(
+        tmp_path, object_class='folder', extensions=[]))
+    object_id = add_object(engine, item['id'], relative_path='dataset')
+    source = Path(item['working_dir']) / 'dataset'
+    source.mkdir()
+    (source / 'data.bin').write_bytes(b'training data')
+    execute = repository.execute_file_action
+
+    def fail_cleanup(action, report_bytes=None):
+        if action.action == 'rmdir' and Path(action.destination) == source:
+            raise OSError('directory locked')
+        execute(action, report_bytes)
+
+    monkeypatch.setattr(repository, 'execute_file_action', fail_cleanup)
+    result = repository.move_user_object(object_id, DeploymentStatus.ARCHIVE, False)
+
+    assert result['performed'] is False
+    assert result['warnings'][0]['code'] == 'filesystem_error'
+    assert source.is_dir()
+    assert not (source / 'data.bin').exists()
+    assert (Path(item['archive_dir']) / 'dataset/data.bin').read_bytes() == b'training data'
+    refreshed = repository.get_user_object(object_id)
+    assert refreshed['deployment'] == DeploymentStatus.MISMATCH.value
+
+
 def test_operation_rechecks_hard_size_limit(user_type_repository):
     engine, tmp_path = user_type_repository
     item = repository.create_user_type(type_input(tmp_path, size_limit=3))

@@ -5,7 +5,7 @@
  * ---------------------------------------------------------------------------*/
 
 
-import { apiFetch, getUrl, parseResponse, type ApiResult } from '$lib/api';
+import { apiFetch, getUrl, parseResponse, serverUnresponsive, type ApiResult } from '$lib/api';
 import { locale } from '$lib/locale.svelte';
 import { type Operation } from '$lib/models';
 
@@ -31,21 +31,37 @@ class StatusMonitor {
     operation = $state<Operation | null>(null);
     error = $state<string | null>(null);
     scanRevision = $state(0);
+    userObjectRevision = $state(0);
     scanErrors = $state<Record<string, ScanIssue[]>>({models: [], workflows: [], user_objects: []});
     get hasScanErrors(): boolean {
         return Object.values(this.scanErrors).some(issues => issues.length > 0);
     }
     private completedScans = new Set<string>();
+    private completedUserOperations = new Set<string>();
     private timer: ReturnType<typeof setTimeout> | null = null;
     private users = 0;
     private refreshing = false;
     private trackedId: string | null = null;
+    private recovering = false;
+    private stopRecovery: (() => void) | null = null;
 
     start(): () => void {
         this.users += 1;
-        if (this.users === 1) void this.refresh();
+        if (this.users === 1) {
+            this.stopRecovery = serverUnresponsive.subscribe(unresponsive => {
+                if (unresponsive) {
+                    this.recovering = true;
+                    this.schedule(ACTIVE_INTERVAL);
+                }
+            });
+            void this.refresh();
+        }
         return () => {
             this.users = Math.max(0, this.users - 1);
+            if (this.users === 0) {
+                this.stopRecovery?.();
+                this.stopRecovery = null;
+            }
             if (this.users === 0 && this.timer !== null) {
                 clearTimeout(this.timer);
                 this.timer = null;
@@ -80,6 +96,7 @@ class StatusMonitor {
             const status = await parseResponse<RepositoryStatus>(response, value => value,
                                                                   'repositoryStatus');
             if (status.ok) {
+                this.recovering = false;
                 this.counts = status.data.counts;
                 if (this.trackedId !== trackedId) return;
                 let operation = status.data.operation;
@@ -99,9 +116,19 @@ class StatusMonitor {
                     operation = result.data;
                 }
                 this.operation = operation;
+                if (operation?.type !== 'scan' &&
+                    (operation?.state === 'pending' || operation?.state === 'running')) {
+                    this.trackedId = operation.id;
+                }
                 this.error = null;
                 if (operation !== null &&
                     (operation.state === 'succeeded' || operation.state === 'failed')) {
+                    if (operation.type.startsWith('user_object_') &&
+                        !this.completedUserOperations.has(operation.id)) {
+                        this.completedUserOperations.add(operation.id);
+                        this.userObjectRevision += 1;
+                        if (operation.state === 'failed') this.error = operation.error?.message ?? null;
+                    }
                     if (operation.type === 'scan' && !this.completedScans.has(operation.id)) {
                         this.completedScans.add(operation.id);
                         const scopes = operation.progress.scope === 'all' || !operation.progress.scope
@@ -128,7 +155,7 @@ class StatusMonitor {
             this.refreshing = false;
             const active = this.operation !== null &&
                 (this.operation.state === 'pending' || this.operation.state === 'running');
-            if (active || this.trackedId !== null) this.schedule(ACTIVE_INTERVAL);
+            if (active || this.trackedId !== null || this.recovering) this.schedule(ACTIVE_INTERVAL);
         }
     }
 

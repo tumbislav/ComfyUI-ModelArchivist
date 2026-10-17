@@ -22,6 +22,10 @@ English catalog. Translate values only. Do not assemble translated sentences fro
 fragments. Parameters use braces, for example `{name}` and `{count}`; their spelling
 must remain unchanged.
 
+Keep each key segment at most 40 characters long. Prefer a short semantic name
+such as `consolidate_objects` over the full English sentence. Update all catalogs
+and references together when renaming a key.
+
 New catalog templates use `null` for untranslated values. Leave a value as `null` to
 use the English fallback, or replace it with translated text. This makes partially
 translated catalogs safe to select while work is in progress.

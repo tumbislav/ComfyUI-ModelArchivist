@@ -176,6 +176,6 @@
     <p class="error-message">{validationError}</p>
 {:else if editable && rulesReady && query && normalizeTag(query) === null}
     <p class="error-message">
-        {locale.t('ui.tag_editor.start_with_a_letter_underscore_or_digit_0_9_use_name_characters_or_spaces_ascii_colon_and_dash_are_allowed_only_inside_the_tag')}
+        {locale.t('ui.tag_editor.tag_naming_rules')}
     </p>
 {/if}

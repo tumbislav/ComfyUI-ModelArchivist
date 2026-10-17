@@ -50,6 +50,9 @@ them and moves them (very carefully), but it doesn't prevent you from moving fil
 means that its catalog can get out of sync. Depending on how you set things up, this can happen every time you
 run a Comfy workflow. This isn't a problem, re-scanning your folders is quick and painless. More on that later.
 
+## What's new
+[See the changelog.](./CHANGES.md)
+
 ## How to set it up
 
 Model Archivist can be set up in one of two ways: as a standalone application or as a ComfyUI 

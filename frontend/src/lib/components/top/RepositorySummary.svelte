@@ -171,7 +171,7 @@
 
                             {#if section.individual}
                                 <div class="annotation repository-annotation">
-                                    {locale.t('ui.repository_summary.individual_types_can_be_scanned_from_the_settings_dialog')}
+                                    {locale.t('ui.repository_summary.scan_types_in_settings')}
                                 </div>
                             {/if}
                         </div>
